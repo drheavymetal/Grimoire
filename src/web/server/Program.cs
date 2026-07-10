@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Grimoire.Library.Data;
 using Grimoire.Library.Models;
 using Grimoire.Server.Auth;
+using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,15 @@ string[] allowedOrigins = builder.Configuration.GetSection("Cors:Origins").Get<s
 builder.Services.AddCors(options =>
     options.AddPolicy(CorsPolicy, policy =>
         policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+
+// Cover Art Archive proxy (feature B6): a typed HttpClient plus an on-disk cache.
+builder.Services.Configure<CoverCacheOptions>(builder.Configuration.GetSection("CoverCache"));
+builder.Services.AddHttpClient<CoverArtCache>(client =>
+{
+    client.BaseAddress = new Uri("https://coverartarchive.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Grimoire/0.1 ( pmanso@go2chain.es )");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

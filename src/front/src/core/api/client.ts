@@ -6,6 +6,11 @@ import type { ArtistDetail, ArtistSummary } from '../domain/types';
 export interface GrimoireClient {
   searchArtists(query: string, limit: number, signal?: AbortSignal): Promise<ArtistSummary[]>;
   getArtist(id: string, signal?: AbortSignal): Promise<ArtistDetail>;
+  /**
+   * URL of the proxied, disk-cached cover for a release-group MBID. Pure string building
+   * (no fetch, no DOM), so it stays portable; the UI feeds it to an <img src>.
+   */
+  coverUrl(mbid: string): string;
 }
 
 export class ApiError extends Error {
@@ -44,6 +49,9 @@ export function createGrimoireClient(
     },
     getArtist(id, signal) {
       return getJson<ArtistDetail>(`/api/artists/${encodeURIComponent(id)}`, signal);
+    },
+    coverUrl(mbid) {
+      return `${root}/api/covers/release-group/${encodeURIComponent(mbid)}`;
     },
   };
 }

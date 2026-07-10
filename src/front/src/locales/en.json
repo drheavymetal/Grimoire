@@ -29,12 +29,28 @@
     "formed": "Formed",
     "dissolved": "Dissolved",
     "origin": "Origin",
+    "rank": "Rank",
     "tags": "Tags",
     "noTags": "No tags recorded. The margin is quiet here.",
+    "bio": "Biography",
+    "noBio": "No biography gathered. Nothing has been written about this band yet.",
+    "lineage": "Lineage",
+    "noLineage": "No lineage mapped yet. Shared members arrive with the Bloodline pass.",
     "releases": "Discography",
     "noReleases": "No releases recorded yet. The tape was never pressed.",
     "listenersUnknown": "Listener count not yet gathered",
-    "rankUnknown": "Rank not yet inscribed"
+    "rankUnknown": "Not yet inscribed"
+  },
+  "cover": {
+    "alt": "Cover of {{title}}",
+    "none": "No cover"
+  },
+  "edgeKind": {
+    "MemberOf": "Member of",
+    "SideProject": "Side project",
+    "Collaboration": "Collaboration",
+    "Teacher": "Teacher",
+    "InfluencedBy": "Influenced by"
   },
   "rank": {
     "Known": "Known",

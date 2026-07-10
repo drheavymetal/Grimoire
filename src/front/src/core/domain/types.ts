@@ -18,6 +18,7 @@ export interface ArtistSummary {
 
 export interface Release {
   id: string;
+  mbid: string;
   title: string;
   type: ReleaseType;
   releaseDate: string | null;

@@ -81,8 +81,27 @@ public class MbRelation
     [JsonPropertyName("type")]
     public string? Type { get; set; }
 
+    [JsonPropertyName("direction")]
+    public string? Direction { get; set; }
+
+    [JsonPropertyName("begin")]
+    public string? Begin { get; set; }
+
+    [JsonPropertyName("end")]
+    public string? End { get; set; }
+
+    [JsonPropertyName("ended")]
+    public bool? Ended { get; set; }
+
+    [JsonPropertyName("attributes")]
+    public List<string>? Attributes { get; set; }
+
     [JsonPropertyName("url")]
     public MbUrl? Url { get; set; }
+
+    /// <summary>The artist on the other end of an artist-artist relation (e.g. a band member).</summary>
+    [JsonPropertyName("artist")]
+    public MbArtist? Artist { get; set; }
 }
 
 public class MbUrl

@@ -13,6 +13,7 @@ public record ArtistSummaryDto(
 /// <summary>A release, for the discography list on the artist page (feature B5).</summary>
 public record ReleaseDto(
     Guid Id,
+    Guid Mbid,
     string Title,
     ReleaseType Type,
     DateOnly? ReleaseDate,

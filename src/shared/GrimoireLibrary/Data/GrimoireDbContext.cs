@@ -29,6 +29,8 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Label> Labels => Set<Label>();
 
+    public DbSet<CorpusStat> CorpusStats => Set<CorpusStat>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -112,6 +114,17 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.ToTable("labels");
             entity.HasKey(l => l.Id);
             entity.HasIndex(l => l.Mbid).IsUnique();
+        });
+
+        builder.Entity<CorpusStat>(entity =>
+        {
+            entity.ToTable("corpus_stats");
+            entity.HasKey(c => c.Id);
+
+            // Single fixed-key row: the id is set explicitly (to CorpusStat.SingletonId),
+            // never generated, so upserting the mean is a plain find-or-insert on id = 1.
+            entity.Property(c => c.Id).ValueGeneratedNever();
+            entity.Property(c => c.MeanEmbedding).HasColumnType("vector(768)");
         });
     }
 }

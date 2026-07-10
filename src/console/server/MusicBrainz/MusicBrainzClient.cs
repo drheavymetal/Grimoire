@@ -57,6 +57,16 @@ public class MusicBrainzClient
         return await GetAsync<MbArtist>(url, ct);
     }
 
+    /// <summary>
+    /// Fetches an artist with its artist-artist relations (band membership with dates and
+    /// instruments). Feeds the lineup timeline and Bloodline (features B7/B8/B16).
+    /// </summary>
+    public async Task<MbArtist?> GetArtistRelationsAsync(string mbid, CancellationToken ct)
+    {
+        string url = $"artist/{mbid}?inc=artist-rels&fmt=json";
+        return await GetAsync<MbArtist>(url, ct);
+    }
+
     public async Task<ReleaseGroupResponse?> GetReleaseGroupsAsync(string artistMbid, CancellationToken ct)
     {
         string url = $"release-group?artist={artistMbid}&limit=25&fmt=json";

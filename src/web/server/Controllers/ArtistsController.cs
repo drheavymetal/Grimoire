@@ -73,7 +73,7 @@ public class ArtistsController : ControllerBase
         List<ReleaseDto> releases = artist.Releases
             .OrderBy(r => r.ReleaseDate ?? DateOnly.MaxValue)
             .ThenBy(r => r.Title)
-            .Select(r => new ReleaseDto(r.Id, r.Title, r.Type, r.ReleaseDate, r.CoverUrl))
+            .Select(r => new ReleaseDto(r.Id, r.Mbid, r.Title, r.Type, r.ReleaseDate, r.CoverUrl))
             .ToList();
 
         ArtistDetailDto dto = new(

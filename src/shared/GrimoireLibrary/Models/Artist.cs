@@ -43,6 +43,14 @@ public class Artist
     /// <summary>Streaming and external links, keyed by service. Stored as jsonb.</summary>
     public Dictionary<string, string>? Links { get; set; }
 
+    /// <summary>
+    /// A 30–45 s audio preview URL (iTunes first, Deezer as complement — DECISIONS D25).
+    /// Null when neither source has audio for this artist: roughly half the underground is
+    /// genuinely inaudible, so null is a real gap, never invented. The Rite pool is filtered
+    /// on <c>preview_url IS NOT NULL</c>.
+    /// </summary>
+    public string? PreviewUrl { get; set; }
+
     public string? ImageUrl { get; set; }
 
     public List<Release> Releases { get; set; } = [];

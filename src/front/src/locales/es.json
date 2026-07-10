@@ -29,12 +29,28 @@
     "formed": "Formada",
     "dissolved": "Disuelta",
     "origin": "Origen",
+    "rank": "Rango",
     "tags": "Etiquetas",
     "noTags": "Sin etiquetas registradas. El margen está en silencio aquí.",
+    "bio": "Biografía",
+    "noBio": "Sin biografía recopilada. Nadie ha escrito todavía sobre esta banda.",
+    "lineage": "Linaje",
+    "noLineage": "Linaje aún sin trazar. Los miembros compartidos llegan con el pase de Bloodline.",
     "releases": "Discografía",
     "noReleases": "Sin lanzamientos registrados todavía. La cinta nunca se prensó.",
     "listenersUnknown": "Recuento de oyentes aún sin recopilar",
-    "rankUnknown": "Rango aún sin inscribir"
+    "rankUnknown": "Aún sin inscribir"
+  },
+  "cover": {
+    "alt": "Portada de {{title}}",
+    "none": "Sin portada"
+  },
+  "edgeKind": {
+    "MemberOf": "Miembro de",
+    "SideProject": "Proyecto paralelo",
+    "Collaboration": "Colaboración",
+    "Teacher": "Maestro",
+    "InfluencedBy": "Influida por"
   },
   "rank": {
     "Known": "Conocida",
