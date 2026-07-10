@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+
+/* Toggle dark utilities by the .dark class on <html> (set by the anti-FOUC script). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Two real artifacts (DECISIONS D14):
+ *   light = the photocopied flyer (paper, toner, halftone)
+ *   dark  = the cassette (the void, clean, no grain)
+ * Palette hex values converted to OKLCH.
+ */
+:root {
+  --paper: oklch(0.875 0.011 95.2);
+  --ink: oklch(0.203 0.008 297.1);
+  --ash-light: oklch(0.442 0.008 88.7);
+  --sulphur-light: oklch(0.587 0.114 97.5);
+  --oxblood: oklch(0.32 0.108 21.9);
+
+  --surface-bg: var(--paper);
+  --surface-panel: oklch(0.915 0.008 95);
+  --text-strong: var(--ink);
+  --text-muted: var(--ash-light);
+  --accent: var(--sulphur-light);
+  --danger: var(--oxblood);
+  --line: oklch(0.78 0.008 95);
+}
+
+.dark {
+  --void: oklch(0.151 0.004 285.9);
+  --toner: oklch(0.192 0.004 286);
+  --ash-dark: oklch(0.677 0.008 80.7);
+  --bone: oklch(0.913 0.013 86.8);
+  --sulphur-dark: oklch(0.811 0.14 100.3);
+
+  --surface-bg: var(--void);
+  --surface-panel: var(--toner);
+  --text-strong: var(--bone);
+  --text-muted: var(--ash-dark);
+  --accent: var(--sulphur-dark);
+  --danger: var(--oxblood);
+  --line: oklch(0.27 0.005 286);
+}
+
+@theme inline {
+  --color-bg: var(--surface-bg);
+  --color-panel: var(--surface-panel);
+  --color-strong: var(--text-strong);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-line: var(--line);
+
+  --font-display: 'Redaction', Georgia, serif;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--surface-bg);
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Halftone only in light mode; the void has no grain. */
+:root:not(.dark) body {
+  background-image: radial-gradient(var(--line) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+}

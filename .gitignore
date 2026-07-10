@@ -1,0 +1,31 @@
+# .NET
+bin/
+obj/
+*.user
+[Dd]ebug/
+[Rr]elease/
+.vs/
+artifacts/
+
+# Node / front
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp

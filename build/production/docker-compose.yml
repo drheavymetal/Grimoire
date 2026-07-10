@@ -1,0 +1,59 @@
+name: grimoire
+
+# Production topology for Cloudmax: Postgres (destilled Grimoire DB) + API + static
+# front, fronted by an external Traefik. Images are built from the repository root as
+# build context. Set the secrets via an .env file next to this compose.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: grimoire
+      POSTGRES_USER: grimoire
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - grimoire-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grimoire -d grimoire"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: src/web/server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Grimoire: "Host=postgres;Port=5432;Database=grimoire;Username=grimoire;Password=${POSTGRES_PASSWORD}"
+      Jwt__Issuer: grimoire
+      Jwt__Audience: grimoire-client
+      Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      Cors__Origins__0: "https://${GRIMOIRE_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grimoire-api.rule=Host(`${GRIMOIRE_HOST}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.grimoire-api.entrypoints=websecure"
+      - "traefik.http.routers.grimoire-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grimoire-api.loadbalancer.server.port=8080"
+
+  front:
+    build:
+      context: ../..
+      dockerfile: src/front/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grimoire-front.rule=Host(`${GRIMOIRE_HOST}`)"
+      - "traefik.http.routers.grimoire-front.entrypoints=websecure"
+      - "traefik.http.routers.grimoire-front.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grimoire-front.loadbalancer.server.port=80"
+
+volumes:
+  grimoire-pgdata:

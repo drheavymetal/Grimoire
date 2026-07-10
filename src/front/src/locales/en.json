@@ -1,0 +1,54 @@
+{
+  "app": {
+    "title": "Grimoire",
+    "tagline": "Music discovery for the periphery"
+  },
+  "nav": {
+    "search": "Search",
+    "toggleTheme": "Toggle theme",
+    "language": "Language"
+  },
+  "search": {
+    "heading": "Search the grimoire",
+    "placeholder": "Name a band. Darkthrone, Wardruna, Neurosis…",
+    "hint": "Type at least two letters. Spelling need not be exact.",
+    "searching": "Searching the margins…",
+    "empty": "Nothing answers to that name here. Try another spelling.",
+    "resultCount_one": "{{count}} band found",
+    "resultCount_other": "{{count}} bands found",
+    "error": "The grimoire would not open. Try again.",
+    "formedIn": "formed {{year}}",
+    "formedUnknown": "year of formation unrecorded",
+    "countryUnknown": "origin unrecorded"
+  },
+  "artist": {
+    "loading": "Turning to that page…",
+    "notFound": "That page has been torn out. The band is not in the grimoire.",
+    "error": "The page would not load. Try again.",
+    "back": "Back to search",
+    "formed": "Formed",
+    "dissolved": "Dissolved",
+    "origin": "Origin",
+    "tags": "Tags",
+    "noTags": "No tags recorded. The margin is quiet here.",
+    "releases": "Discography",
+    "noReleases": "No releases recorded yet. The tape was never pressed.",
+    "listenersUnknown": "Listener count not yet gathered",
+    "rankUnknown": "Rank not yet inscribed"
+  },
+  "rank": {
+    "Known": "Known",
+    "Obscure": "Obscure",
+    "Hidden": "Hidden",
+    "Forgotten": "Forgotten",
+    "Nameless": "Nameless"
+  },
+  "releaseType": {
+    "Album": "Albums",
+    "Ep": "EPs",
+    "Demo": "Demos",
+    "Split": "Splits",
+    "Live": "Live",
+    "Compilation": "Compilations"
+  }
+}

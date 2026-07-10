@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/shared/">
+    <Project Path="../shared/GrimoireLibrary/GrimoireLibrary.csproj" />
+  </Folder>
+  <Folder Name="/web/">
+    <Project Path="server/Grimoire.Server.csproj" />
+    <Project Path="GrimoireTest/Grimoire.Tests.csproj" />
+  </Folder>
+  <Folder Name="/console/">
+    <Project Path="../console/server/Grimoire.Worker.csproj" />
+  </Folder>
+</Solution>

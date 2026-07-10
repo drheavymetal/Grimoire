@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+
+# Keep the broad IDE style ruleset as suggestions so -warnaserror stays focused on the
+# brace rule and real compiler warnings, not the full IDE ruleset.
+dotnet_analyzer_diagnostic.category-Style.severity = suggestion
+
+# Braces are always required, even for single-line bodies. Enforced at build time
+# because EnforceCodeStyleInBuild is set in every csproj. Declared after the bulk
+# category setting so this specific rule wins.
+csharp_prefer_braces = true:warning
+dotnet_diagnostic.IDE0011.severity = warning
+
+[*.{js,jsx,ts,tsx,json,css,html,yml,yaml}]
+indent_size = 2
+
+[*.{csproj,slnx,props,targets}]
+indent_size = 2

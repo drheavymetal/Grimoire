@@ -1,0 +1,54 @@
+{
+  "app": {
+    "title": "Grimoire",
+    "tagline": "Descubrimiento musical para la periferia"
+  },
+  "nav": {
+    "search": "Buscar",
+    "toggleTheme": "Cambiar tema",
+    "language": "Idioma"
+  },
+  "search": {
+    "heading": "Busca en el grimorio",
+    "placeholder": "Nombra una banda. Darkthrone, Wardruna, Neurosis…",
+    "hint": "Escribe al menos dos letras. No hace falta acertar la ortografía.",
+    "searching": "Buscando en los márgenes…",
+    "empty": "Nada responde a ese nombre aquí. Prueba otra grafía.",
+    "resultCount_one": "{{count}} banda encontrada",
+    "resultCount_other": "{{count}} bandas encontradas",
+    "error": "El grimorio no quiso abrirse. Inténtalo de nuevo.",
+    "formedIn": "formada en {{year}}",
+    "formedUnknown": "año de formación sin registrar",
+    "countryUnknown": "origen sin registrar"
+  },
+  "artist": {
+    "loading": "Pasando a esa página…",
+    "notFound": "Esa página fue arrancada. La banda no está en el grimorio.",
+    "error": "La página no quiso cargar. Inténtalo de nuevo.",
+    "back": "Volver a la búsqueda",
+    "formed": "Formada",
+    "dissolved": "Disuelta",
+    "origin": "Origen",
+    "tags": "Etiquetas",
+    "noTags": "Sin etiquetas registradas. El margen está en silencio aquí.",
+    "releases": "Discografía",
+    "noReleases": "Sin lanzamientos registrados todavía. La cinta nunca se prensó.",
+    "listenersUnknown": "Recuento de oyentes aún sin recopilar",
+    "rankUnknown": "Rango aún sin inscribir"
+  },
+  "rank": {
+    "Known": "Conocida",
+    "Obscure": "Oscura",
+    "Hidden": "Oculta",
+    "Forgotten": "Olvidada",
+    "Nameless": "Sin nombre"
+  },
+  "releaseType": {
+    "Album": "Álbumes",
+    "Ep": "EPs",
+    "Demo": "Demos",
+    "Split": "Splits",
+    "Live": "En directo",
+    "Compilation": "Recopilatorios"
+  }
+}
