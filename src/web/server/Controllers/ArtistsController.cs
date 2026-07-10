@@ -1,6 +1,6 @@
 using Grimoire.Library.Data;
-using Grimoire.Library.Models;
 using Grimoire.Server.Dtos;
+using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,10 +15,12 @@ namespace Grimoire.Server.Controllers;
 public class ArtistsController : ControllerBase
 {
     private readonly GrimoireDbContext _db;
+    private readonly ArtistDetailBuilder _details;
 
-    public ArtistsController(GrimoireDbContext db)
+    public ArtistsController(GrimoireDbContext db, ArtistDetailBuilder details)
     {
         _db = db;
+        _details = details;
     }
 
     /// <summary>
@@ -54,45 +56,12 @@ public class ArtistsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ArtistDetailDto>> GetById(Guid id, CancellationToken ct = default)
     {
-        Artist? artist = await _db.Artists
-            .AsNoTracking()
-            .Include(a => a.Releases)
-            .FirstOrDefaultAsync(a => a.Id == id, ct);
+        ArtistDetailDto? dto = await _details.BuildAsync(id, ct);
 
-        if (artist is null)
+        if (dto is null)
         {
             return NotFound();
         }
-
-        List<ArtistEdgeDto> edges = await _db.ArtistEdges
-            .AsNoTracking()
-            .Where(e => e.FromId == id || e.ToId == id)
-            .Select(e => new ArtistEdgeDto(e.FromId, e.ToId, e.Kind, e.BeginDate, e.EndDate, e.Instruments))
-            .ToListAsync(ct);
-
-        List<ReleaseDto> releases = artist.Releases
-            .OrderBy(r => r.ReleaseDate ?? DateOnly.MaxValue)
-            .ThenBy(r => r.Title)
-            .Select(r => new ReleaseDto(r.Id, r.Mbid, r.Title, r.Type, r.ReleaseDate, r.CoverUrl))
-            .ToList();
-
-        ArtistDetailDto dto = new(
-            artist.Id,
-            artist.Name,
-            artist.SortName,
-            artist.Kind,
-            artist.Country,
-            artist.City,
-            artist.FormedYear,
-            artist.DissolvedYear,
-            artist.Listeners,
-            artist.Rank,
-            artist.Tags,
-            artist.Abstract,
-            artist.ImageUrl,
-            artist.Links,
-            releases,
-            edges);
 
         return Ok(dto);
     }

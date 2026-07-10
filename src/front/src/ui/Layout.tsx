@@ -3,9 +3,11 @@ import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { applyTheme, readTheme, type Theme } from '../platform/theme.web';
 import { persistLanguage } from '../i18n';
+import { useAuth } from './auth/AuthProvider';
 
 export function Layout() {
   const { t, i18n } = useTranslation();
+  const { isAuthenticated, logout } = useAuth();
   const [theme, setTheme] = useState<Theme>(() => readTheme());
 
   function toggleTheme() {
@@ -27,7 +29,25 @@ export function Layout() {
           <Link to="/" className="font-display text-2xl tracking-wide text-strong no-underline">
             {t('app.title')}
           </Link>
-          <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-4">
+            <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.rite')}
+            </Link>
+            <Link
+              to="/grimoire"
+              className="font-mono text-xs uppercase text-muted no-underline hover:text-accent"
+            >
+              {t('nav.grimoire')}
+            </Link>
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={logout}
+                className="font-mono text-xs uppercase text-muted hover:text-accent"
+              >
+                {t('nav.logout')}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={toggleLanguage}
@@ -43,7 +63,7 @@ export function Layout() {
             >
               {theme === 'dark' ? '☾' : '☀'}
             </button>
-          </div>
+          </nav>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-5 py-8">

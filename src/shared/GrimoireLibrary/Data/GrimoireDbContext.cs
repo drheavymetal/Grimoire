@@ -9,10 +9,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Grimoire.Library.Data;
 
 /// <summary>
-/// EF Core context for Grimoire. Includes ASP.NET Identity tables plus the domain
-/// tables populated in movement I: artists, artist edges, releases and labels.
-/// Credit, UserTaste and Rite are modelled but intentionally not mapped to tables
-/// in this pass, because nothing writes them yet.
+/// EF Core context for Grimoire. Includes ASP.NET Identity tables, the domain tables
+/// populated in movement I (artists, artist edges, releases, labels), and the movement II
+/// discovery tables: user_taste and rites, written by The Rite. Credit remains modelled but
+/// unmapped until the credits ETL lands.
 /// </summary>
 public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Guid>, Guid>
 {
@@ -30,6 +30,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
     public DbSet<Label> Labels => Set<Label>();
 
     public DbSet<CorpusStat> CorpusStats => Set<CorpusStat>();
+
+    public DbSet<UserTaste> UserTastes => Set<UserTaste>();
+
+    public DbSet<Rite> Rites => Set<Rite>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -125,6 +129,47 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             // never generated, so upserting the mean is a plain find-or-insert on id = 1.
             entity.Property(c => c.Id).ValueGeneratedNever();
             entity.Property(c => c.MeanEmbedding).HasColumnType("vector(768)");
+        });
+
+        builder.Entity<UserTaste>(entity =>
+        {
+            entity.ToTable("user_taste");
+
+            // One taste row per user; the user id is the primary key (SPEC §10).
+            entity.HasKey(t => t.UserId);
+            entity.Property(t => t.UserId).ValueGeneratedNever();
+
+            // Both vectors are already CENTRED (DECISIONS D26): they are built by averaging
+            // stored artist embeddings, which the ETL already centred. Never re-centre them.
+            entity.Property(t => t.Embedding).HasColumnType("vector(768)");
+            entity.Property(t => t.Repulsion).HasColumnType("vector(768)");
+
+            // Delete the taste when the account goes.
+            entity.HasOne<GrimoireUser>()
+                .WithOne()
+                .HasForeignKey<UserTaste>(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Rite>(entity =>
+        {
+            entity.ToTable("rites");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.State).HasConversion<string>().HasMaxLength(16);
+
+            // The engine's core query filters and the "already rited" exclusion both hit
+            // (user_id, artist_id) — SPEC §10.
+            entity.HasIndex(r => new { r.UserId, r.ArtistId });
+
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Artist>()
+                .WithMany()
+                .HasForeignKey(r => r.ArtistId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

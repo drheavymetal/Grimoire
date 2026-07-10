@@ -18,7 +18,9 @@ describe('createGrimoireClient', () => {
           headers: { 'content-type': 'application/json' },
         }),
     );
-    const client = createGrimoireClient('http://api.test', fetchImpl as unknown as typeof fetch);
+    const client = createGrimoireClient('http://api.test', {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
 
     await client.searchArtists('darkthrone', 20);
 
@@ -30,7 +32,9 @@ describe('createGrimoireClient', () => {
 
   it('throws ApiError carrying the status on a non-ok response', async () => {
     const fetchImpl = vi.fn(async () => new Response('nope', { status: 404 }));
-    const client = createGrimoireClient('http://api.test', fetchImpl as unknown as typeof fetch);
+    const client = createGrimoireClient('http://api.test', {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
 
     await expect(client.getArtist('missing')).rejects.toBeInstanceOf(ApiError);
   });

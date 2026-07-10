@@ -15,11 +15,17 @@ import './styles.css';
 import i18n from './i18n';
 import { createGrimoireClient } from './core/api/client';
 import { GrimoireClientProvider } from './core/api/context';
+import { authStore } from './platform/authStore.web';
+import { AuthProvider } from './ui/auth/AuthProvider';
 import { router } from './ui/routes';
 
-// The base URL is resolved here, in the web entry point, and injected into core.
+// The base URL is resolved here, in the web entry point, and injected into core. The access
+// token getter is injected too, so core attaches the JWT without ever touching storage
+// (invariant 6): the token lives in the platform authStore.
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
-const grimoireClient = createGrimoireClient(apiBaseUrl);
+const grimoireClient = createGrimoireClient(apiBaseUrl, {
+  getAccessToken: () => authStore.getAccessToken(),
+});
 const queryClient = new QueryClient();
 
 const rootElement = document.getElementById('root');
@@ -33,7 +39,9 @@ createRoot(rootElement).render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <GrimoireClientProvider value={grimoireClient}>
-          <RouterProvider router={router} />
+          <AuthProvider>
+            <RouterProvider router={router} />
+          </AuthProvider>
         </GrimoireClientProvider>
       </QueryClientProvider>
     </I18nextProvider>

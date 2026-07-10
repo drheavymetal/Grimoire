@@ -94,6 +94,35 @@ builder.Services.AddHttpClient<CoverArtCache>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 
+// The Rite (movement II). Artist detail is shared by the artist page and the reveal.
+builder.Services.AddScoped<ArtistDetailBuilder>();
+
+// The discovery engine and its tunables (percentile ring — DECISIONS D26).
+RiteEngineOptions riteOptions = builder.Configuration.GetSection("Rite").Get<RiteEngineOptions>()
+    ?? new RiteEngineOptions();
+builder.Services.AddSingleton(riteOptions);
+builder.Services.AddScoped<RiteEngine>();
+
+// Audio proxy (SPEC §5.3): streams previews server-side, never leaking the origin URL. SSRF is
+// closed off by an allow-list; no redirects are followed onto some other host.
+builder.Services.AddHttpClient<PreviewAudioProxy>(client =>
+    {
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Grimoire/0.1 ( pmanso@go2chain.es )");
+        client.Timeout = TimeSpan.FromSeconds(20);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
+// Last.fm cold start (feature C1). Disabled while no API key is configured (blocker Q5); the
+// endpoint then reports the gap rather than inventing scrobbles.
+LastFmOptions lastFmOptions = builder.Configuration.GetSection("LastFm").Get<LastFmOptions>()
+    ?? new LastFmOptions();
+builder.Services.AddSingleton(lastFmOptions);
+builder.Services.AddHttpClient<IColdStartImport, LastFmColdStart>(client =>
+{
+    client.BaseAddress = new Uri("https://ws.audioscrobbler.com/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
