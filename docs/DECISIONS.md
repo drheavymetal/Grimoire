@@ -465,17 +465,56 @@ El icono ya encarna la pérdida de generación. Si además la tipografía se deg
 
 ---
 
+## D28 — Postura de autenticación de la ola 0, con su exposición escrita
+`2026-07-10` · vigente
+
+El esqueleto trae ASP.NET Identity + JWT Bearer (access 15 min, refresh 16 días), y dos cosas que no se deciden solas.
+
+**La clave de firma vive en `appsettings.json`** con el valor `dev-only-grimoire-signing-key-change-in-production-…`. Que una clave de desarrollo esté commiteada es normal; lo que no lo es era que **nada impidiese arrancar en producción con ella**. Cualquiera que hubiese leído el repo podría firmarse un token. Se añade una **guarda de arranque**: si el entorno no es `Development` y la clave es la de desarrollo o tiene menos de 32 bytes (HS256 necesita 256 bits), el proceso no levanta y el mensaje dice qué variable poner. Con tests que lo comprueban en ambos sentidos.
+
+La contraseña de Postgres (`grimoire`) también está commiteada, y ahí sí no hay problema: es la misma del `docker-compose` de desarrollo y no protege nada.
+
+**Los refresh tokens no son revocables.** No hay tabla: son *stateless*. Consecuencia, dicha sin adornos:
+
+- Un refresh token robado es válido **dieciséis días**.
+- Cerrar sesión **no lo invalida**. No existe logout del lado del servidor.
+- Cambiar la contraseña **tampoco** lo invalida.
+
+Para un puñado de amigos es un intercambio aceptable, pero es una **decisión**, no un accidente. El arreglo más barato, cuando toque: una claim de versión de token (o el `security_stamp` de Identity) comprobada en cada refresco — una columna y una comparación. **No se implementa ahora**: se decide explícitamente, no se cuela.
+
+---
+
+## D29 — Decisiones de implementación que tomó la ola 0
+`2026-07-10` · vigente
+
+El agente del esqueleto tuvo que resolver seis cosas que la spec no fijaba. Se ratifican todas:
+
+- **PostgreSQL 17, no 16.** La spec decía 16; la imagen `pgvector/pgvector:pg17` es la que está mantenida. Nada de lo que usamos depende de la diferencia.
+- **Enums guardados como texto**, no como `smallint`. Legible en `psql` y a prueba de reordenaciones del enum en C#. El coste de espacio es irrelevante a esta escala.
+- **`snake_case` en las columnas**, vía `EFCore.NamingConventions`. EF generaba `PascalCase` entrecomillado y el esquema de la spec está en `snake_case`; sin esto, cualquier SQL escrito a mano falla.
+- **`releases.mbid` es único globalmente**, y los splits y recopilatorios aparecen bajo varios artistas. Se atribuyen **al primer artista que los importa**. Es arbitrario y hay que revisarlo cuando `credits` exista: un split entre dos bandas pertenece a las dos.
+- **El worker nunca siembra solo.** `dotnet run --project src/console/server` sin argumentos imprime el uso y sale. Sembrar exige `-- seed`.
+- **`Redaction` sí está en fontsource** — contra lo que yo suponía. Q6 queda contestada, y con ella se desbloquea la firma de la degradación tipográfica por rareza (Q1), que sigue pendiente de Pedro.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
 |---|---|---|
-| Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? | `DESIGN.md` |
+| Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? Ahora es **posible** (ver Q6), pero el icono de D27 ya encarna la pérdida de generación: serían dos firmas | `DESIGN.md` |
 | Q2 | Modo claro: ¿flyer fotocopiado, o neutro y limpio para fichas largas? | `DESIGN.md` |
-| Q3 | Resultado del spike de cobertura de previews — **v1 inconcluyente, ver D22, hace falta v2** | umbrales de rank |
 | Q4 | Respuesta de Metal Archives | temática lírica curada (mitigado parcialmente por C21) |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
-| Q6 | ¿`Redaction` está distribuida como paquete instalable (npm/fontsource)? Sin verificar | `DESIGN.md` §3, firma tipográfica |
-| Q7 | Spike v2: ¿qué fracción de bandas underground no tiene ni tags de Last.fm ni abstract de Wikidata? | si C19 (eje tímbrico) se construye — ver D19 |
+| Q8 | A Gemini le faltan el **SVG**, la **marca hermana para tamaños pequeños** (D27), la paleta con hexes, las tipografías con paquete npm, y el tono de voz | favicon, tokens de `ui/` |
+
+### Contestadas
+
+| | Pregunta | Respuesta |
+|---|---|---|
+| ~~Q3~~ | ¿Cobertura de previews en el underground? | **52 %** puede sonar; el 48 % es insonorizable. D25 |
+| ~~Q6~~ | ¿`Redaction` es instalable? | **Sí, está en fontsource.** Contra lo que se suponía. D29 |
+| ~~Q7~~ | ¿Agujero de texto en el underground? | **16 %**, no 60 %. El audio rescataría al 7 %. C19 degradado. D25 |
 
 ---
 
