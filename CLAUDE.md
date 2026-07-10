@@ -2,39 +2,45 @@
 
 App de descubrimiento musical para metal y rock (clásica más adelante). Producto independiente, gratuito, sin coste operativo. No forma parte de qlaios.
 
-**Estado**: movimiento I terminado, commiteado y verde. El movimiento II está sin empezar.
+**Estado**: movimiento I y movimiento II terminados, commiteados y verdes. El movimiento III (el Gantt) está sin empezar.
 
 ---
 
-## Dónde se dejó (2026-07-10)
+## Dónde se dejó (2026-07-11)
 
 ### Funciona, verificado contra la base viva
 
-307 artistas y 5 320 lanzamientos reales de MusicBrainz en Postgres, 40 países. Búsqueda con `pg_trgm` tolerante a erratas y a diacríticas (`skald` → `SKÁLD`, `darkthron` → `Darkthrone`). Ficha básica, tema claro/oscuro, i18n es/en. Auth con Identity + JWT que **se niega a arrancar fuera de `Development` con la clave de desarrollo**. 22 tests que muerden (comprobado moviendo un umbral). `scripts/audit.sh --strict` en verde.
+**Movimiento I** — 307 artistas «raíz» y 5 320 lanzamientos reales de MusicBrainz en Postgres, 40 países. Búsqueda con `pg_trgm` tolerante a erratas y a diacríticas (`skald` → `SKÁLD`, `darkthron` → `Darkthrone`). Ficha, tema claro/oscuro, i18n es/en. Auth con Identity + JWT que **se niega a arrancar fuera de `Development` con la clave de desarrollo**. `scripts/audit.sh --strict` en verde.
 
-Folk dentro (D23): Wardruna, Heilung, SKÁLD, Gealdýr, Einar Selvik, Danheim. Myrkur y Faun **no** se sembraron: MusicBrainz devuelve 3 y 7 coincidencias exactas, y se prefirió una fila ausente a una banda equivocada.
+**Movimiento II** — commits `c15eae1` (cimientos de datos + ficha) y `ccb4200` (motor del Rito + UI):
+- **Bloodline base**: 2 342 aristas `member_of` con fechas e instrumentos (307 → 2 478 artistas al añadir las filas mínimas de miembro). Miembro oficial ≠ invitado.
+- **Previews** iTunes primero, Deezer de complemento (D25), perezoso y por lotes, tras `IEnrichmentSource`. `artists.preview_url` poblándose (80 al cierre del pase; el resto por re-ejecución).
+- **Embeddings centrados** (D26 variante C): 309 vectores, vector medio del corpus persistido en `corpus_stats`. El comando `stats` da p10/p50/p90 = 0.85/1.01/1.14, spread 0.29 → **los tres divergen, el motor en anillo es viable a esta escala.**
+- **Ficha**: proxy del Cover Art Archive cacheado a disco (también los 404), discografía por tipo con la demo visible, estados vacíos diseñados es/en. Corte **base** de `Redaction` (rank null → nada de corrosión por rank).
+- **El Rito** (D30–D34): tablas `user_taste`/`rites`, motor en anillo por **percentiles** (ventana 0.20, repulsión que resta en p20, uno al azar dentro del anillo, sin término de rareza mientras `listeners` sea null), servido **a ciegas** con proxy de audio por URL de capacidad (SSRF cerrado dos veces), `Summon`/`Banish`/`Again` que escriben taste/repulsión, reveal de 600 ms sobre el corte base, explicabilidad C4, arranque en frío por 5 bandas, C3/C13. Verificado de punta a punta contra la base viva (register → seed → serve ciego → audio real → summon revela → grimorio crece → borrar fila lo baja: lee dato vivo).
 
 ### Vacío a propósito, nunca inventado
 
-`artist_edges` = 0 · `labels` = 0 · `listeners` = null · `rank` = null · `embedding` = null · `preview_url` no existe todavía.
+`labels` = 0 · `listeners` = null · `rank` = null · `depth_score` = 0 · abstract = null. La invariante de **doble-centrado** (D26/D31): `taste`/`repulsion` se promedian de embeddings ya centrados — el medio de `corpus_stats` **no** se resta otra vez; es solo para un vector de consulta externo crudo.
 
 ### Para levantar el entorno
 
 ```bash
 docker compose -f build/dev/docker-compose.yml up -d     # postgres+pgvector, host 5433
-dotnet run --project src/console/server -- seed           # idempotente; upsert por MBID
+dotnet run --project src/console/server -- seed           # corpus base (idempotente; upsert por MBID)
+dotnet run --project src/console/server -- edges          # member_of a 1 req/s (honra 429)
+dotnet run --project src/console/server -- previews        # iTunes→Deezer, perezoso por lotes
+dotnet run --project src/console/server -- embeddings      # centrados (D26), Ollama
+dotnet run --project src/console/server -- stats           # p10/50/90 deben DIVERGIR
 dotnet run --project src/web/server                       # escucha en 5080, NO en ASPNETCORE_URLS
 cd src/front && pnpm dev
 bash scripts/audit.sh --strict                            # gate obligatorio antes de commitear
 ```
 Postgres dev: `grimoire/grimoire` en `localhost:5433`. Ollama con `nomic-embed-text` ya descargado.
 
-### Siguiente paso — movimiento II, dos agentes con rutas disjuntas
+### Siguiente paso — movimiento III (Sangre y tiempo): el Gantt
 
-Se lanzaron y se pararon antes de escribir nada. **Las migraciones de EF tienen un único dueño**: dos agentes creando migraciones a la vez producen snapshots incompatibles.
-
-1. **ETL** (`src/shared/**`, `src/console/server/**`, migraciones) — relaciones `member_of` con fechas e instrumentos (sin ellas no existe ni el Gantt ni Bloodline ni el criterio de admisión de D23); resolución de previews con **iTunes primero** (41 %) y Deezer de complemento (19 %), nunca al revés; embeddings **centrados** (D26) con el vector medio persistido; y un comando `stats` que mida la distancia al vecino 10/50/90 — **si los tres números salen casi iguales, el arreglo de D26 no funciona a esta escala y el motor sigue roto.**
-2. **Ficha** (`src/web/server/**`, `src/front/**`, sin migraciones) — discografía por tipo con la demo visible, portadas del Cover Art Archive proxiadas y cacheadas en disco (también los 404), y estados vacíos diseñados. **No cablear los cortes de corrosión de `Redaction` por rank**: el rank es null y elegir corte por rank renderizaría una mentira. Función pura + tests, y el componente usa el corte base.
+B7 (Lineup Timeline) y B8 (al pasar por un disco se iluminan los miembros dentro), más B9/B10, C12, C15. Los datos ya están: `member_of` con fechas e instrumentos poblado en el movimiento II. Falta el render — `d3-force` no; el Gantt es su propia técnica (SPEC §9, «los tres grafos»). `LineupIntervalResolver` (con tests) ya resuelve la intersección de intervalos de B8.
 
 ### Después: despliegue
 
@@ -47,7 +53,7 @@ Pedro quiere llevarlo a **git y Docker Hub**. Git ya está (`main`, sin firma en
 
 ### Bloqueadores
 
-- **Falta una clave de API de Last.fm** (gratis, inmediata). Sin ella no hay `listeners`, luego no hay ranks, ni Depth Score, ni degradación tipográfica, ni C1 (import de scrobbles para el arranque en frío). **No hay sustituto**: los `nb_fan` de Deezer son una medida circular, hay que estar en Deezer para tenerla.
+- **Falta una clave de API de Last.fm** (gratis, inmediata). Sin ella no hay `listeners`, luego no hay ranks, ni Depth Score, ni degradación tipográfica. El adaptador C1 (import de scrobbles para el arranque en frío) **ya está escrito pero apagado por flag** y devuelve 503 (D34); en cuanto haya key se enciende. **No hay sustituto**: los `nb_fan` de Deezer son una medida circular, hay que estar en Deezer para tenerla.
 - **Q1 y Q2** siguen sin ratificar por Pedro (ver `DECISIONS.md`).
 - **Q8**: a Gemini le falta entregar el SVG y la marca hermana para tamaños pequeños (D27).
 

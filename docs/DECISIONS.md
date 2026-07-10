@@ -498,6 +498,54 @@ El agente del esqueleto tuvo que resolver seis cosas que la spec no fijaba. Se r
 
 ---
 
+## D30 — Esquema del Rito: `user_taste` y `rites` se materializan
+`2026-07-11` · vigente · ver `docs/progress/rite-engine.md`
+
+Los modelos `UserTaste` y `Rite` existían desde la ola 0 sin tabla (skeleton §3). El motor del Rito los necesita, así que la migración `20260710231224_AddUserTasteAndRites` los crea: `user_taste` (una fila por usuario, `embedding`/`repulsion` `vector(768)`, `depth_score`, FK en cascada) y `rites` (`state` texto `served|summoned|banished|again` — convención D29, índice `(user_id, artist_id)` de SPEC §10). El grimorio del usuario no es tabla: es `rites WHERE state='summoned'` (SPEC §10).
+
+---
+
+## D31 — El anillo se resuelve por percentiles con ventana fija, y sin término de rareza mientras `listeners` sea null
+`2026-07-11` · vigente · concreta el mecanismo de D26 · ver `docs/progress/rite-engine.md`
+
+D26 dijo «el anillo se expresa en percentiles». La implementación fija los números que D26 dejó abiertos:
+
+- **Ventana de percentiles de ancho `0.20`** deslizada por el slider Comfort↔Abyss (`comfort ∈ [0,1]`): en 0 el extremo cercano, en 1 el lejano. Se muestrea el pool servible al azar, se calculan sus distancias al `taste` sobre el índice HNSW, y de esa distribución salen los **dos radios** en los percentiles del slider. Percentiles hacia el usuario, radios hacia el índice.
+- **Repulsión como radio de seguridad en `p20`**: se excluye el 20 % más cercano al centroide de lo desterrado (D4 «resta activamente»).
+- **Se toma uno al azar dentro del anillo**, sin ordenar por rareza. El término `ln(1e6/listeners)` de la query de SPEC §6 **no se aplica todavía** porque `listeners` es null (sin key Last.fm) — ordenar por rareza con el dato ausente sería una mentira. Vuelve cuando exista `listeners`.
+- **Invariante de doble-centrado reafirmado**: `taste`/`repulsion` se promedian de embeddings **ya centrados** (`artists.embedding`), luego viven en espacio centrado y **no se resta el vector medio otra vez**. El medio de `corpus_stats` es solo para centrar un vector de consulta *externo* crudo, que este pase no usa. Anotado en `TasteMath`, `UserTaste`, el `DbContext` y `RiteEngine`.
+
+---
+
+## D32 — El audio del Rito se sirve por proxy con URL de capacidad, y el SSRF se cierra dos veces
+`2026-07-11` · vigente · ver `docs/progress/rite-engine.md`
+
+`GET /api/rite/{token}/audio` es **anónimo** (el token es el `rite.Id`, un GUID inadivinable = URL de capacidad) y hace stream del preview **en el servidor** (`ResponseHeadersRead`). La URL de origen del preview **nunca** llega al cliente — sin esto devtools revienta la mecánica a ciegas (SPEC §5.3).
+
+**Defensa en profundidad contra SSRF**: la URL a la que hace fetch el proxy **jamás** viene del cliente (es siempre el `preview_url` que resolvió el ETL) y, además, el host destino debe estar en una **allowlist** (CDNs de iTunes/Apple y Deezer) con **redirecciones desactivadas** (`AllowAutoRedirect=false`) para que no salte a otro host. Las dos capas son independientes: aunque una fallara, la otra sostiene.
+
+---
+
+## D33 — Semántica de Summon/Banish/Again y la ventana de segunda oportunidad
+`2026-07-11` · vigente · ver `docs/progress/rite-engine.md`
+
+- **Summon**: media móvil exponencial del `taste` hacia la banda con **decay 0.25**; `state=summoned`; **revela** con explicabilidad C4 (distancia, tags y miembros compartidos).
+- **Banish**: mueve la `repulsion` hacia la banda; `state=banished`; **no revela** — se juzgó a ciegas, y C3/C20 dependen de no saber qué se rechazó.
+- **Again**: skip neutral, ni `taste` ni `repulsion` cambian; `state=again`; no revela.
+- **C3 segunda oportunidad**: la exclusión de lo ya riteado deja volver lo desterrado a los **182 días**; served/summoned/again se excluyen siempre.
+- Resolver un rito ya resuelto → 409.
+
+---
+
+## D34 — Arranque en frío: se construye la vía de 5 bandas; Last.fm queda como adaptador apagado
+`2026-07-11` · vigente · ver `docs/progress/rite-engine.md` y `rite-front.md`
+
+De las dos vías de D15, se construye la de **elegir 5 bandas**: `GET /api/rite/seed-candidates` (las más prolíficas primero, reconocibles, **no a ciegas** — es la pantalla de selección) → `POST /api/rite/seed` calcula `user_taste.embedding` como media de sus embeddings (ya centrados, no re-centra).
+
+**C1 import Last.fm queda BLOQUEADO** por la falta de key (bloqueador vivo, no accidente): el adaptador `IColdStartImport`/`LastFmColdStart` está escrito y es real (no un stub), pero **con feature flag apagado**; `POST /api/rite/import-lastfm` devuelve **503 explícito** en vez de inventar scrobbles. La ruta viva no se puede probar sin key. Con ello, **B15 Ranks / Depth Score sigue bloqueado**: `rank`/`listeners` null, `depth_score` queda en 0 — no se deriva de un dato ausente.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
