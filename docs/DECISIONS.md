@@ -325,6 +325,62 @@ El agente hizo lo correcto al señalarlo y no fusionarlos por su cuenta: elegir 
 
 ---
 
+## D25 — Spike v2: R1 contestado, C19 degradado, y una cifra mía que era falsa
+`2026-07-10` · vigente · supersede la aritmética de coste de D19
+
+Muestra: 182 artistas publicados por sellos underground (Nuclear War Now!, Iron Bonehead, Fallen Empire), no por tags. Corrige el sesgo estructural del v1.
+
+### Q_A — ¿pueden sonar?
+
+```
+iTunes              41%
+Deezer              19%
+alguno de los dos   52%   <- pool servible de The Rite
+NINGUNO             48%   <- insonorizables
+```
+
+**R1 queda contestado y no es fatal.** Ni el 8 % que se temía, ni el 90 % que lo habría hecho trivial.
+
+Consecuencias de diseño, ya firmes:
+- El pool de The Rite se filtra por `preview IS NOT NULL`. Es una constante del diseño, no un caso raro.
+- Casi la mitad de las bandas oscuras **existen en la app pero no se pueden invocar**: salen en búsqueda, ficha y Bloodline, no en el rito.
+- Y encaja con la tesis: **las bandas verdaderamente innombrables son inaudibles.** No es un fallo, es lo que significa `Nameless`.
+
+**Dos cavéats honestos**: el 52 % es una **cota inferior** — el emparejado va por nombre exacto y las diacríticas y los nombres estilizados convierten fallos de emparejado en falsos «sin preview». Y **no se ha medido si la cobertura correlaciona con la oscuridad *dentro* del underground**, porque sin key de Last.fm no hay `listeners`.
+
+### Corrección de un error propio
+
+`D19` afirmaba que Deezer resolvía el catálogo en ~8 h frente a las ~250 h de iTunes, y que por tanto Deezer sería la fuente masiva.
+
+**Es falso.** iTunes cubre el 41 % y Deezer el 19 %: **iTunes tiene más del doble de cobertura en el underground.** El solape es de 8 puntos, así que Deezer aporta 11 puntos propios y es un buen complemento, pero **no puede ser la fuente principal.**
+
+Por tanto el límite de **20 req/min de iTunes vuelve a mandar**, y la resolución de previews del catálogo entero deja de ser barata. Se hace **perezosa y por lotes**, nunca de una sentada. La cifra de «8 horas» no debe volver a citarse.
+
+### Q_B — el eje del timbre (C19) baja de necesario a opcional
+
+```
+cero tags                    17%
+sin wikidata                 72%
+cero tags Y sin wikidata     16%   <- el agujero
+sin texto PERO con audio      7%   <- lo que el audio rescataría
+```
+
+C19 se defendió con: *«las bandas oscuras no tienen texto, su vector es ruido, el audio es la única señal que no se degrada»*. **El agujero es del 16 %, no del 60 %, y el audio solo rescata al 7 %** — trece bandas de 182. Descargar y analizar audio para arreglar un 7 % no se sostiene. **La objeción de Pedro era correcta; el argumento a favor era una corazonada disfrazada.**
+
+Lo que sobrevive: **ya se descarga el preview para servir The Rite**, así que para las bandas del pool los rasgos de audio salen **gratis**, extraídos al vuelo mientras se cachea el audio que ya se está sirviendo. Cero descarga adicional. Con eso siguen en pie la discrepancia texto-vs-audio y la guerra del volumen, pero **como feature opcional tardía, no como arreglo de cobertura.**
+
+C19: `necesario` → `bonito y casi gratis, más adelante`.
+
+### El riesgo que sí apareció
+
+El 72 % no tiene Wikidata, luego no tiene abstract. Su embedding se construye **solo con tags**.
+
+Eso no es ruido: es **señal de baja dimensión**, que es peor porque no se nota. Si cincuenta bandas tienen como única señal el tag `black metal`, sus cincuenta vectores son casi idénticos, y **la búsqueda en anillo (D4) —que es todo el motor— degenera justo en el underground**: todo cae a la misma distancia y el slider Comfort ↔ Abyss no mueve nada. El audio no lo arregla, porque no lo tienes para todas.
+
+Se mide en el spike v3 (`docs/spikes/embedding-collapse.md`). Ver R8.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

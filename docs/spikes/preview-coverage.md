@@ -40,15 +40,34 @@ TOTAL                      226      69%     69%     85%
 
 ---
 
-## v2 — en curso
+## v2 — 2026-07-10 · **CONTESTADO**
 
-Corrige el muestreo: en lugar de tags, se enumeran los artistas publicados por **sellos underground concretos** (Nuclear War Now! Productions, Iron Bonehead Productions, Fallen Empire Records), que es donde vive lo oscuro de verdad. 182 artistas.
+Muestra: **182 artistas** publicados por sellos underground (Nuclear War Now! Productions, Iron Bonehead Productions, Fallen Empire Records). Se enumeran por sus lanzamientos en MusicBrainz, no por tags — así el muestreo no premia a quien alguien se molestó en etiquetar.
 
-Contesta dos preguntas de una vez:
+```
+Q_A — ¿pueden sonar?              Q_B — ¿su embedding es ruido?  (n=181)
+  iTunes             41%            cero tags                  17%
+  Deezer             19%            sin wikidata               72%
+  alguno             52%            cero tags Y sin wikidata   16%   <- el agujero
+  NINGUNO            48%            sin texto pero con audio    7%   <- lo que el audio rescata
+```
 
-- **Q_A** — ¿tienen preview de audio? → viabilidad de The Rite en los ranks raros (R1).
-- **Q_B** — ¿tienen tags y/o abstract de Wikidata? → si el agujero de texto es grande, **su embedding es ruido**, y el eje del timbre (C19, D19) deja de ser un capricho y pasa a ser necesario. Si es pequeño, C19 se tacha.
+### Lo que decide
 
-**Hallazgo lateral, ya visible**: de seis sellos underground buscados, **tres no existen en MusicBrainz con el nombre dado** (Amor Fati Productions, Hells Headbangers Records, Sepulchral Voice Records). Si se confirma que no están catalogados —y no que figuran con otro nombre—, el catálogo de sellos de MusicBrainz **también adelgaza en el underground**, y C11 (escenas) y C13 (filtro por sello) heredan el problema.
+**R1 contestado**: el 52 % del underground puede sonar. El pool de The Rite se filtra por `preview IS NOT NULL`, y casi la mitad de las bandas oscuras existen en la app pero no se pueden invocar. Encaja con la tesis: las bandas verdaderamente innombrables son inaudibles.
 
-Resultados al terminar.
+**C19 (eje del timbre) degradado**: el audio rescataría al 7 %. No justifica descargar y analizar audio. Sobrevive como feature tardía y casi gratis, porque el preview ya se descarga para servir The Rite.
+
+**Corrección de un error**: se había escrito que Deezer resolvía el catálogo en ~8 h y sería la fuente masiva. **iTunes cubre el doble que Deezer** (41 % vs 19 %, solape de 8 puntos). El límite de 20 req/min de iTunes vuelve a mandar. La cifra de «8 horas» no debe volver a citarse. Ver D25.
+
+### Cavéats
+
+- **52 % es cota inferior.** El emparejado va por nombre exacto: diacríticas y nombres estilizados convierten fallos de emparejado en falsos «sin preview».
+- **No se midió la correlación entre cobertura y oscuridad *dentro* del underground**, porque sin key de Last.fm no hay `listeners`.
+- De seis sellos buscados, **tres no aparecen en MusicBrainz** con el nombre dado (Amor Fati, Hells Headbangers, Sepulchral Voice). Si no es un problema de nomenclatura, el catálogo de sellos de MB también adelgaza en el underground, y C11 (escenas) y C13 (filtro por sello) heredan el problema. **Sin verificar.**
+
+### Lo que abrió
+
+El 72 % no tiene Wikidata, luego su embedding se construye solo con tags. Eso no es ruido, es **señal de baja dimensión**. Si muchas bandas comparten un puñado de tags, sus vectores colapsan y la búsqueda en anillo degenera justo donde vive la app. → spike v3, `embedding-collapse.md`.
+
+---
