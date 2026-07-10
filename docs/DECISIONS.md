@@ -234,26 +234,123 @@ MA enlaza tres herramientas de terceros. **Ninguna es de descubrimiento. Ninguna
 
 ---
 
+## D18 — Los grafos se renderizan con `d3-force` + SVG, no con `react-force-graph-2d`
+`2026-07-10` · vigente
+
+Bloodline (B16), Tu grimorio (C17), el grafo de splits (C9) y el de versiones (C10) son grafos de escala pequeña-media (decenas a ~400 nodos). Se renderizan con `d3-force` headless calculando el layout y primitivas SVG para el pintado, siguiendo el patrón ya existente del equipo en `GraphCanvas.tsx` (base-wiki): auto-fit por bounding box con las posiciones transformadas en JS (nunca escalando un `<g>`), glifos contra-escalados por `1/k` en zoom, etiquetas solo en foco/coincidencia de búsqueda/`k ≥ 1.6`.
+
+**Por qué no `react-force-graph-2d`** (lo que usa OdinEngine): está acoplado a canvas, lo que rompe el invariante 6 (`core/` sin DOM — D12) al no admitir `react-native-svg` como salida alternativa. Y peor: ata el bucle de repintado al bucle de la simulación de fuerzas, así que la animación se congela en cuanto `d3` se enfría — un bug que el equipo ya tiene documentado de otros proyectos.
+
+**Las tres vistas de grafo no comparten técnica.** Bloodline y Tu grimorio son SVG por lo anterior. **El Atlas (C18)**, con ~300k nodos, es la excepción explícita: exige canvas/WebGL, vive únicamente en `ui/` y rompe el invariante 6 a conciencia — no hay port razonable de esa vista a React Native sin reescribirla desde cero.
+
+---
+
+## D19 — El eje tímbrico (C19) queda pendiente, no decidido
+`2026-07-10` · vigente
+
+C19 propone rasgos de audio (BPM, centroide espectral, rango dinámico, densidad de onsets, ratio armónico/percusivo, crest factor) calculados offline con librosa/Essentia sobre los previews de 45 s, como eje de búsqueda independiente del embedding de texto. La motivación es real: el embedding de texto es ruido precisamente para las bandas sin tags ni abstract de Wikidata, que es la cola oscura que la app existe para servir.
+
+**La versión ingenua (analizar el catálogo entero) es inviable y queda descartada.** La aritmética que la mata: resolver la existencia de preview vía iTunes para las ~300k bandas del catálogo son ~250 h de llamadas (1 req razonable/s, sin key pero con rate limiting de facto); vía Deezer bajan a ~8 h. Descargar 300k previews completos son ~144 GB. Pedro objetó el coste en cuanto se puso la cifra encima de la mesa — no el enfoque, la escala.
+
+**Diseño perezoso que sustituiría a la versión ingenua, si C19 se construye**: resolver la *existencia* de preview para todo el catálogo vía Deezer (~8 h, y hace falta de todos modos para B13/B26), analizar audio solo sobre el pool de la Rite (~20–30k bandas, estratificado por rank, ~15 GB, el audio se descarta tras extraer los seis números) y enriquecer de forma perezosa cualquier banda que se busque o se invoque fuera de ese pool.
+
+**Esto no ships todavía.** Depende enteramente de la respuesta del spike v2 a una pregunta muy concreta: qué fracción de bandas underground no tiene ni tags de Last.fm ni abstract de Wikidata. Si esa fracción es baja, el embedding de texto ya cubre el caso y C19 no se justifica. Ver D22 para por qué el spike v1 no puede responder esto todavía.
+
+---
+
+## D20 — Segunda ronda de features (C17–C27)
+`2026-07-10` · vigente
+
+C17 tu grimorio como grafo (el análogo directo del grafo de memoria de OdinEngine, pero con las propias bandas) · C18 El Atlas (proyección UMAP de todo el catálogo, nebulosa precalculada + estrellas cercanas al vector de gusto en vivo) · C19 eje tímbrico (**pendiente, ver D19**) · C20 el espejo (la app contrasta lo que el usuario dice que le gusta con lo que rechazó a ciegas) · C21 minería de títulos de canción (aproxima temática lírica sin depender de Metal Archives) · C22 regala un descubrimiento (se envía la banda boca abajo, no un enlace) · C23 grimorios cruzados (el Dark Twin, pero con un amigo real) · C24 la banda de un solo álbum · C25 el hiperprolífico (más lanzamientos que años de vida) · C26 deriva cromática (paleta dominante de la discografía en el tiempo) · C27 adivina la década (The Rite con marcador: año, país, subgénero).
+
+Ver `docs/SPEC.md` §5.6–§5.11 para el desglose de datos y coste de cada una, y §8 para su reparto por movimiento.
+
+---
+
+## D21 — Convenciones de código formalizadas en la spec
+`2026-07-10` · vigente
+
+Lo que `CLAUDE.md` ya fijaba (todo el código en inglés — identificadores, comentarios, mensajes de log y de commit, sin excepciones ni mezclas; llaves siempre aunque el cuerpo sea de una sola línea) pasa a ser también contenido de primera clase en `docs/SPEC.md` §9.1, no solo una norma del fichero de arranque del agente.
+
+**Por qué formalizarlo dos veces**: `SPEC.md` es el documento que describe el *qué* del producto para cualquiera que llegue sin haber leído `CLAUDE.md` primero. Enforcement mecánico, no de memoria: `.editorconfig` (`csharp_prefer_braces = true:warning`) en C#, ESLint `curly: ["error", "all"]` en TypeScript.
+
+---
+
+## D22 — Spike v1: resultado inconcluyente
+`2026-07-10` · vigente
+
+El primer spike de cobertura de previews (Q3) **no responde la pregunta que se le hizo**, y el motivo es un sesgo de muestreo de raíz, no ruido estadístico.
+
+**Qué se hizo**: muestrear MusicBrainz por *tag* de género y medir cobertura de preview por bucket de número de lanzamientos.
+
+**Por qué no sirve**: muestrear por tag selecciona bandas que **alguien se molestó en etiquetar** — eso ya es una señal de popularidad, no una muestra neutra. Resultado: 140 de 226 bandas muestreadas tenían 15 o más lanzamientos. El único bucket que se parece a una banda realmente oscura (1–2 lanzamientos) tuvo **n = 4** y **0 % de cobertura de preview**: no dice nada con esa n, aunque la dirección (cero) sí es inquietante.
+
+**Dos cifras que salieron del spike v1 y no deben volver a citarse**:
+- El **85 %** de cobertura global — es el promedio de una muestra sesgada hacia bandas populares, no representa a la cola oscura que le importa a la app.
+- El **82 % de bandas con menos de 500 fans de Deezer que tienen preview** — es **circular**: hace falta *estar* en Deezer para tener un contador de fans, así que la muestra ya excluye a las bandas que ni siquiera están indexadas allí, que son probablemente las de peor cobertura de todas.
+
+**Ruido adicional**: el emparejado por nombre coló falsos positivos — salió «Toto» (nada que ver con metal), y el «Death» con más fans en Deezer no es el de Chuck Schuldiner.
+
+**Consecuencia**: R1 (¿se puede sonar lo raro?) sigue sin resolver. Hace falta un spike v2 que muestree por una vía no sesgada hacia lo ya conocido — sellos underground concretos (Nuclear War Now!, Iron Bonehead) en vez de tags — y que además responda la pregunta que necesita D19/C19: qué fracción de esas bandas no tiene ni tags ni abstract de Wikidata.
+
+---
+
+## D23 — El folk entra, y el corpus deja de definirse por tags
+`2026-07-10` · vigente
+
+Pedro añade **folk** al alcance de primera clase: viking folk, nordic/ritual folk, neofolk, celtic folk, pagan folk, folk metal. Wardruna, Heilung, Skáld, Gealdýr y un largo etcétera.
+
+**No rompe el modelo de dominio.** Son grupos con miembros, discos y sellos: la misma forma que una banda de metal. No es el caso de la clásica (D11), que sí exige otro modelo. El esquema no cambia.
+
+**Sí rompe cómo definíamos el corpus.** La semilla pedía a MusicBrainz una lista de tags de géneros. Añadir `folk` a esa lista arrastra el canon folclórico entero. Y el defecto de fondo ya lo conocíamos: las bandas oscuras **no tienen tags**, así que definir el corpus por etiquetas es definirlo por lo que alguien se molestó en etiquetar.
+
+**El corpus pasa a ser: anclas explícitas ∪ lista acotada de tags ∪ expansión por el grafo.**
+
+- **Expansión por grafo** es el criterio principal y el más bonito: Wardruna entra porque Einar Selvik tocó en Gorgoroth. Es una arista `member_of` real, no una opinión sobre qué es folk. Se expande por miembros compartidos, sellos y splits. Lo que no está conectado, no entra. **Bloodline, que era una feature, pasa a ser también el criterio de admisión.**
+- **Anclas explícitas** porque la expansión pura dejaría fuera a Skáld y probablemente a Gealdýr, que no comparten miembros con el metal.
+- **Tags acotados**: `viking folk`, `nordic folk`, `neofolk`, `pagan folk`, `celtic folk`, `dark folk`, `folk metal`, `ritual folk`. **Nunca `folk` a secas.**
+
+**Nota de verificación**: MusicBrainz devuelve «Tartalo Music» como artista de tipo `Person` (coincidencia exacta), y no lo encuentra como sello. Se registra lo que dice MB, no lo que sea en realidad. No se usa como ancla sin confirmación de Pedro.
+
+---
+
+## D24 — C18 (El Atlas) es la implementación de B22, no otra feature
+`2026-07-10` · vigente · resuelve la contradicción detectada por el agente de documentación
+
+`SPEC.md` acabó con dos entradas describiendo lo mismo: **B22 «Constelación»** (proyección UMAP del catálogo con tu nube de gusto encima) y **C18 «El Atlas»** (idem, más la técnica de render: nebulosa pregenerada + estrellas vivas solo cerca de tu vector). Fue un error mío al añadir C18 sin retirar B22.
+
+**Resolución**: B22 queda **retirada como feature independiente**. C18 es su implementación y hereda su intención. **B23 (gaps)** deja de colgar de B22 y pasa a colgar de C18 — las zonas oscuras del Atlas *son* los huecos.
+
+El agente hizo lo correcto al señalarlo y no fusionarlos por su cuenta: elegir entre dos IDs es una decisión de producto, no una edición de estilo.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
 |---|---|---|
 | Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? | `DESIGN.md` |
 | Q2 | Modo claro: ¿flyer fotocopiado, o neutro y limpio para fichas largas? | `DESIGN.md` |
-| Q3 | Resultado del spike de cobertura de previews | umbrales de rank |
-| Q4 | Respuesta de Metal Archives | temática lírica curada |
+| Q3 | Resultado del spike de cobertura de previews — **v1 inconcluyente, ver D22, hace falta v2** | umbrales de rank |
+| Q4 | Respuesta de Metal Archives | temática lírica curada (mitigado parcialmente por C21) |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
+| Q6 | ¿`Redaction` está distribuida como paquete instalable (npm/fontsource)? Sin verificar | `DESIGN.md` §3, firma tipográfica |
+| Q7 | Spike v2: ¿qué fracción de bandas underground no tiene ni tags de Last.fm ni abstract de Wikidata? | si C19 (eje tímbrico) se construye — ver D19 |
 
 ---
 
 ## Riesgos vivos
 
-**R1 — Puede que no podamos sonar lo raro.** The Rite depende de previews de iTunes/Deezer. Si las bandas de menos de 500 oyentes tienen un 8 % de cobertura, el tier `Nameless` es insonorizable y el Depth Score se cae. **Se mide antes de escribir código de producto.** Ver `docs/spikes/`.
+**R1 — Puede que no podamos sonar lo raro.** The Rite depende de previews de iTunes/Deezer. El spike v1 no lo resolvió (D22): su única lectura sobre bandas realmente oscuras (n = 4, 0 % cobertura) es direccionalmente alarmante pero estadísticamente inútil. Si las bandas de menos de 500 oyentes resultan tener cobertura muy baja, el tier `Nameless` es insonorizable y el Depth Score se cae. **Se mide con el spike v2, con un muestreo no sesgado, antes de escribir código de producto.** Ver `docs/spikes/` (pendiente de crear).
 
 **R2 — La ficha está más vacía justo donde la app te lleva.** Los créditos son excelentes para Iron Maiden y pésimos para el sludge finlandés de 300 oyentes. El motor de descubrimiento conduce exactamente a donde el dato no está. La ficha **debe degradar con dignidad**: estados vacíos diseñados, no huecos rotos.
 
 **R3 — Emparejado MA ↔ MusicBrainz sin MBIDs.** Por nombre + país + año. Los ambiguos se quedan fuera. Preguntar a Hellblazer si tienen MBIDs.
 
-**R4 — Sesgo de muestreo del spike.** Se muestrea MB por *tag*, y las bandas oscuras de verdad no tienen tags. La lectura honesta será «cobertura entre bandas tagueadas», no «cobertura general». Repetir muestreando por sellos underground (Nuclear War Now!, Iron Bonehead). El emparejado por nombre además cuela ruido (salió «Toto»; el «Death» con 2 457 fans de Deezer no es el de Chuck Schuldiner).
+**R4 — Sesgo de muestreo del spike.** Se muestrea MB por *tag*, y las bandas oscuras de verdad no tienen tags. La lectura honesta será «cobertura entre bandas tagueadas», no «cobertura general». Repetir muestreando por sellos underground (Nuclear War Now!, Iron Bonehead). El emparejado por nombre además cuela ruido (salió «Toto»; el «Death» con 2 457 fans de Deezer no es el de Chuck Schuldiner). **Materializado en D22**: las cifras del 85 % y del 82 % quedan inutilizables por este mismo motivo.
 
 **R5 — MA cambiará el HTML y las APIs cambian.** Ya pasó: ListenBrainz, que era libre, ahora exige token — *«Due to AI scrapers causing undue traffic on our sites»*. Toda fuente detrás de `IEnrichmentSource` (D9).
+
+**R6 — `Redaction` puede no estar disponible como paquete.** Toda la firma tipográfica de D14/`DESIGN.md` se apoya en tener cortes de corrosión progresiva reales, no simulados. Si no existe en npm/fontsource, el fallback (`Archivo` como display, sin corrosión) es una degradación seria de la identidad visual propuesta. Sin verificar — ver Q6.
+
+**R7 — El eje tímbrico puede no valer su coste incluso en su versión perezosa.** D19 solo reduce el coste, no lo elimina, y la pregunta de fondo (¿hace falta audio si el texto ya cubre casi todo?) sigue sin dato. No se escribe una línea de código de C19 hasta que el spike v2 conteste Q7.
