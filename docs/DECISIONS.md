@@ -381,6 +381,47 @@ Se mide en el spike v3 (`docs/spikes/embedding-collapse.md`). Ver R8.
 
 ---
 
+## D26 — El anillo se define en percentiles, y los embeddings se centran
+`2026-07-10` · vigente · **corrige el mecanismo central de D4**
+
+Spike v3 (`docs/spikes/embedding-collapse.md`) fue a buscar colapso de vectores en el underground y encontró otra cosa, peor y más silenciosa.
+
+**No hay colapso.** Cero vectores duplicados, cero anillos vacíos. El underground está incluso **más disperso** que las bandas conocidas (rango 0.144 frente a 0.100), probablemente porque las famosas comparten los mismos cuatro tags canónicos y las oscuras tienen etiquetas raras.
+
+**Pero el espacio es una cáscara fina.** Todas las distancias coseno caen entre 0.18 y 0.35. La mediana de vecinos dentro del anillo `[0.15, 0.35]` es de **177 sobre 181**: el anillo contiene el catálogo entero. Es una propiedad conocida de los embeddings de frases cortas y formulaicas — se apiñan en un cono estrecho.
+
+**Consecuencia**: el slider Comfort ↔ Abyss, tal como lo especificaba D4, **no movería nada**. `WHERE emb <=> taste BETWEEN 0.15 AND 0.35` selecciona el 98 % del corpus, se ponga donde se ponga.
+
+### Los arreglos, medidos (spike v3b)
+
+`sep(p10→p70)` = distancia real entre un vecino cercano y uno lejano **de la misma banda**. Es lo que el slider tiene que recorrer.
+
+```
+variante                     rango p05..p95   sep(p10→p70)   p05
+A  nombre+plantilla+tags        0.1439          0.058       0.204
+B  solo tags                    0.3817          0.164       0.005  <- colisiones
+C  A centrado                   0.3277          0.187       0.827
+D  B centrado                   1.4409          0.678       0.061  <- colisiones
+```
+
+**Se adopta C**: texto rico (nombre, tags, país, miembros, sello, y abstract cuando exista) **más centrado del corpus** — restar el vector medio antes de indexar. Triplica la separación, sin efectos secundarios. El vector medio se persiste y se aplica también al vector de consulta.
+
+**Se rechaza D** pese a ser diez veces mejor en dispersión: reducir el texto a los tags hace que dos bandas con el mismo conjunto de etiquetas tengan el mismo texto y el mismo vector. El `p05` de 0.005 **es** ese colapso. El 17 % sin tags acabaría entero en un punto. D cambia una cáscara fina por colisiones.
+
+### El anillo, redefinido
+
+Aun centrado, un radio absoluto no es interpretable. **El anillo se expresa en percentiles de la distribución de vecinos**, no en distancias.
+
+Implementación: se muestrean unos miles de artistas al azar, se calculan sus distancias al vector de gusto del usuario, se obtienen los **radios correspondientes a los percentiles del slider**, y esos dos radios se pasan a la consulta HNSW. Percentiles hacia el usuario, radios hacia el índice. Evita un `ORDER BY` sobre todo el catálogo.
+
+### Defectos declarados del spike
+
+- La métrica «textos únicos 182/182» **es vacía**: el texto incluía el nombre de la banda, luego era único por construcción. La conclusión de «no hay colapso» se sostiene por la distribución de distancias y los anillos, no por esa fila.
+- Se usaron tags de **MusicBrainz**, no de Last.fm. Producción usará Last.fm, que es más rico: esto es una cota **pesimista** sobre la señal de tags.
+- La columna `anillo_p60_80` de la tabla del v3b no informa: se pidió el 20 % central por construcción y sale el 20 %. Quedó como comprobación de cordura.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
