@@ -422,6 +422,49 @@ Implementación: se muestrean unos miles de artistas al azar, se calculan sus di
 
 ---
 
+## D27 — Identidad visual v1 (Gemini): aceptada como dirección, no como entregable
+`2026-07-10` · vigente · ver `docs/assets/branding-v1-gemini.png`
+
+Propuesta de icono, wordmark y favicon generada por Gemini a partir del brief de Pedro.
+
+### Qué acierta
+
+**El concepto es la app, no un adorno.** El círculo es el linaje. La línea vertical es el tiempo — el eje del Gantt. El borde derecho que se deshace es la información que se pierde. Es exactamente la pérdida de generación de D14.
+
+**La `I` de sulfuro del wordmark es el eje del tiempo**, y es el único color de todo el sistema.
+
+**Resistió los defectos prohibidos en el brief.** El fondo claro muestreado es `#E5E1DA`, un gris frío sucio — no el crema cálido `#F4F1EA` en el que cae por defecto casi todo modelo generativo. Sin pentagramas, sin blackletter, sin verde ácido.
+
+### Qué no sirve todavía
+
+**El icono lleva el wordmark dentro, y a 16 px muere.** Se verificó bajando el PNG a tamaños reales y reescalando con vecino más cercano (`docs/assets/branding-v1-favicon-test.png`): a 16×16 la palabra GRIMOIRE es ruido y la degradación —que es *la idea*— desaparece. Queda un anillo con una raya: un reloj. La hoja de Gemini mostraba el 16×16 y el 8×8 **ampliados**, que es lo que oculta el problema.
+
+Hace falta **una marca hermana para tamaños pequeños**: sin wordmark, trazo más grueso, y la degradación reducida a tres o cuatro tramos gruesos en lugar de cincuenta hilos finos.
+
+**Falta el SVG.** Un PNG no se puede poner de favicon. Faltan también los nombres y paquetes npm de las tipografías, la paleta con hexes y ratios, el tono de voz, y la decisión arriesgada que el brief pedía. El wordmark **no está en `Redaction`**, así que Q6 (¿existe en npm/fontsource?) sigue abierta y con ella la firma de Q1.
+
+### Contraste, medido
+
+```
+bone #E6E2D9 sobre void #0B0B0D    15.21:1  ✓
+toner #17161A sobre paper           16.10:1  ✓
+sulphur #D6C34A sobre void          11.02:1  ✓
+sulphur #D6C34A sobre paper          1.60:1  ✗  ilegible
+sulphur oscuro #8F7C18 sobre paper   3.71:1  ✓ trazos y foco (WCAG 1.4.11), ✗ texto
+```
+
+El ámbar de Gemini (`#E8BB3B` oscuro / `#E0B434` claro) tiene el mismo problema. **En modo claro se usa la variante oscura, y nunca para texto.**
+
+### Reconciliación con D14
+
+El icono oscuro **tiene grano**, y D14 dice que el semitono va solo en modo claro porque «el vacío no tiene grano». Se resuelve así: **el icono es un objeto impreso; la interfaz no.** El grano vive en el icono y en el modo claro. El fondo oscuro de la app sigue limpio.
+
+### Tensión abierta
+
+El icono ya encarna la pérdida de generación. Si además la tipografía se degrada según el rank de la banda (Q1), hay **dos firmas compitiendo**. Se mantienen ambas porque son de naturaleza distinta —el icono es la marca, la degradación tipográfica es **un dato**— pero queda anotado para que Pedro lo decida a sabiendas.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
