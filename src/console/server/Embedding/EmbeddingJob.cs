@@ -41,6 +41,13 @@ public sealed class EmbeddingJob : WorkerJob
 
     protected override string CommandName => "Embedding pass";
 
+    // Recompute the corpus mean (and re-embed the whole catalogue) only when far too few vectors
+    // exist to be resuming a real pass — i.e. a fresh catalogue. Above this we resume, reusing the
+    // persisted mean so already-centred vectors stay consistent with the ones we are about to add.
+    private const int FreshRebuildBelow = 40_000;
+    private const int MeanSampleTarget = 6_000;
+    private const int BatchSize = 400;
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         if (!_options.Enabled)
@@ -54,17 +61,117 @@ public sealed class EmbeddingJob : WorkerJob
 
         await db.Database.MigrateAsync(ct);
 
-        List<Artist> artists = await db.Artists.ToListAsync(ct);
-        Dictionary<Guid, string> nameById = artists.ToDictionary(a => a.Id, a => a.Name);
+        // Member-name map for the embedding text (read-only, untracked so it costs little memory).
+        Dictionary<Guid, List<string>> membersByBand = await BuildMembersMapAsync(db, ct);
 
-        // Members of a band: the "from" side of its member_of edges.
-        Dictionary<Guid, List<string>> membersByBand = new();
+        int embeddedNow = await db.Artists.CountAsync(a => a.Embedding != null, ct);
+
+        // Establish the corpus mean (D26). On a fresh catalogue we compute it from a sample and
+        // clear stale vectors so everything re-centres on the same mean; otherwise we resume.
+        float[] mean;
+        if (embeddedNow < FreshRebuildBelow)
+        {
+            _logger.LogInformation(
+                "Fresh embedding rebuild ({Existing} existing): computing the corpus mean from a sample of {Sample}.",
+                embeddedNow, MeanSampleTarget);
+
+            float[]? sampleMean = await ComputeSampleMeanAsync(db, membersByBand, ct);
+            if (sampleMean is null)
+            {
+                _logger.LogWarning("No sample vectors produced; leaving the catalogue untouched.");
+                return;
+            }
+
+            mean = sampleMean;
+            await db.Database.ExecuteSqlRawAsync("UPDATE artists SET embedding = NULL", ct);
+            await PersistMeanAsync(db, mean, 0, ct);
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+        else
+        {
+            CorpusStat? stat = await db.CorpusStats.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == CorpusStat.SingletonId, ct);
+
+            if (stat?.MeanEmbedding is null)
+            {
+                _logger.LogWarning("Resuming, but no corpus mean is persisted; nothing to centre against. Aborting.");
+                return;
+            }
+
+            mean = stat.MeanEmbedding.ToArray();
+            _logger.LogInformation("Resuming embedding pass ({Existing} already centred) with the persisted mean.", embeddedNow);
+        }
+
+        // Main loop: keyset-page over the not-yet-embedded rows, embed + centre + SAVE per batch.
+        // Batched saves make this resumable and memory-bounded — a kill loses at most one batch,
+        // and re-running skips everything already centred (embedding IS NULL filters them out).
+        Guid last = Guid.Empty;
+        int done = 0;
+        int noSignal = 0;
+
+        while (!ct.IsCancellationRequested)
+        {
+            List<Artist> page = await db.Artists
+                .FromSqlInterpolated(
+                    $"SELECT * FROM artists WHERE embedding IS NULL AND id > {last} ORDER BY id LIMIT {BatchSize}")
+                .ToListAsync(ct);
+
+            if (page.Count == 0)
+            {
+                break;
+            }
+
+            foreach (Artist artist in page)
+            {
+                last = artist.Id;
+                membersByBand.TryGetValue(artist.Id, out List<string>? members);
+                string? text = EmbeddingTextBuilder.Build(artist, members);
+
+                if (text is null)
+                {
+                    // No signal: it stays null by design (D26). We have already moved `last` past it.
+                    noSignal++;
+                    continue;
+                }
+
+                float[]? raw = await _ollama.EmbedAsync(text, ct);
+                if (raw is null || raw.Length != _options.Dimensions)
+                {
+                    continue;
+                }
+
+                artist.Embedding = new Vector(VectorMath.Subtract(raw, mean));
+                done++;
+            }
+
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+            _logger.LogInformation("Embedded {Done} this pass (skipped {NoSignal} no-signal)...", done, noSignal);
+        }
+
+        int finalCount = await db.Artists.CountAsync(a => a.Embedding != null, ct);
+        await PersistMeanAsync(db, mean, finalCount, ct);
+        await db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Embedding pass complete: {Count} centred embeddings in the catalogue.", finalCount);
+    }
+
+    // The member names of each band (the "from" side of its member_of edges), for the embedding text.
+    private static async Task<Dictionary<Guid, List<string>>> BuildMembersMapAsync(GrimoireDbContext db, CancellationToken ct)
+    {
+        Dictionary<Guid, string> nameById = await db.Artists
+            .AsNoTracking()
+            .Select(a => new { a.Id, a.Name })
+            .ToDictionaryAsync(a => a.Id, a => a.Name, ct);
 
         List<(Guid FromId, Guid ToId)> memberEdges = await db.ArtistEdges
+            .AsNoTracking()
             .Where(e => e.Kind == EdgeKind.MemberOf)
             .Select(e => new ValueTuple<Guid, Guid>(e.FromId, e.ToId))
             .ToListAsync(ct);
 
+        Dictionary<Guid, List<string>> membersByBand = new();
         foreach ((Guid fromId, Guid toId) in memberEdges)
         {
             if (nameById.TryGetValue(fromId, out string? memberName))
@@ -79,12 +186,26 @@ public sealed class EmbeddingJob : WorkerJob
             }
         }
 
-        // Phase 1: embed every artist that has signal, keeping the raw vectors in memory.
-        List<(Artist Artist, float[] Raw)> raws = [];
-        int embedded = 0;
-        int skipped = 0;
+        return membersByBand;
+    }
 
-        foreach (Artist artist in artists)
+    // The corpus mean (D26) estimated from a random sample of tagged artists — a stable
+    // approximation of the full-catalogue mean, so batches can be centred without holding every
+    // raw vector in memory. Any fixed vector keeps artist and query sides consistent; the sample
+    // mean also recovers most of the near/far separation the full mean would.
+    private async Task<float[]?> ComputeSampleMeanAsync(
+        GrimoireDbContext db,
+        Dictionary<Guid, List<string>> membersByBand,
+        CancellationToken ct)
+    {
+        List<Artist> sample = await db.Artists
+            .FromSqlInterpolated(
+                $"SELECT * FROM artists WHERE cardinality(tags) > 0 ORDER BY random() LIMIT {MeanSampleTarget}")
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        List<float[]> raws = [];
+        foreach (Artist artist in sample)
         {
             if (ct.IsCancellationRequested)
             {
@@ -93,60 +214,24 @@ public sealed class EmbeddingJob : WorkerJob
 
             membersByBand.TryGetValue(artist.Id, out List<string>? members);
             string? text = EmbeddingTextBuilder.Build(artist, members);
-
             if (text is null)
             {
-                // No tags, abstract, place, members or label: no discovery signal, no vector.
-                artist.Embedding = null;
-                skipped++;
                 continue;
             }
 
-            float[]? vector = await _ollama.EmbedAsync(text, ct);
-
-            if (vector is null)
+            float[]? raw = await _ollama.EmbedAsync(text, ct);
+            if (raw is not null && raw.Length == _options.Dimensions)
             {
-                continue;
+                raws.Add(raw);
             }
 
-            if (vector.Length != _options.Dimensions)
+            if (raws.Count > 0 && raws.Count % 1000 == 0)
             {
-                _logger.LogWarning("Artist '{Name}': embedding had {Actual} dims, expected {Expected}; skipped.",
-                    artist.Name, vector.Length, _options.Dimensions);
-                continue;
-            }
-
-            raws.Add((artist, vector));
-            embedded++;
-
-            if (embedded % 50 == 0)
-            {
-                _logger.LogInformation("Embedded {Embedded} artists so far...", embedded);
+                _logger.LogInformation("Corpus-mean sample: {Count} vectors...", raws.Count);
             }
         }
 
-        if (raws.Count == 0)
-        {
-            _logger.LogWarning("No embeddings produced; leaving corpus mean untouched.");
-            return;
-        }
-
-        // Phase 2: centre on the corpus mean (D26) and persist both the centred vectors and
-        // the mean itself, so the query vector can be centred with the identical vector later.
-        float[] mean = VectorMath.Mean(raws.Select(r => r.Raw).ToList());
-
-        foreach ((Artist artist, float[] raw) in raws)
-        {
-            artist.Embedding = new Vector(VectorMath.Subtract(raw, mean));
-        }
-
-        await PersistMeanAsync(db, mean, raws.Count, ct);
-
-        await db.SaveChangesAsync(ct);
-
-        _logger.LogInformation(
-            "Embedding complete: {Embedded} centred embeddings, {Skipped} artists skipped (no signal). Corpus mean persisted over {Count} vectors.",
-            embedded, skipped, raws.Count);
+        return raws.Count == 0 ? null : VectorMath.Mean(raws);
     }
 
     private static async Task PersistMeanAsync(GrimoireDbContext db, float[] mean, int count, CancellationToken ct)
