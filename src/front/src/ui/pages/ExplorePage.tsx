@@ -8,6 +8,8 @@ import type { ArtistSummary, RareInstrument } from '../../core/domain/types';
 import { ArtistPicker } from '../lineage/ArtistPicker';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { Cover } from '../Cover';
+import { PageHeader } from '../PageHeader';
+import { SectionHead } from '../SectionHead';
 
 // Movement V — the Explore hub: the catalogue turned over and looked at from odd angles. The wall of
 // covers (C6), comparing two bands (B24), the one-album bands (C24), the hyperprolific (C25), and
@@ -19,10 +21,11 @@ export function ExplorePage() {
 
   return (
     <section>
-      <div className="flyer -mx-5 -mt-8 border-b border-line px-5 pb-6 pt-8">
-        <h1 className="font-display text-4xl text-strong">{t('explore.heading')}</h1>
-        <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('explore.intro')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('explore.eyebrow')}
+        title={t('explore.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('explore.intro')}</p>}
+      />
 
       <CoverWallSection />
       <CompareSection />
@@ -42,8 +45,7 @@ function RareInstrumentsSection() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('explore.rareTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.rareHint')}</p>
+      <SectionHead title={t('explore.rareTitle')} hint={t('explore.rareHint')} />
 
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
@@ -105,8 +107,7 @@ function CoverWallSection() {
 
   return (
     <div className="mt-10">
-      <h2 className="font-display text-2xl text-strong">{t('explore.wallTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.wallHint')}</p>
+      <SectionHead title={t('explore.wallTitle')} hint={t('explore.wallHint')} />
 
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
@@ -147,8 +148,7 @@ function CompareSection() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('explore.compareTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.compareHint')}</p>
+      <SectionHead title={t('explore.compareTitle')} hint={t('explore.compareHint')} />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <ArtistPicker label={t('explore.bandA')} selected={a} onSelect={setA} />
@@ -217,8 +217,7 @@ function OneAlbumSection() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('explore.oneAlbumTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.oneAlbumHint')}</p>
+      <SectionHead title={t('explore.oneAlbumTitle')} hint={t('explore.oneAlbumHint')} />
 
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
@@ -257,8 +256,7 @@ function HyperprolificSection() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('explore.prolificTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.prolificHint')}</p>
+      <SectionHead title={t('explore.prolificTitle')} hint={t('explore.prolificHint')} />
 
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
@@ -295,8 +293,7 @@ function SplitsSection() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('explore.splitsTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('explore.splitsHint')}</p>
+      <SectionHead title={t('explore.splitsTitle')} hint={t('explore.splitsHint')} />
 
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}

@@ -40,7 +40,8 @@
     "errorInvalid": "That email and password did not match. Try again.",
     "errorExists": "An account with that email already exists. Sign in instead.",
     "errorWeak": "That password is too weak. Use at least 8 characters, with a number and a symbol.",
-    "errorGeneric": "The gate would not open. Try again."
+    "errorGeneric": "The gate would not open. Try again.",
+    "eyebrow": "Cross the threshold"
   },
   "coldStart": {
     "heading": "Name what you already love",
@@ -58,7 +59,8 @@
     "lastFmWorking": "Importing…",
     "lastFmUnavailable": "Last.fm import is not available yet — the key that unlocks it is not in place. Choose bands above for now.",
     "lastFmNoMatch": "None of your top artists is in the catalogue yet. Choose bands above instead.",
-    "lastFmError": "The import failed. Try again, or choose bands above."
+    "lastFmError": "The import failed. Try again, or choose bands above.",
+    "eyebrow": "Before the first rite"
   },
   "search": {
     "heading": "Search the grimoire",
@@ -139,7 +141,8 @@
     "loading": "Reading the names…",
     "error": "The page would not load. Try again.",
     "empty": "No death is on record. The grimoire keeps its people.",
-    "noBands": "Their bands have not been gathered."
+    "noBands": "Their bands have not been gathered.",
+    "eyebrow": "The names kept"
   },
   "rite": {
     "heading": "The Rite",
@@ -197,7 +200,10 @@
     "emptyBody": "No band has been projected to the map yet. The Atlas fills in once the embeddings are placed.",
     "noTasteAnon": "Sign in and seed your taste to find yourself among the stars.",
     "noTasteSignedIn": "Seed your taste to find yourself among the stars.",
-    "toRite": "Begin the rite →"
+    "toRite": "Begin the rite →",
+    "eyebrow": "The periphery, mapped",
+    "legendField": "Catalogue",
+    "legendTaste": "Near your taste"
   },
   "grimoire": {
     "heading": "Your grimoire",
@@ -206,7 +212,8 @@
     "error": "Your grimoire would not open. Try again.",
     "summonedOn": "summoned {{date}}",
     "emptyTitle": "Your grimoire is empty",
-    "emptyBody": "Nothing summoned yet. Begin the rite and summon what you like — each one is inscribed here."
+    "emptyBody": "Nothing summoned yet. Begin the rite and summon what you like — each one is inscribed here.",
+    "eyebrow": "What you summoned"
   },
   "cover": {
     "alt": "Cover of {{title}}",
@@ -293,7 +300,8 @@
     "betweenLabel": "Between {{from}} and {{to}}",
     "distance": "distance {{distance}}",
     "grimoireGraphTitle": "Your grimoire as a graph",
-    "grimoireGraphHint": "Only the bands you have summoned, and the blood between them. Click a node to open it."
+    "grimoireGraphHint": "Only the bands you have summoned, and the blood between them. Click a node to open it.",
+    "eyebrow": "Trace the bloodline"
   },
   "scenes": {
     "heading": "Scenes",
@@ -303,7 +311,8 @@
     "empty": "No scene has enough bands yet. The catalogue is thin here — the margin is quiet.",
     "decadeLabel": "{{decade}}s",
     "bandCount_one": "{{count}} band",
-    "bandCount_other": "{{count}} bands"
+    "bandCount_other": "{{count}} bands",
+    "eyebrow": "City · decade · sound"
   },
   "labels": {
     "heading": "Labels",
@@ -312,7 +321,8 @@
     "error": "The labels would not load. Try again.",
     "empty": "No label carries a release yet.",
     "releaseCount_one": "{{count}} release",
-    "releaseCount_other": "{{count}} releases"
+    "releaseCount_other": "{{count}} releases",
+    "eyebrow": "The door is the label"
   },
   "label": {
     "loading": "Turning to that label…",
@@ -320,7 +330,8 @@
     "error": "The label would not load. Try again.",
     "back": "← All labels",
     "countryUnknown": "country unrecorded",
-    "empty": "No releases recorded on this label yet."
+    "empty": "No releases recorded on this label yet.",
+    "eyebrow": "The roster"
   },
   "explore": {
     "heading": "Explore",
@@ -355,7 +366,8 @@
     "prolificMeta": "{{releases}} releases · {{ratio}}×/yr",
     "splitsTitle": "The split network",
     "splitsHint": "Bands that shared one record. The real social graph of the underground. Click a node to open it.",
-    "splitsEmpty": "No split resolves both bands to the catalogue yet — most split partners are not in this corpus."
+    "splitsEmpty": "No split resolves both bands to the catalogue yet — most split partners are not in this corpus.",
+    "eyebrow": "The catalogue, turned over"
   },
   "gift": {
     "heading": "A gift, face down",
@@ -377,7 +389,8 @@
     "noPreview": "This band has no preview, so it cannot be sent blind. A gift has to be able to sound.",
     "giveError": "The gift could not be wrapped. Try again.",
     "linkReady": "Your gift link — share it",
-    "linkHint": "Whoever opens it hears the band blind, then may reveal it."
+    "linkHint": "Whoever opens it hears the band blind, then may reveal it.",
+    "eyebrow": "Someone sent you this"
   },
   "crossed": {
     "title": "Crossed grimoires",
@@ -428,7 +441,8 @@
       "Summoned": "summoned",
       "Banished": "banished",
       "Again": "again"
-    }
+    },
+    "eyebrow": "Seven, blind"
   },
   "mirror": {
     "heading": "The Mirror",
@@ -463,7 +477,8 @@
     "gapsSubgenres": "Subgenres",
     "gapsNone": "None: you have touched all of these.",
     "gapsAtlasHint": "These gaps are the empty regions of the Atlas.",
-    "gapsToAtlas": "See the Atlas →"
+    "gapsToAtlas": "See the Atlas →",
+    "eyebrow": "Your rite, turned back"
   },
   "duel": {
     "heading": "The Duel",
@@ -479,7 +494,8 @@
     "sideB": "The second",
     "choose": "Choose this one",
     "winner": "You preferred",
-    "resolveError": "That choice could not be recorded. Try again."
+    "resolveError": "That choice could not be recorded. Try again.",
+    "eyebrow": "Two signals. Choose."
   },
   "decade": {
     "heading": "Guess the Decade",
@@ -506,6 +522,7 @@
       "hit": "Hit",
       "close": "Close",
       "miss": "Miss"
-    }
+    },
+    "eyebrow": "Bet the year, blind"
   }
 }

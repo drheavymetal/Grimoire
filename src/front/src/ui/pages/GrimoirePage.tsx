@@ -7,6 +7,8 @@ import { useCrossGrimoires, useGrimoireCode } from '../../core/hooks/useCrossedG
 import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { GraphCanvas } from '../graph/GraphCanvas';
+import { PageHeader } from '../PageHeader';
+import { SectionHead } from '../SectionHead';
 import type { ArtistSummary, GrimoireEntry } from '../../core/domain/types';
 
 // Your grimoire (feature C17 data): the bands you have summoned, newest first. Rank is null
@@ -36,12 +38,15 @@ export function GrimoirePage() {
 
   return (
     <section>
-      <div className="flex items-baseline justify-between">
-        <h1 className="font-display text-4xl text-strong">{t('grimoire.heading')}</h1>
-        <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
-          {t('grimoire.toRite')}
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow={t('grimoire.eyebrow')}
+        title={t('grimoire.heading')}
+        aside={
+          <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+            {t('grimoire.toRite')}
+          </Link>
+        }
+      />
 
       {entries.length === 0 ? (
         <div className="mt-6 border border-line p-6">
@@ -79,8 +84,7 @@ function CrossedGrimoires({ enabled }: { enabled: boolean }) {
 
   return (
     <section className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('crossed.title')}</h2>
-      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('crossed.hint')}</p>
+      <SectionHead title={t('crossed.title')} hint={t('crossed.hint')} />
 
       <div className="mt-4 border border-line p-4">
         <p className="font-mono text-xs uppercase text-muted">{t('crossed.yourCode')}</p>
@@ -179,8 +183,7 @@ function GrimoireGraph({ enabled, count }: { enabled: boolean; count: number }) 
 
   return (
     <section className="mt-10">
-      <h2 className="font-display text-2xl text-strong">{t('lineage.grimoireGraphTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('lineage.grimoireGraphHint')}</p>
+      <SectionHead title={t('lineage.grimoireGraphTitle')} hint={t('lineage.grimoireGraphHint')} />
       {isLoading ? (
         <p className="mt-3 font-mono text-sm text-muted">{t('lineage.loading')}</p>
       ) : isError ? (

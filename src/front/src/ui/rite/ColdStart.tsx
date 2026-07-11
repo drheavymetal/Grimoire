@@ -4,6 +4,7 @@ import { useSeedCandidates } from '../../core/hooks/useSeedCandidates';
 import { useImportLastFm, useSeed } from '../../core/hooks/useColdStart';
 import { ApiError } from '../../core/api/client';
 import type { SeedCandidate } from '../../core/domain/types';
+import { PageHeader } from '../PageHeader';
 
 const REQUIRED_PICKS = 5;
 
@@ -32,9 +33,12 @@ export function ColdStart() {
 
   return (
     <section>
-      <h1 className="font-display text-4xl text-strong">{t('coldStart.heading')}</h1>
-      <p className="mt-2 max-w-prose font-body text-strong">{t('coldStart.intro')}</p>
-      <p className="mt-1 font-mono text-xs text-muted">
+      <PageHeader
+        eyebrow={t('coldStart.eyebrow')}
+        title={t('coldStart.heading')}
+        lead={<p className="font-body text-strong">{t('coldStart.intro')}</p>}
+      />
+      <p className="mt-3 font-mono text-xs text-muted">
         {t('coldStart.counter', { count: picked.size, required: REQUIRED_PICKS })}
       </p>
 

@@ -234,7 +234,10 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
         <span className="font-mono text-[0.65rem] uppercase text-muted">{t('atlas.hint')}</span>
       </div>
 
-      <div ref={containerRef} className="mt-2 w-full overflow-hidden border border-line">
+      {/* The frame is an instrument panel over the void, not a bare canvas: a corner sigil, a soft
+          edge vignette so the star field reads as depth fading into the dark, and a Courier legend.
+          The overlays are pointer-events-none so they never intercept a pan or a click-through. */}
+      <div ref={containerRef} className="relative mt-2 w-full overflow-hidden border border-line">
         <canvas
           ref={canvasRef}
           role="img"
@@ -246,6 +249,22 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
         />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(120% 90% at 50% 40%, transparent 52%, color-mix(in srgb, var(--color-bg) 82%, transparent) 100%)' }}
+        />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-strong opacity-60" />
+          {t('atlas.legendField')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+          {t('atlas.legendTaste')}
+        </span>
       </div>
     </div>
   );

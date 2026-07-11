@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { RankedName } from '../RankedName';
 import { TrajectoryChart } from '../mirror/TrajectoryChart';
+import { PageHeader } from '../PageHeader';
+import { SectionHead } from '../SectionHead';
 
 // The mirror and your cartography (features C20, C16, B25, B18, B23): the app turning your own rite
 // history back on you. Every section reads real data through a core hook and has a designed empty
@@ -24,10 +26,11 @@ export function MirrorPage() {
 
   return (
     <section className="space-y-12">
-      <div>
-        <h1 className="font-display text-4xl text-strong">{t('mirror.heading')}</h1>
-        <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('mirror.intro')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('mirror.eyebrow')}
+        title={t('mirror.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('mirror.intro')}</p>}
+      />
 
       <Reflection enabled={isAuthenticated} />
       <TrajectorySection enabled={isAuthenticated} />
@@ -45,7 +48,7 @@ function Reflection({ enabled }: { enabled: boolean }) {
 
   return (
     <section>
-      <h2 className="font-display text-2xl text-strong">{t('mirror.reflectionTitle')}</h2>
+      <SectionHead title={t('mirror.reflectionTitle')} />
       {isLoading ? <p className="mt-2 font-mono text-sm text-muted">{t('mirror.loading')}</p> : null}
       {isError ? <p className="mt-2 font-mono text-sm text-danger">{t('mirror.error')}</p> : null}
       {data !== undefined ? (
@@ -73,8 +76,7 @@ function TrajectorySection({ enabled }: { enabled: boolean }) {
 
   return (
     <section>
-      <h2 className="font-display text-2xl text-strong">{t('mirror.trajectoryTitle')}</h2>
-      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('mirror.trajectoryHint')}</p>
+      <SectionHead title={t('mirror.trajectoryTitle')} hint={t('mirror.trajectoryHint')} />
       {isLoading ? <p className="mt-2 font-mono text-sm text-muted">{t('mirror.loading')}</p> : null}
       {isError ? <p className="mt-2 font-mono text-sm text-danger">{t('mirror.error')}</p> : null}
       {data !== undefined ? (
@@ -95,8 +97,7 @@ function AntiRecSection({ enabled }: { enabled: boolean }) {
 
   return (
     <section>
-      <h2 className="font-display text-2xl text-strong">{t('mirror.antiRecTitle')}</h2>
-      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('mirror.antiRecHint')}</p>
+      <SectionHead title={t('mirror.antiRecTitle')} hint={t('mirror.antiRecHint')} />
       {isLoading ? <p className="mt-2 font-mono text-sm text-muted">{t('mirror.loading')}</p> : null}
       {isError ? <p className="mt-2 font-mono text-sm text-danger">{t('mirror.error')}</p> : null}
       {data !== undefined ? (
@@ -137,8 +138,7 @@ function DarkTwinSection({ enabled }: { enabled: boolean }) {
 
   return (
     <section>
-      <h2 className="font-display text-2xl text-strong">{t('mirror.darkTwinTitle')}</h2>
-      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('mirror.darkTwinHint')}</p>
+      <SectionHead title={t('mirror.darkTwinTitle')} hint={t('mirror.darkTwinHint')} />
       {isLoading ? <p className="mt-2 font-mono text-sm text-muted">{t('mirror.loading')}</p> : null}
       {isError ? <p className="mt-2 font-mono text-sm text-danger">{t('mirror.error')}</p> : null}
       {data !== undefined ? (
@@ -169,8 +169,7 @@ function GapsSection({ enabled }: { enabled: boolean }) {
 
   return (
     <section>
-      <h2 className="font-display text-2xl text-strong">{t('mirror.gapsTitle')}</h2>
-      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('mirror.gapsHint')}</p>
+      <SectionHead title={t('mirror.gapsTitle')} hint={t('mirror.gapsHint')} />
       {isLoading ? <p className="mt-2 font-mono text-sm text-muted">{t('mirror.loading')}</p> : null}
       {isError ? <p className="mt-2 font-mono text-sm text-danger">{t('mirror.error')}</p> : null}
       {data !== undefined ? (

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useScenes } from '../../core/hooks/useScenes';
 import type { Scene } from '../../core/domain/types';
+import { PageHeader } from '../PageHeader';
 
 // B20/C11 — Scenes. Not a country map (D17): the unit is the local scene, a city and a decade and a
 // tag taken together. Gothenburg / 1990s / melodic death metal. Real data off city/formed_year/tags;
@@ -15,10 +16,11 @@ export function ScenesPage() {
 
   return (
     <section>
-      <div className="flyer -mx-5 -mt-8 border-b border-line px-5 pb-6 pt-8">
-        <h1 className="font-display text-4xl text-strong">{t('scenes.heading')}</h1>
-        <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('scenes.intro')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('scenes.eyebrow')}
+        title={t('scenes.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('scenes.intro')}</p>}
+      />
 
       {isLoading ? <p className="mt-6 font-mono text-sm text-muted">{t('scenes.loading')}</p> : null}
       {isError ? <p className="mt-6 font-mono text-sm text-danger">{t('scenes.error')}</p> : null}

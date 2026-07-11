@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useLabels } from '../../core/hooks/useLabels';
+import { PageHeader } from '../PageHeader';
 
 // B21 — labels as a door. The way people actually find metal: trust a label, walk its roster.
 // Real labels the ETL resolved; a thin index renders a designed empty state.
@@ -13,10 +14,11 @@ export function LabelsPage() {
 
   return (
     <section>
-      <div className="flyer -mx-5 -mt-8 border-b border-line px-5 pb-6 pt-8">
-        <h1 className="font-display text-4xl text-strong">{t('labels.heading')}</h1>
-        <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('labels.intro')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('labels.eyebrow')}
+        title={t('labels.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('labels.intro')}</p>}
+      />
 
       {isLoading ? <p className="mt-6 font-mono text-sm text-muted">{t('labels.loading')}</p> : null}
       {isError ? <p className="mt-6 font-mono text-sm text-danger">{t('labels.error')}</p> : null}

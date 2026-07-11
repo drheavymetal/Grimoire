@@ -57,6 +57,7 @@ export function ComposerBody({ data }: { data: ArtistDetail }) {
 
       {/* The hero: works grouped by kind. */}
       <section className="mt-10">
+        <span aria-hidden="true" className="mb-3 block h-px w-8 bg-accent" />
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-display text-2xl text-strong">{t('composer.worksTitle')}</h2>
           {composer !== undefined ? (
@@ -119,6 +120,7 @@ function ComposerLineageView({ composer }: { composer: ComposerDetail }) {
 
   return (
     <section className="mt-10">
+      <span aria-hidden="true" className="mb-3 block h-px w-8 bg-accent" />
       <h2 className="font-display text-2xl text-strong">{t('composer.lineageTitle')}</h2>
       <p className="mt-1 font-mono text-xs text-muted">{t('composer.lineageHint')}</p>
 

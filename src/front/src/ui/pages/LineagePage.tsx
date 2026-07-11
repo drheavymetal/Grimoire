@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useMissingLink, useSixDegrees } from '../../core/hooks/useLineage';
 import type { ArtistSummary } from '../../core/domain/types';
 import { ArtistPicker } from '../lineage/ArtistPicker';
+import { PageHeader } from '../PageHeader';
+import { SectionHead } from '../SectionHead';
 
 // The lineage tools hub: the two features that take two bands as input — Six Degrees of Metal
 // (B19) and the missing link (C5). Each picks two bands and shows a real result from the graph or
@@ -14,8 +16,11 @@ export function LineagePage() {
 
   return (
     <section>
-      <h1 className="font-display text-4xl text-strong">{t('lineage.pageTitle')}</h1>
-      <p className="mt-2 max-w-prose font-body text-sm text-muted">{t('lineage.pageIntro')}</p>
+      <PageHeader
+        eyebrow={t('lineage.eyebrow')}
+        title={t('lineage.pageTitle')}
+        lead={<p className="font-body text-sm text-muted">{t('lineage.pageIntro')}</p>}
+      />
 
       <SixDegrees />
       <MissingLinkTool />
@@ -34,8 +39,7 @@ function SixDegrees() {
 
   return (
     <div className="mt-10">
-      <h2 className="font-display text-2xl text-strong">{t('lineage.sixDegreesTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('lineage.sixDegreesHint')}</p>
+      <SectionHead title={t('lineage.sixDegreesTitle')} hint={t('lineage.sixDegreesHint')} />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <ArtistPicker label={t('lineage.fromBand')} selected={from} onSelect={setFrom} />
@@ -94,8 +98,7 @@ function MissingLinkTool() {
 
   return (
     <div className="mt-12">
-      <h2 className="font-display text-2xl text-strong">{t('lineage.missingLinkTitle')}</h2>
-      <p className="mt-1 font-mono text-xs text-muted">{t('lineage.missingLinkHint')}</p>
+      <SectionHead title={t('lineage.missingLinkTitle')} hint={t('lineage.missingLinkHint')} />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <ArtistPicker label={t('lineage.fromBand')} selected={from} onSelect={setFrom} />

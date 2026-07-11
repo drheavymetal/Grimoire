@@ -5,6 +5,7 @@ import { useAtlas } from '../../core/hooks/useAtlas';
 import { starsNearTaste } from '../../core/domain/atlas';
 import { useAuth } from '../auth/AuthProvider';
 import { AtlasCanvas } from '../atlas/AtlasCanvas';
+import { PageHeader } from '../PageHeader';
 
 // How many stars around the taste are painted alive (sulphur). Mirrors AtlasCanvas ALIVE_COUNT.
 const ALIVE_COUNT = 28;
@@ -24,8 +25,11 @@ export function AtlasPage() {
 
   return (
     <section>
-      <h1 className="font-display text-4xl text-strong">{t('atlas.heading')}</h1>
-      <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('atlas.intro')}</p>
+      <PageHeader
+        eyebrow={t('atlas.eyebrow')}
+        title={t('atlas.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('atlas.intro')}</p>}
+      />
 
       {isLoading ? <p className="mt-6 font-mono text-sm text-muted">{t('atlas.loading')}</p> : null}
       {isError ? <p className="mt-6 font-mono text-sm text-danger">{t('atlas.error')}</p> : null}

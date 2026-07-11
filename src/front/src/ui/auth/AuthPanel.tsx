@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../core/api/client';
 import { useAuth } from './AuthProvider';
+import { Mark } from '../Logo';
 
 // Minimal sign-in / register gate for The Rite (task 1). The Rite endpoints require a JWT,
 // so an anonymous visitor sees this first. Copy is directed, not a bare form.
@@ -33,7 +34,11 @@ export function AuthPanel() {
 
   return (
     <section className="mx-auto max-w-sm">
-      <h1 className="font-display text-4xl text-strong">{t('rite.heading')}</h1>
+      {/* The threshold to the rite: the mark, then its own eyebrow. The heading stays 'The Rite'
+          (the gate the visitor is trying to enter) — the e2e suite finds it by that name. */}
+      <Mark size={40} className="text-strong" />
+      <p className="mt-4 font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">{t('auth.eyebrow')}</p>
+      <h1 className="mt-2 font-display text-4xl leading-[0.95] text-strong sm:text-5xl">{t('rite.heading')}</h1>
       <p className="mt-2 font-mono text-xs text-muted">
         {mode === 'login' ? t('auth.loginHint') : t('auth.registerHint')}
       </p>

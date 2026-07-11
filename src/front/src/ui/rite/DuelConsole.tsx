@@ -69,7 +69,8 @@ export function DuelConsole() {
 
   return (
     <section>
-      <div className="flex items-baseline justify-between">
+      <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">{t('duel.eyebrow')}</p>
+      <div className="mt-1 flex items-baseline justify-between">
         <h1 className="font-display text-4xl text-strong">{t('duel.heading')}</h1>
         <Link
           to="/rite"

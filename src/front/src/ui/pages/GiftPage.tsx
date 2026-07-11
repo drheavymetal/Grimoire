@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePeekGift, useRevealGift } from '../../core/hooks/useGift';
 import { RitePlayer } from '../rite/RitePlayer';
 import { RankedName } from '../RankedName';
+import { PageHeader } from '../PageHeader';
 
 // C22 — receiving a gift. The band arrives face down and signed: the recipient hears it blind, not
 // knowing whether it is a gift or a trap, and turns it over only if they like it. Reuses the exact
@@ -31,10 +32,11 @@ export function GiftPage({ token }: { token: string }) {
 
   return (
     <section>
-      <div className="flyer -mx-5 -mt-8 border-b border-line px-5 pb-6 pt-8">
-        <h1 className="font-display text-4xl text-strong">{t('gift.heading')}</h1>
-        <p className="mt-2 max-w-prose font-body text-sm text-muted">{t('gift.intro')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('gift.eyebrow')}
+        title={t('gift.heading')}
+        lead={<p className="font-body text-sm text-muted">{t('gift.intro')}</p>}
+      />
 
       {peek.data.note ? (
         <blockquote className="mt-6 border-l-2 border-accent bg-panel px-4 py-3 font-body italic text-strong">

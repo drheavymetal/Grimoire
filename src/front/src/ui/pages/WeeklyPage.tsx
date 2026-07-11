@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { PushSubscribe } from '../push/PushSubscribe';
 import { WeeklyItem } from '../weekly/WeeklyItem';
+import { PageHeader } from '../PageHeader';
 
 // The Weekly Rite (feature B17): the seven blind bands of the current ISO week, plus Web Push
 // subscription so they arrive without opening the app. Auth-gated; a user with no taste is sent to
@@ -28,8 +29,11 @@ export function WeeklyPage() {
 
   return (
     <section>
-      <h1 className="font-display text-4xl text-strong">{t('weekly.heading')}</h1>
-      <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('weekly.intro')}</p>
+      <PageHeader
+        eyebrow={t('weekly.eyebrow')}
+        title={t('weekly.heading')}
+        lead={<p className="font-mono text-xs text-muted">{t('weekly.intro')}</p>}
+      />
 
       <div className="mt-6">
         <PushSubscribe />

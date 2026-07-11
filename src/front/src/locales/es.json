@@ -40,7 +40,8 @@
     "errorInvalid": "El correo y la contraseña no coinciden. Inténtalo de nuevo.",
     "errorExists": "Ya existe una cuenta con ese correo. Entra en su lugar.",
     "errorWeak": "Esa contraseña es demasiado débil. Usa al menos 8 caracteres, con un número y un símbolo.",
-    "errorGeneric": "La puerta no quiso abrirse. Inténtalo de nuevo."
+    "errorGeneric": "La puerta no quiso abrirse. Inténtalo de nuevo.",
+    "eyebrow": "Cruza el umbral"
   },
   "coldStart": {
     "heading": "Nombra lo que ya amas",
@@ -58,7 +59,8 @@
     "lastFmWorking": "Importando…",
     "lastFmUnavailable": "La importación de Last.fm aún no está disponible: falta la clave que la habilita. Elige bandas arriba por ahora.",
     "lastFmNoMatch": "Ninguno de tus artistas más escuchados está aún en el catálogo. Elige bandas arriba en su lugar.",
-    "lastFmError": "La importación falló. Inténtalo de nuevo, o elige bandas arriba."
+    "lastFmError": "La importación falló. Inténtalo de nuevo, o elige bandas arriba.",
+    "eyebrow": "Antes del primer rito"
   },
   "search": {
     "heading": "Busca en el grimorio",
@@ -139,7 +141,8 @@
     "loading": "Leyendo los nombres…",
     "error": "La página no se cargó. Inténtalo de nuevo.",
     "empty": "No hay ningún fallecimiento registrado. El grimorio guarda a los suyos.",
-    "noBands": "Sus bandas aún no se han recopilado."
+    "noBands": "Sus bandas aún no se han recopilado.",
+    "eyebrow": "Los nombres que quedan"
   },
   "rite": {
     "heading": "El Rito",
@@ -197,7 +200,10 @@
     "emptyBody": "Todavía no se ha proyectado ninguna banda al mapa. El Atlas se llena en cuanto se sitúan los embeddings.",
     "noTasteAnon": "Inicia sesión y siembra tu gusto para encontrarte entre las estrellas.",
     "noTasteSignedIn": "Siembra tu gusto para encontrarte entre las estrellas.",
-    "toRite": "Empezar el rito →"
+    "toRite": "Empezar el rito →",
+    "eyebrow": "La periferia, cartografiada",
+    "legendField": "Catálogo",
+    "legendTaste": "Cerca de tu gusto"
   },
   "grimoire": {
     "heading": "Tu grimorio",
@@ -206,7 +212,8 @@
     "error": "Tu grimorio no quiso abrirse. Inténtalo de nuevo.",
     "summonedOn": "invocada {{date}}",
     "emptyTitle": "Tu grimorio está vacío",
-    "emptyBody": "Nada invocado todavía. Comienza el rito e invoca lo que te guste: cada banda queda inscrita aquí."
+    "emptyBody": "Nada invocado todavía. Comienza el rito e invoca lo que te guste: cada banda queda inscrita aquí.",
+    "eyebrow": "Lo que invocaste"
   },
   "cover": {
     "alt": "Portada de {{title}}",
@@ -293,7 +300,8 @@
     "betweenLabel": "Entre {{from}} y {{to}}",
     "distance": "distancia {{distance}}",
     "grimoireGraphTitle": "Tu grimorio como grafo",
-    "grimoireGraphHint": "Solo las bandas que has invocado, y la sangre entre ellas. Clic en un nodo para abrirlo."
+    "grimoireGraphHint": "Solo las bandas que has invocado, y la sangre entre ellas. Clic en un nodo para abrirlo.",
+    "eyebrow": "Rastrea el linaje"
   },
   "scenes": {
     "heading": "Escenas",
@@ -303,7 +311,8 @@
     "empty": "Ninguna escena tiene bastantes bandas todavía. El catálogo es escaso aquí — el margen está callado.",
     "decadeLabel": "años {{decade}}",
     "bandCount_one": "{{count}} banda",
-    "bandCount_other": "{{count}} bandas"
+    "bandCount_other": "{{count}} bandas",
+    "eyebrow": "Ciudad · década · sonido"
   },
   "labels": {
     "heading": "Sellos",
@@ -312,7 +321,8 @@
     "error": "Los sellos no se cargaron. Inténtalo de nuevo.",
     "empty": "Ningún sello tiene aún un lanzamiento.",
     "releaseCount_one": "{{count}} lanzamiento",
-    "releaseCount_other": "{{count}} lanzamientos"
+    "releaseCount_other": "{{count}} lanzamientos",
+    "eyebrow": "La puerta es el sello"
   },
   "label": {
     "loading": "Pasando a ese sello…",
@@ -320,7 +330,8 @@
     "error": "El sello no se cargó. Inténtalo de nuevo.",
     "back": "← Todos los sellos",
     "countryUnknown": "país sin registrar",
-    "empty": "No hay lanzamientos registrados en este sello todavía."
+    "empty": "No hay lanzamientos registrados en este sello todavía.",
+    "eyebrow": "El catálogo"
   },
   "explore": {
     "heading": "Explorar",
@@ -355,7 +366,8 @@
     "prolificMeta": "{{releases}} lanzamientos · {{ratio}}×/año",
     "splitsTitle": "La red de splits",
     "splitsHint": "Bandas que compartieron un disco. El grafo social real del underground. Clic en un nodo para abrirlo.",
-    "splitsEmpty": "Ningún split resuelve ambas bandas al catálogo todavía — la mayoría de los compañeros de split no están en este corpus."
+    "splitsEmpty": "Ningún split resuelve ambas bandas al catálogo todavía — la mayoría de los compañeros de split no están en este corpus.",
+    "eyebrow": "El catálogo, del revés"
   },
   "gift": {
     "heading": "Un regalo, boca abajo",
@@ -377,7 +389,8 @@
     "noPreview": "Esta banda no tiene preview, así que no puede enviarse a ciegas. Un regalo tiene que poder sonar.",
     "giveError": "El regalo no pudo envolverse. Inténtalo de nuevo.",
     "linkReady": "Tu enlace de regalo — compártelo",
-    "linkHint": "Quien lo abra escucha la banda a ciegas, y luego puede revelarla."
+    "linkHint": "Quien lo abra escucha la banda a ciegas, y luego puede revelarla.",
+    "eyebrow": "Alguien te mandó esto"
   },
   "crossed": {
     "title": "Grimorios cruzados",
@@ -428,7 +441,8 @@
       "Summoned": "invocada",
       "Banished": "desterrada",
       "Again": "de nuevo"
-    }
+    },
+    "eyebrow": "Siete, a ciegas"
   },
   "mirror": {
     "heading": "El Espejo",
@@ -463,7 +477,8 @@
     "gapsSubgenres": "Subgéneros",
     "gapsNone": "Ninguno: lo has tocado todo aquí.",
     "gapsAtlasHint": "Estos huecos son las regiones vacías del Atlas.",
-    "gapsToAtlas": "Ver el Atlas →"
+    "gapsToAtlas": "Ver el Atlas →",
+    "eyebrow": "Tu rito, de vuelta"
   },
   "duel": {
     "heading": "El Duelo",
@@ -479,7 +494,8 @@
     "sideB": "La segunda",
     "choose": "Elegir esta",
     "winner": "Preferiste",
-    "resolveError": "No se pudo registrar la elección. Inténtalo de nuevo."
+    "resolveError": "No se pudo registrar la elección. Inténtalo de nuevo.",
+    "eyebrow": "Dos señales. Elige."
   },
   "decade": {
     "heading": "Adivina la Década",
@@ -506,6 +522,7 @@
       "hit": "Acierto",
       "close": "Cerca",
       "miss": "Fallo"
-    }
+    },
+    "eyebrow": "Apuesta el año, a ciegas"
   }
 }

@@ -38,8 +38,9 @@ export function LabelPage({ labelId }: { labelId: string }) {
       </Link>
 
       <div className="mt-3 flyer -mx-5 border-y border-line px-5 py-6">
-        <h1 className="font-display text-4xl text-strong">{data.name}</h1>
-        <p className="mt-1 font-mono text-xs uppercase text-muted">
+        <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">{t('label.eyebrow')}</p>
+        <h1 className="mt-2 font-display text-4xl leading-[0.95] text-strong sm:text-5xl">{data.name}</h1>
+        <p className="mt-2 font-mono text-xs uppercase text-muted">
           {data.country ?? t('label.countryUnknown')} · {t('labels.releaseCount', { count: data.releases.length })}
         </p>
       </div>
