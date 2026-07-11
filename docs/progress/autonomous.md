@@ -21,7 +21,7 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 - [x] **Ola VI — Espejo** (WebPush real, trayectoria, espejo, dark twin, anti-rec, gaps): B17 Weekly Rite (WebPush), B18 Dark Twin, C18 Atlas (canvas/WebGL), B23 gaps, B25 anti-rec, C16 trayectoria, C20 el espejo.
 - [x] **Ola VII — Clásica** (datos + ficha de compositor): modelo `works`, ficha de compositor, linaje maestro-discípulo. (Datos de clásica ausentes en el corpus → shell + siembra mínima si MB lo permite; hueco declarado si no.)
 - [x] **Ola Q — Firma visual** (Q1 cableado, Q2 híbrido) + C18 Atlas: cablear `redactionCutForRank` corregido en nombres/reveal (Q1 Opción 1); modo claro híbrido (Q2).
-- [ ] **Ola V&V — Verificación**: rondas de agentes con **Playwright** E2E sobre todas las features; arreglar fallos; audit --strict; commit+push.
+- [~] **Ola V&V — Verificación** (round 1: 19 E2E Playwright verdes, 0 bugs de producto; round 2 en curso): rondas de agentes con **Playwright** E2E sobre todas las features; arreglar fallos; audit --strict; commit+push.
 
 ## Bitácora
 - 02:32 CEST — push de mov. I+II (rank chain incluido). Backend del Gantt (edges con contraparte) commiteado. Arranca Ola D + Ola III en paralelo (frentes disjuntos: shared/console vs front).
@@ -31,4 +31,5 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 - 04:2x CEST — Ola VI verde (272+79 tests). Migración 5 (push_subscriptions/taste_snapshots). WebPush llegó a FCM. Commit+push.
 - 04:5x CEST — VII-datos (23 compositores/2291 works/12 teacher-student) + Completar (B9/C12/C15/B12) verdes. Migración 6 (works.composer_id). Commit+push. Falta: ficha de compositor (VII-front), relleno de datos, V&V Playwright.
 - 05:0x CEST — VII-front (ficha de compositor) verde. Los 7 movimientos completos. Relleno de datos en curso (fondo). Siguiente: V&V Playwright.
+- 05:2x CEST — V&V round 1: 19 specs Playwright verdes sobre todos los tentpoles, 0 bugs de producto. Datos: 34k credits / 470 labels / 65 deaths (resto resumible, limitado por rate-limit MB). Commit+push. Round 2 (E2E profundo + adversarial) lanzado.
 
