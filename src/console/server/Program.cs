@@ -4,8 +4,10 @@ using Grimoire.Library.Enrichment;
 using Grimoire.Worker;
 using Grimoire.Worker.Embedding;
 using Grimoire.Worker.Listeners;
+using Grimoire.Worker.Atlas;
 using Grimoire.Worker.MusicBrainz;
 using Grimoire.Worker.Preview;
+using Grimoire.Worker.Wikidata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +18,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -33,6 +35,9 @@ if (verb is null)
     Console.WriteLine("  listeners   Populate Last.fm listeners and derive rank (needs LastFm:ApiKey).");
     Console.WriteLine("  embeddings  Build centred nomic-embed-text embeddings and persist the corpus mean.");
     Console.WriteLine("  stats       Report neighbour-distance percentiles p10/p50/p90 (D26 sanity check).");
+    Console.WriteLine("  influence   Import Wikidata P737 influence into artist_edges (influenced_by, B16).");
+    Console.WriteLine("  deaths      Populate death date/place from Wikidata P570/P20 (C12 In Memoriam).");
+    Console.WriteLine("  atlas       Project embeddings to 2D (xy_x/xy_y) for the Atlas (C18/B22).");
     return;
 }
 
@@ -73,6 +78,17 @@ switch (verb)
         break;
     case "stats":
         builder.Services.AddHostedService<StatsJob>();
+        break;
+    case "influence":
+        ConfigureWikidata(builder);
+        builder.Services.AddHostedService<InfluenceJob>();
+        break;
+    case "deaths":
+        ConfigureWikidata(builder);
+        builder.Services.AddHostedService<DeathsJob>();
+        break;
+    case "atlas":
+        builder.Services.AddHostedService<AtlasJob>();
         break;
 }
 
@@ -179,6 +195,16 @@ static void ConfigureListeners(HostApplicationBuilder builder)
         sp.GetRequiredService<ILogger<LastFmEnrichmentSource>>()));
 
     builder.Services.AddHostedService<ListenersJob>();
+}
+
+// The Wikidata SPARQL client (gentle cadence, resilient) is shared by influence and deaths.
+static void ConfigureWikidata(HostApplicationBuilder builder)
+{
+    AddPoliteHttpClient(builder, WikidataClient.HttpClientName, "https://query.wikidata.org/");
+
+    builder.Services.AddSingleton(sp => new WikidataClient(
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(WikidataClient.HttpClientName),
+        sp.GetRequiredService<ILogger<WikidataClient>>()));
 }
 
 static void ConfigureEmbeddings(HostApplicationBuilder builder)

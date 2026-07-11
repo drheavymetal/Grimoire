@@ -35,6 +35,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Rite> Rites => Set<Rite>();
 
+    public DbSet<Credit> Credits => Set<Credit>();
+
+    public DbSet<Work> Works => Set<Work>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -170,6 +174,36 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
                 .WithMany()
                 .HasForeignKey(r => r.ArtistId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Credit>(entity =>
+        {
+            entity.ToTable("credits");
+            entity.HasKey(c => c.Id);
+
+            // The artist a credit belongs to must exist; the release it is on may be null
+            // (a recording-only credit), so that side is set-null on delete. No Recording
+            // table exists yet, so RecordingId is a plain nullable column, not a foreign key.
+            entity.HasOne<Artist>()
+                .WithMany()
+                .HasForeignKey(c => c.ArtistId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Release>()
+                .WithMany()
+                .HasForeignKey(c => c.ReleaseId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // The credits ETL looks credits up by the artist and by the release they are on.
+            entity.HasIndex(c => c.ArtistId);
+            entity.HasIndex(c => c.ReleaseId);
+        });
+
+        builder.Entity<Work>(entity =>
+        {
+            entity.ToTable("works");
+            entity.HasKey(w => w.Id);
+            entity.HasIndex(w => w.Mbid).IsUnique();
         });
     }
 }

@@ -27,6 +27,15 @@ public class Artist
 
     public int? DissolvedYear { get; set; }
 
+    /// <summary>
+    /// Date of death (feature C12, In Memoriam). Populated only for people Wikidata asserts
+    /// have died (P570). Null means "no death on record" — never invented.
+    /// </summary>
+    public DateOnly? DeathDate { get; set; }
+
+    /// <summary>Place of death (Wikidata P20), when asserted. Null otherwise.</summary>
+    public string? DeathPlace { get; set; }
+
     /// <summary>Last.fm listener count. Null until the Last.fm enrichment pass runs.</summary>
     public int? Listeners { get; set; }
 
@@ -39,6 +48,19 @@ public class Artist
 
     /// <summary>Rarity tier derived from <see cref="Listeners"/>. Null while listeners are unknown.</summary>
     public Rank? Rank { get; set; }
+
+    /// <summary>
+    /// X coordinate of the 2D projection of <see cref="Embedding"/>, for the Atlas (C18/B22).
+    /// SPEC §10 sketches this as an <c>xy point</c>; it is stored instead as two plain
+    /// <c>double precision</c> columns (<see cref="XyX"/>/<see cref="XyY"/>) because Npgsql's
+    /// <c>NpgsqlPoint</c> is a struct whose nullability and value-comparison are awkward under
+    /// EF, whereas two nullable doubles are trivial, null-safe (both null = not yet projected),
+    /// and the front reads the pair directly. Null until the <c>atlas</c> pass runs.
+    /// </summary>
+    public double? XyX { get; set; }
+
+    /// <summary>Y coordinate of the 2D projection. See <see cref="XyX"/>.</summary>
+    public double? XyY { get; set; }
 
     /// <summary>Streaming and external links, keyed by service. Stored as jsonb.</summary>
     public Dictionary<string, string>? Links { get; set; }
