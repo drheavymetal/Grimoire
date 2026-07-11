@@ -419,3 +419,121 @@ export interface CrossedGrimoires {
   yoursOnly: ArtistSummary[];
   shared: ArtistSummary[];
 }
+
+// ---------------------------------------------------------------------------
+// Movement VI — the Weekly Rite (B17) and its Web Push delivery.
+// ---------------------------------------------------------------------------
+
+// One of the week's seven, served blind (SPEC 5.3): the capability token, the risk, the
+// proxied audio URL — never the name. `resolved` is true when already judged this week.
+export interface WeeklyItem {
+  token: string;
+  riskPercentile: number;
+  audioUrl: string;
+  state: RiteState;
+  resolved: boolean;
+}
+
+// The current ISO week's seven blind bands. Same week -> same seven for everyone.
+export interface WeeklyRite {
+  weekKey: string;
+  items: WeeklyItem[];
+}
+
+// The per-subscription tally of a Weekly-Rite push trigger.
+export interface NotifyResult {
+  sent: number;
+  pruned: number;
+  failed: number;
+}
+
+// ---------------------------------------------------------------------------
+// Movement VI — the mirror (C20).
+// ---------------------------------------------------------------------------
+
+// "X% of the bands you rejected blind belong to your favourite genre." `hasData` is
+// false until there is a favourite genre and something banished to measure against.
+export interface Reflection {
+  hasData: boolean;
+  favouriteTag: string | null;
+  banishedTotal: number;
+  banishedMatching: number;
+  fraction: number;
+}
+
+// ---------------------------------------------------------------------------
+// Movement VI — your trajectory (C16).
+// ---------------------------------------------------------------------------
+
+// One snapshot on the taste path: when, the depth score then, the drift from the previous
+// snapshot, and its Atlas-plane projection (null when it could not be placed).
+export interface TrajectoryPoint {
+  createdAt: string;
+  depthScore: number;
+  drift: number;
+  x: number | null;
+  y: number | null;
+}
+
+// The whole taste path in chronological order, plus the total drift from first to last.
+export interface Trajectory {
+  points: TrajectoryPoint[];
+  totalDrift: number;
+}
+
+// ---------------------------------------------------------------------------
+// Movement VI — anti-recommendation (B25).
+// ---------------------------------------------------------------------------
+
+// The band the engine predicts you will reject, revealed, with why: how close it sits to
+// what you banished, how far from what you love, and which of its tags you rejected.
+export interface AntiRecBand {
+  id: string;
+  name: string;
+  country: string | null;
+  formedYear: number | null;
+  rank: Rank | null;
+  tags: string[];
+  distanceToRepulsion: number;
+  distanceToTaste: number;
+  sharedRejectedTags: string[];
+}
+
+// The anti-recommendation. `hasData` is false until the user has banished something.
+export interface AntiRec {
+  hasData: boolean;
+  band: AntiRecBand | null;
+}
+
+// ---------------------------------------------------------------------------
+// Movement VI — the Dark Twin (B18).
+// ---------------------------------------------------------------------------
+
+// The user whose taste is closest to yours yet whose collection is most disjoint —
+// anonymous. `theirsOnly` is what they have summoned that you have not. `hasData` is
+// false with too few users (the honest empty state).
+export interface DarkTwin {
+  hasData: boolean;
+  tasteSimilarity: number;
+  disjointness: number;
+  sharedCount: number;
+  theirsOnly: ArtistSummary[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement VI — gaps (B23).
+// ---------------------------------------------------------------------------
+
+// One untouched region of the catalogue: its label (decade, country or tag) and how many
+// bands live there.
+export interface GapBucket {
+  label: string;
+  catalogueCount: number;
+}
+
+// The decades, countries and subgenres the user has never summoned — the dark Atlas.
+export interface Gaps {
+  decades: GapBucket[];
+  countries: GapBucket[];
+  subgenres: GapBucket[];
+}

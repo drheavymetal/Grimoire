@@ -39,6 +39,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Work> Works => Set<Work>();
 
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
+    public DbSet<TasteSnapshot> TasteSnapshots => Set<TasteSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -204,6 +208,39 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.ToTable("works");
             entity.HasKey(w => w.Id);
             entity.HasIndex(w => w.Mbid).IsUnique();
+        });
+
+        builder.Entity<PushSubscription>(entity =>
+        {
+            entity.ToTable("push_subscriptions");
+            entity.HasKey(p => p.Id);
+
+            // A browser endpoint is globally unique; a repeat subscribe upserts on it.
+            entity.HasIndex(p => p.Endpoint).IsUnique();
+            entity.HasIndex(p => p.UserId);
+
+            // Delete a user's push subscriptions when the account goes (feature B17 delivery).
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TasteSnapshot>(entity =>
+        {
+            entity.ToTable("taste_snapshots");
+            entity.HasKey(s => s.Id);
+
+            // The snapshot vector is already CENTRED (DECISIONS D26); never re-centred.
+            entity.Property(s => s.Embedding).HasColumnType("vector(768)");
+
+            // The trajectory reads a user's snapshots in chronological order (feature C16).
+            entity.HasIndex(s => new { s.UserId, s.CreatedAt });
+
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

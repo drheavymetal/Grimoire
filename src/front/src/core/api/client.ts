@@ -1,4 +1,5 @@
 import type {
+  AntiRec,
   ArtistDetail,
   ArtistSummary,
   Atlas,
@@ -6,7 +7,9 @@ import type {
   CompareResult,
   CoverWallItem,
   CrossedGrimoires,
+  DarkTwin,
   Diaspora,
+  Gaps,
   Gift,
   GiftBlind,
   Graph,
@@ -16,10 +19,12 @@ import type {
   LabelSummary,
   MemberBands,
   MissingLink,
+  NotifyResult,
   OneAlbumBand,
   PathResult,
   ProlificBand,
   RabbitHole,
+  Reflection,
   ResolveResult,
   RiteAction,
   Scene,
@@ -28,7 +33,16 @@ import type {
   ServedRite,
   ServeFilters,
   TasteStatus,
+  Trajectory,
+  WeeklyRite,
 } from '../domain/types';
+
+// A browser push subscription, flattened for the subscribe/unsubscribe endpoints.
+export interface PushSubscriptionInput {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
 
 // The API client is a pure factory: it takes a base URL, an optional fetch
 // implementation, and an optional access-token getter. It reads no browser globals and
@@ -116,6 +130,30 @@ export interface GrimoireClient {
   grimoireCode(signal?: AbortSignal): Promise<GrimoireCode>;
   /** Crosses the caller's grimoire with a friend's (by their code). */
   crossGrimoires(other: string, signal?: AbortSignal): Promise<CrossedGrimoires>;
+
+  // --- Movement VI — Weekly Rite + Web Push (B17) ---
+  /** The VAPID public key the browser needs to subscribe to push. */
+  vapidPublicKey(signal?: AbortSignal): Promise<string>;
+  /** Stores (or refreshes) the caller's browser push subscription. */
+  subscribePush(subscription: PushSubscriptionInput): Promise<void>;
+  /** Removes the caller's push subscription for an endpoint. */
+  unsubscribePush(subscription: PushSubscriptionInput): Promise<void>;
+  /** The current ISO week's seven blind bands (same week -> same seven). */
+  weekly(signal?: AbortSignal): Promise<WeeklyRite>;
+  /** Triggers a Weekly-Rite push to the caller's subscriptions (manual/test). */
+  notifyWeekly(): Promise<NotifyResult>;
+
+  // --- Movement VI — the mirror and cartography (C20, C16, B25, B18, B23) ---
+  /** The mirror (C20): what fraction of blind rejections match your favourite genre. */
+  reflection(signal?: AbortSignal): Promise<Reflection>;
+  /** Your taste trajectory over time (C16). */
+  trajectory(signal?: AbortSignal): Promise<Trajectory>;
+  /** The band predicted to repel you, and why (B25). */
+  antiRec(signal?: AbortSignal): Promise<AntiRec>;
+  /** The nearest-taste, most-disjoint user (B18). */
+  darkTwin(signal?: AbortSignal): Promise<DarkTwin>;
+  /** Decades, countries and subgenres you have never summoned (B23). */
+  gaps(signal?: AbortSignal): Promise<Gaps>;
 }
 
 export class ApiError extends Error {
@@ -360,6 +398,40 @@ export function createGrimoireClient(
         auth: true,
         signal,
       });
+    },
+
+    async vapidPublicKey(signal) {
+      const key = await request<{ publicKey: string }>('/api/push/vapid-public-key', { signal });
+      return key.publicKey;
+    },
+    async subscribePush(subscription) {
+      // The endpoint returns 204 No Content; requestMaybe tolerates the empty body.
+      await requestMaybe<null>('/api/push/subscribe', { method: 'POST', auth: true, body: subscription });
+    },
+    async unsubscribePush(subscription) {
+      await requestMaybe<null>('/api/push/unsubscribe', { method: 'POST', auth: true, body: subscription });
+    },
+    weekly(signal) {
+      return request<WeeklyRite>('/api/weekly', { auth: true, signal });
+    },
+    notifyWeekly() {
+      return request<NotifyResult>('/api/weekly/notify', { method: 'POST', auth: true });
+    },
+
+    reflection(signal) {
+      return request<Reflection>('/api/mirror/reflection', { auth: true, signal });
+    },
+    trajectory(signal) {
+      return request<Trajectory>('/api/mirror/trajectory', { auth: true, signal });
+    },
+    antiRec(signal) {
+      return request<AntiRec>('/api/mirror/anti-rec', { auth: true, signal });
+    },
+    darkTwin(signal) {
+      return request<DarkTwin>('/api/mirror/dark-twin', { auth: true, signal });
+    },
+    gaps(signal) {
+      return request<Gaps>('/api/mirror/gaps', { auth: true, signal });
     },
   };
 }

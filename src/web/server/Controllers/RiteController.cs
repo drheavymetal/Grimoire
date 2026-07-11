@@ -113,6 +113,9 @@ public class RiteController : ControllerBase
         row.Embedding = new Vector(taste);
         row.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // Snapshot the seed as the origin of the taste trajectory (feature C16).
+        AddSnapshot(userId, row);
+
         await _db.SaveChangesAsync(ct);
 
         return Ok(await TasteStatusAsync(userId, ct));
@@ -167,6 +170,9 @@ public class RiteController : ControllerBase
         UserTaste row = await UpsertTasteAsync(userId, ct);
         row.Embedding = new Vector(taste);
         row.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Snapshot the imported taste as the origin of the trajectory (feature C16).
+        AddSnapshot(userId, row);
 
         await _db.SaveChangesAsync(ct);
 
@@ -352,6 +358,9 @@ public class RiteController : ControllerBase
 
             summonedRanks.Add(artistRank);
             taste.DepthScore = DepthScore.Compute(summonedRanks);
+
+            // A summon moved the taste vector: snapshot the new position on the trajectory (C16).
+            AddSnapshot(userId, taste);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -538,6 +547,29 @@ public class RiteController : ControllerBase
         }
 
         return new RiteRevealDto(artist, new RiteExplanationDto(distance, sharedTags, sharedMembers), depthScore);
+    }
+
+    /// <summary>
+    /// Records a versioned snapshot of the taste vector (feature C16, "your trajectory"). Called on
+    /// every relevant change — cold-start seed and each summon — so the ordered snapshots trace the
+    /// path the taste travelled. The vector is copied (a fresh <see cref="Vector"/>) so the snapshot
+    /// does not share the live taste's array. Skipped when there is no vector to record.
+    /// </summary>
+    private void AddSnapshot(Guid userId, UserTaste taste)
+    {
+        if (taste.Embedding is null)
+        {
+            return;
+        }
+
+        _db.TasteSnapshots.Add(new TasteSnapshot
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Embedding = new Vector(taste.Embedding.ToArray()),
+            DepthScore = taste.DepthScore,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
     }
 
     private async Task<UserTaste> UpsertTasteAsync(Guid userId, CancellationToken ct)

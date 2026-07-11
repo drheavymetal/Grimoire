@@ -33,6 +33,9 @@ export function Layout() {
             <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.rite')}
             </Link>
+            <Link to="/weekly" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.weekly')}
+            </Link>
             <Link to="/scenes" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.scenes')}
             </Link>
@@ -53,6 +56,9 @@ export function Layout() {
               className="font-mono text-xs uppercase text-muted no-underline hover:text-accent"
             >
               {t('nav.grimoire')}
+            </Link>
+            <Link to="/mirror" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.mirror')}
             </Link>
             {isAuthenticated ? (
               <button

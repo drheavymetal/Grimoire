@@ -105,6 +105,14 @@ builder.Services.AddScoped<LineageGraph>();
 // vector can be placed on the same 2D map as the stored star field.
 builder.Services.AddSingleton<AtlasProjector>();
 
+// Web Push for the Weekly Rite (movement VI, B17). The VAPID public key ships in config; the
+// PRIVATE key lives only in user-secrets / an env var and is never committed. Sending is disabled
+// (notify → 503) when the private key is absent, so the plumbing degrades honestly (DECISIONS D28).
+WebPushOptions webPushOptions = builder.Configuration.GetSection("WebPush").Get<WebPushOptions>()
+    ?? new WebPushOptions();
+builder.Services.AddSingleton(webPushOptions);
+builder.Services.AddSingleton<WebPushSender>();
+
 // The discovery engine and its tunables (percentile ring — DECISIONS D26).
 RiteEngineOptions riteOptions = builder.Configuration.GetSection("Rite").Get<RiteEngineOptions>()
     ?? new RiteEngineOptions();

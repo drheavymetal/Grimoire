@@ -18,7 +18,7 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 - [~] **Ola III — Gantt (héroe)** (B7/B8/B10 hechos; B9/C12/C15 esperan datos): B7 timeline, B8 miembros-al-pasar-por-disco, B10 página de miembro. [relanzar] + C12 In Memoriam, C15 instrumentos raros, B9 créditos por disco.
 - [ ] **Ola IV — Linaje**: B16 Bloodline (d3-force+SVG, D18), B19 Six Degrees (BFS), B11 diáspora, B3 búsqueda por miembro, C5 eslabón perdido, C8 Rabbit Hole, C9 splits, C10 versiones, C17 tu grimorio grafo.
 - [x] **Ola V — Escenas** (10 features; C7/C10/C21/C26 declarados sin dato): B20/B21 escenas+sellos, B12, B2 búsqueda semántica, B24 comparar, C6 muro de portadas, C7 duración, C11 escenas, C14 tarjeta, C21 minería de títulos, C22 regalo, C23 grimorios cruzados, C24 un álbum, C25 hiperprolífico, C26 deriva cromática.
-- [ ] **Ola VI — Espejo**: B17 Weekly Rite (WebPush), B18 Dark Twin, C18 Atlas (canvas/WebGL), B23 gaps, B25 anti-rec, C16 trayectoria, C20 el espejo.
+- [x] **Ola VI — Espejo** (WebPush real, trayectoria, espejo, dark twin, anti-rec, gaps): B17 Weekly Rite (WebPush), B18 Dark Twin, C18 Atlas (canvas/WebGL), B23 gaps, B25 anti-rec, C16 trayectoria, C20 el espejo.
 - [ ] **Ola VII — Clásica**: modelo `works`, ficha de compositor, linaje maestro-discípulo. (Datos de clásica ausentes en el corpus → shell + siembra mínima si MB lo permite; hueco declarado si no.)
 - [x] **Ola Q — Firma visual** (Q1 cableado, Q2 híbrido) + C18 Atlas: cablear `redactionCutForRank` corregido en nombres/reveal (Q1 Opción 1); modo claro híbrido (Q2).
 - [ ] **Ola V&V — Verificación**: rondas de agentes con **Playwright** E2E sobre todas las features; arreglar fallos; audit --strict; commit+push.
@@ -28,4 +28,5 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 - 02:5x CEST — Ola D + Gantt verdes. Migración 4 (credits/works/deaths/xy). 67 influence, 309 xy. 168+46 tests. Commit+push.
 - 03:35 CEST — ETL créditos (21k credits, 179 labels, 24 deaths) + Visual (Q1/Q2/Atlas) verdes. Fix: tests xUnit huérfanos (backbone/IV/ETL en GrimoireTest) que los commits por-ruta se dejaron → recogidos ahora con add -A.
 - 04:0x CEST — Ola V verde (248+74 tests). Escenas, sellos, semántica, comparar, splits, regalo, grimorios cruzados. Commit+push.
+- 04:2x CEST — Ola VI verde (272+79 tests). Migración 5 (push_subscriptions/taste_snapshots). WebPush llegó a FCM. Commit+push.
 

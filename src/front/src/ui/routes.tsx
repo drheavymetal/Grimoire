@@ -11,6 +11,8 @@ import { LabelsPage } from './pages/LabelsPage';
 import { LabelPage } from './pages/LabelPage';
 import { ExplorePage } from './pages/ExplorePage';
 import { GiftPage } from './pages/GiftPage';
+import { WeeklyPage } from './pages/WeeklyPage';
+import { MirrorPage } from './pages/MirrorPage';
 
 const rootRoute = createRootRoute({
   component: Layout,
@@ -82,6 +84,18 @@ const giftRoute = createRoute({
   component: GiftRouteComponent,
 });
 
+const weeklyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/weekly',
+  component: WeeklyPage,
+});
+
+const mirrorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/mirror',
+  component: MirrorPage,
+});
+
 function ArtistRouteComponent() {
   const { artistId } = artistRoute.useParams();
   return <ArtistPage artistId={artistId} />;
@@ -109,6 +123,8 @@ const routeTree = rootRoute.addChildren([
   labelRoute,
   exploreRoute,
   giftRoute,
+  weeklyRoute,
+  mirrorRoute,
 ]);
 
 export const router = createRouter({ routeTree });
