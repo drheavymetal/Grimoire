@@ -60,13 +60,13 @@ describe('layoutGraph — dangling edges', () => {
   it('drops an edge to a missing node instead of throwing (invariant 5)', () => {
     const graph: Graph = {
       nodes: [
-        { id: 'a', label: 'A' },
-        { id: 'b', label: 'B' },
+        { id: 'a', name: 'A', kind: 'Group', rank: null, role: 'node' },
+        { id: 'b', name: 'B', kind: 'Group', rank: null, role: 'node' },
       ],
       // 'c' is not in the node set — d3 forceLink would throw "node not found" on this.
       edges: [
-        { source: 'a', target: 'b' },
-        { source: 'a', target: 'c' },
+        { source: 'a', target: 'b', kind: 'member', label: null },
+        { source: 'a', target: 'c', kind: 'split', label: null },
       ],
     };
 
