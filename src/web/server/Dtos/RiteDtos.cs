@@ -100,3 +100,21 @@ public record RiteExplanationDto(
 public record GrimoireEntryDto(
     ArtistSummaryDto Artist,
     DateTimeOffset ResolvedAt);
+
+// ---------------------------------------------------------------------------
+// Crossed grimoires (feature C23)
+// ---------------------------------------------------------------------------
+
+/// <summary>The caller's own grimoire code — the opaque id a friend pastes to cross grimoires (C23).</summary>
+public record GrimoireCodeDto(string Code);
+
+/// <summary>
+/// Two grimoires crossed (C23): the Dark Twin, but with a friend you named. <see cref="TheirsOnly"/>
+/// is what they have summoned that you have not — the discoveries the comparison hands you;
+/// <see cref="YoursOnly"/> is the reverse; <see cref="Shared"/> is common ground. Nothing is
+/// invented: an empty grimoire on either side simply yields empty lists.
+/// </summary>
+public record CrossedGrimoiresDto(
+    IReadOnlyList<ArtistSummaryDto> TheirsOnly,
+    IReadOnlyList<ArtistSummaryDto> YoursOnly,
+    IReadOnlyList<ArtistSummaryDto> Shared);

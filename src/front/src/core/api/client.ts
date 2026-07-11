@@ -3,16 +3,28 @@ import type {
   ArtistSummary,
   Atlas,
   AuthTokens,
+  CompareResult,
+  CoverWallItem,
+  CrossedGrimoires,
   Diaspora,
+  Gift,
+  GiftBlind,
   Graph,
+  GrimoireCode,
   GrimoireEntry,
+  LabelDetail,
+  LabelSummary,
   MemberBands,
   MissingLink,
+  OneAlbumBand,
   PathResult,
+  ProlificBand,
   RabbitHole,
   ResolveResult,
   RiteAction,
+  Scene,
   SeedCandidate,
+  SemanticHit,
   ServedRite,
   ServeFilters,
   TasteStatus,
@@ -70,6 +82,40 @@ export interface GrimoireClient {
    * caller with a taste vector also gets their projected "you are here" position.
    */
   atlas(signal?: AbortSignal): Promise<Atlas>;
+
+  // --- Movement V — Scenes, Labels, Explore ---
+  /** City + decade + tag clusters (B20/C11). */
+  scenes(minSize: number, signal?: AbortSignal): Promise<Scene[]>;
+  /** Every label that carries a release, most releases first (B21). */
+  labels(signal?: AbortSignal): Promise<LabelSummary[]>;
+  /** A label's page: its releases, each linking to the band (B21). */
+  label(id: string, signal?: AbortSignal): Promise<LabelDetail>;
+  /** Bands with exactly one album and nothing else (C24). */
+  oneAlbumBands(signal?: AbortSignal): Promise<OneAlbumBand[]>;
+  /** Bands that released more than they have lived (C25). */
+  hyperprolific(signal?: AbortSignal): Promise<ProlificBand[]>;
+  /** Compare two bands by tags, sound and shared members (B24). */
+  compare(a: string, b: string, signal?: AbortSignal): Promise<CompareResult>;
+  /** Free-text semantic search over the embedding space (B2). */
+  semanticSearch(query: string, limit: number, signal?: AbortSignal): Promise<SemanticHit[]>;
+  /** A diverse wall of album covers (C6). */
+  coverWall(limit: number, signal?: AbortSignal): Promise<CoverWallItem[]>;
+  /** The split graph: bands joined by a shared split release (C9). */
+  splits(signal?: AbortSignal): Promise<Graph>;
+
+  // --- Movement V — gift a discovery (C22) ---
+  /** Wraps a band as a blind, signed gift. Returns the shareable capability token. */
+  createGift(artistId: string, note: string | null): Promise<Gift>;
+  /** What the recipient sees before deciding: the note and the blind audio URL (never the band). */
+  peekGift(token: string, signal?: AbortSignal): Promise<GiftBlind>;
+  /** Turns the gift over: reveals the full band. */
+  revealGift(token: string): Promise<ArtistDetail>;
+
+  // --- Movement V — crossed grimoires (C23) ---
+  /** The caller's own grimoire code, to share with a friend. */
+  grimoireCode(signal?: AbortSignal): Promise<GrimoireCode>;
+  /** Crosses the caller's grimoire with a friend's (by their code). */
+  crossGrimoires(other: string, signal?: AbortSignal): Promise<CrossedGrimoires>;
 }
 
 export class ApiError extends Error {
@@ -261,6 +307,59 @@ export function createGrimoireClient(
       // Anonymous-friendly: the endpoint returns stars without a token, and includes the taste
       // position when a valid bearer is attached. auth:true attaches the token only if present.
       return request<Atlas>('/api/atlas', { auth: true, signal });
+    },
+
+    scenes(minSize, signal) {
+      const params = new URLSearchParams({ minSize: String(minSize) });
+      return request<Scene[]>(`/api/scenes?${params.toString()}`, { signal });
+    },
+    labels(signal) {
+      return request<LabelSummary[]>('/api/labels', { signal });
+    },
+    label(id, signal) {
+      return request<LabelDetail>(`/api/labels/${encodeURIComponent(id)}`, { signal });
+    },
+    oneAlbumBands(signal) {
+      return request<OneAlbumBand[]>('/api/catalogue/one-album', { signal });
+    },
+    hyperprolific(signal) {
+      return request<ProlificBand[]>('/api/catalogue/hyperprolific', { signal });
+    },
+    compare(a, b, signal) {
+      const params = new URLSearchParams({ a, b });
+      return request<CompareResult>(`/api/compare?${params.toString()}`, { signal });
+    },
+    semanticSearch(query, limit, signal) {
+      const params = new URLSearchParams({ q: query, limit: String(limit) });
+      return request<SemanticHit[]>(`/api/semantic?${params.toString()}`, { signal });
+    },
+    coverWall(limit, signal) {
+      const params = new URLSearchParams({ limit: String(limit) });
+      return request<CoverWallItem[]>(`/api/covers/wall?${params.toString()}`, { signal });
+    },
+    splits(signal) {
+      return request<Graph>('/api/splits', { signal });
+    },
+
+    createGift(artistId, note) {
+      return request<Gift>('/api/gift', { method: 'POST', auth: true, body: { artistId, note } });
+    },
+    peekGift(token, signal) {
+      return request<GiftBlind>(`/api/gift/${encodeURIComponent(token)}`, { signal });
+    },
+    revealGift(token) {
+      return request<ArtistDetail>(`/api/gift/${encodeURIComponent(token)}/reveal`, { method: 'POST' });
+    },
+
+    grimoireCode(signal) {
+      return request<GrimoireCode>('/api/rite/grimoire/code', { auth: true, signal });
+    },
+    crossGrimoires(other, signal) {
+      const params = new URLSearchParams({ other });
+      return request<CrossedGrimoires>(`/api/rite/grimoire/compare?${params.toString()}`, {
+        auth: true,
+        signal,
+      });
     },
   };
 }

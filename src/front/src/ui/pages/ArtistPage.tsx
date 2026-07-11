@@ -6,6 +6,7 @@ import { ApiError } from '../../core/api/client';
 import type { Release, ReleaseType } from '../../core/domain/types';
 import { Cover } from '../Cover';
 import { RankedName } from '../RankedName';
+import { GiftButton } from '../GiftButton';
 import { LineupTimeline } from '../lineup/LineupTimeline';
 import { Bloodline } from '../lineage/Bloodline';
 import { Diaspora } from '../lineage/Diaspora';
@@ -119,6 +120,8 @@ export function ArtistPage({ artistId }: { artistId: string }) {
         <>
           <Diaspora artistId={data.id} />
           <RabbitHole artistId={data.id} />
+          {/* C22 — send this band as a blind, signed gift (signed-in only). */}
+          <GiftButton artistId={data.id} />
         </>
       ) : null}
     </article>

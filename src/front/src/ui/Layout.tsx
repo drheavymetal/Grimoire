@@ -29,12 +29,21 @@ export function Layout() {
           <Link to="/" className="font-display text-2xl tracking-wide text-strong no-underline">
             {t('app.title')}
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
             <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.rite')}
             </Link>
+            <Link to="/scenes" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.scenes')}
+            </Link>
+            <Link to="/labels" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.labels')}
+            </Link>
             <Link to="/lineage" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.lineage')}
+            </Link>
+            <Link to="/explore" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.explore')}
             </Link>
             <Link to="/atlas" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.atlas')}

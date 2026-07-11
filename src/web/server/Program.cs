@@ -120,6 +120,17 @@ builder.Services.AddHttpClient<PreviewAudioProxy>(client =>
     })
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
+// Semantic search (feature B2): embeds a free-text query with the same self-hosted nomic-embed-text
+// the ETL indexed with, then centres it by the stored corpus mean (D26/D31). Unreachable → 503.
+OllamaOptions ollamaOptions = builder.Configuration.GetSection("Ollama").Get<OllamaOptions>()
+    ?? new OllamaOptions();
+builder.Services.AddSingleton(ollamaOptions);
+builder.Services.AddHttpClient<OllamaEmbedder>(client =>
+{
+    client.BaseAddress = new Uri(ollamaOptions.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // Last.fm cold start (feature C1). Disabled while no API key is configured (blocker Q5); the
 // endpoint then reports the gap rather than inventing scrobbles.
 LastFmOptions lastFmOptions = builder.Configuration.GetSection("LastFm").Get<LastFmOptions>()

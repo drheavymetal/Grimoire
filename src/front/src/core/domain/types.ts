@@ -157,11 +157,12 @@ export interface GraphNode {
   role: GraphNodeRole;
 }
 
-// An edge: a shared-membership link (person↔band) or a declared influence (band→band).
+// An edge: a shared-membership link (person↔band), a declared influence (band→band), or a
+// shared split (band↔band, C9). The painter draws influence dashed and the rest as a solid line.
 export interface GraphEdge {
   source: string;
   target: string;
-  kind: 'member' | 'influence';
+  kind: 'member' | 'influence' | 'split';
   label: string | null;
 }
 
@@ -262,4 +263,159 @@ export interface AtlasTaste {
 export interface Atlas {
   stars: AtlasStar[];
   taste: AtlasTaste | null;
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — Scenes (B20/C11): a city + decade + tag cluster of bands. Not a
+// country map (D17) — the local scene is the unit.
+// ---------------------------------------------------------------------------
+
+export interface SceneBand {
+  id: string;
+  name: string;
+  rank: Rank | null;
+}
+
+export interface Scene {
+  city: string;
+  decade: number;
+  tag: string;
+  size: number;
+  bands: SceneBand[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — Labels as a door (B21).
+// ---------------------------------------------------------------------------
+
+export interface LabelSummary {
+  id: string;
+  name: string;
+  country: string | null;
+  releaseCount: number;
+}
+
+export interface LabelRelease {
+  id: string;
+  mbid: string;
+  title: string;
+  type: ReleaseType;
+  releaseDate: string | null;
+  artistId: string;
+  artistName: string;
+  artistRank: Rank | null;
+}
+
+export interface LabelDetail {
+  id: string;
+  name: string;
+  country: string | null;
+  releases: LabelRelease[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — catalogue curiosities (C24 one-album, C25 hyperprolific).
+// ---------------------------------------------------------------------------
+
+export interface OneAlbumBand {
+  id: string;
+  name: string;
+  rank: Rank | null;
+  country: string | null;
+  albumId: string;
+  albumMbid: string;
+  albumTitle: string;
+  albumDate: string | null;
+}
+
+export interface ProlificBand {
+  id: string;
+  name: string;
+  rank: Rank | null;
+  formedYear: number;
+  releaseCount: number;
+  ratio: number;
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — compare two bands (B24).
+// ---------------------------------------------------------------------------
+
+export interface CompareBand {
+  id: string;
+  name: string;
+  rank: Rank | null;
+  country: string | null;
+  tags: string[];
+}
+
+export interface SharedMember {
+  id: string;
+  name: string;
+}
+
+export interface CompareResult {
+  a: CompareBand;
+  b: CompareBand;
+  sharedTags: string[];
+  tagSimilarity: number;
+  vectorDistance: number | null;
+  sharedMembers: SharedMember[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — semantic search (B2): free text over the embedding space.
+// ---------------------------------------------------------------------------
+
+export interface SemanticHit {
+  id: string;
+  name: string;
+  country: string | null;
+  formedYear: number | null;
+  rank: Rank | null;
+  distance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — the wall of covers (C6).
+// ---------------------------------------------------------------------------
+
+export interface CoverWallItem {
+  releaseId: string;
+  mbid: string;
+  title: string;
+  releaseDate: string | null;
+  artistId: string;
+  artistName: string;
+  artistRank: Rank | null;
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — gift a discovery (C22): the band sent face down and signed.
+// ---------------------------------------------------------------------------
+
+// The giver's minted gift: the opaque capability token to share, plus the note echoed back.
+export interface Gift {
+  token: string;
+  note: string | null;
+}
+
+// What the recipient sees before deciding: the signed note and the blind audio URL — never the band.
+export interface GiftBlind {
+  note: string | null;
+  audioUrl: string;
+}
+
+// ---------------------------------------------------------------------------
+// Movement V — crossed grimoires (C23).
+// ---------------------------------------------------------------------------
+
+export interface GrimoireCode {
+  code: string;
+}
+
+export interface CrossedGrimoires {
+  theirsOnly: ArtistSummary[];
+  yoursOnly: ArtistSummary[];
+  shared: ArtistSummary[];
 }

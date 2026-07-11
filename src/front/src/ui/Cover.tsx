@@ -7,13 +7,21 @@ type Status = 'loading' | 'loaded' | 'missing';
 // A release cover, proxied and disk-cached by the API (feature B6). Coverage is worst
 // exactly on the dark bands the engine leads to (R2), so the missing state is designed
 // copy — a blank sleeve that says what is absent — not a broken image icon.
-export function Cover({ mbid, title }: { mbid: string; title: string }) {
+export function Cover({
+  mbid,
+  title,
+  className = 'w-14 shrink-0',
+}: {
+  mbid: string;
+  title: string;
+  className?: string;
+}) {
   const { t } = useTranslation();
   const client = useGrimoireClient();
   const [status, setStatus] = useState<Status>('loading');
 
   return (
-    <div className="relative aspect-square w-14 shrink-0 overflow-hidden border border-line bg-panel">
+    <div className={`relative aspect-square overflow-hidden border border-line bg-panel ${className}`}>
       {status !== 'missing' ? (
         <img
           src={client.coverUrl(mbid)}

@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useGrimoire } from '../../core/hooks/useGrimoire';
 import { useGrimoireGraph } from '../../core/hooks/useLineage';
+import { useCrossGrimoires, useGrimoireCode } from '../../core/hooks/useCrossedGrimoires';
 import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { GraphCanvas } from '../graph/GraphCanvas';
-import type { GrimoireEntry } from '../../core/domain/types';
+import type { ArtistSummary, GrimoireEntry } from '../../core/domain/types';
 
 // Your grimoire (feature C17 data): the bands you have summoned, newest first. Rank is null
 // across the corpus, so it is not shown here — the display never invents one.
@@ -56,7 +58,112 @@ export function GrimoirePage() {
           <GrimoireGraph enabled={isAuthenticated} count={entries.length} />
         </>
       )}
+
+      <CrossedGrimoires enabled={isAuthenticated} />
     </section>
+  );
+}
+
+// C23 — crossed grimoires: the Dark Twin, but with a friend you named. Share your code, paste
+// theirs, and see what they have that you lack (and the reverse, and the common ground).
+function CrossedGrimoires({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation();
+  const code = useGrimoireCode(enabled);
+  const [friend, setFriend] = useState('');
+  const [submitted, setSubmitted] = useState('');
+  const cross = useCrossGrimoires(submitted);
+
+  const invalid =
+    cross.isError && cross.error instanceof Error && 'status' in cross.error &&
+    ((cross.error as { status: number }).status === 404 || (cross.error as { status: number }).status === 400);
+
+  return (
+    <section className="mt-12">
+      <h2 className="font-display text-2xl text-strong">{t('crossed.title')}</h2>
+      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('crossed.hint')}</p>
+
+      <div className="mt-4 border border-line p-4">
+        <p className="font-mono text-xs uppercase text-muted">{t('crossed.yourCode')}</p>
+        <code className="mt-1 block overflow-x-auto whitespace-nowrap font-mono text-xs text-strong">
+          {code.data?.code ?? '—'}
+        </code>
+      </div>
+
+      <form
+        className="mt-4 flex flex-wrap gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmitted(friend.trim());
+        }}
+      >
+        <input
+          type="text"
+          value={friend}
+          onChange={(event) => setFriend(event.target.value)}
+          placeholder={t('crossed.friendPlaceholder')}
+          className="min-w-0 flex-1 border border-line bg-panel px-3 py-2 font-mono text-xs text-strong outline-none focus:border-accent"
+        />
+        <button
+          type="submit"
+          className="border border-accent px-4 py-2 font-mono text-xs uppercase text-accent hover:bg-accent hover:text-bg"
+        >
+          {t('crossed.cross')}
+        </button>
+      </form>
+
+      {submitted.length > 0 && cross.isFetching ? (
+        <p className="mt-4 font-mono text-sm text-muted">{t('crossed.crossing')}</p>
+      ) : null}
+      {submitted.length > 0 && invalid ? (
+        <p className="mt-4 font-mono text-sm text-danger">{t('crossed.invalid')}</p>
+      ) : null}
+      {submitted.length > 0 && cross.isError && !invalid ? (
+        <p className="mt-4 font-mono text-sm text-danger">{t('crossed.error')}</p>
+      ) : null}
+
+      {submitted.length > 0 && cross.data !== undefined && !cross.isFetching ? (
+        <div className="mt-4 space-y-6">
+          <CrossColumn title={t('crossed.theirsOnly')} empty={t('crossed.theirsEmpty')} bands={cross.data.theirsOnly} accent />
+          <CrossColumn title={t('crossed.shared')} empty={t('crossed.sharedEmpty')} bands={cross.data.shared} />
+          <CrossColumn title={t('crossed.yoursOnly')} empty={t('crossed.yoursEmpty')} bands={cross.data.yoursOnly} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CrossColumn({
+  title,
+  empty,
+  bands,
+  accent = false,
+}: {
+  title: string;
+  empty: string;
+  bands: ArtistSummary[];
+  accent?: boolean;
+}) {
+  return (
+    <div>
+      <h3 className={`font-mono text-xs uppercase ${accent ? 'text-accent' : 'text-muted'}`}>{title}</h3>
+      {bands.length === 0 ? (
+        <p className="mt-1 font-mono text-xs text-muted">{empty}</p>
+      ) : (
+        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+          {bands.map((band) => (
+            <li key={band.id}>
+              <Link
+                to="/artist/$artistId"
+                params={{ artistId: band.id }}
+                className="font-body text-strong no-underline hover:text-accent"
+              >
+                {band.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -392,6 +392,86 @@ public class RiteController : ControllerBase
     }
 
     // -----------------------------------------------------------------------
+    // Crossed grimoires (feature C23)
+    // -----------------------------------------------------------------------
+
+    /// <summary>The caller's own grimoire code (their user id) — what a friend pastes to cross grimoires (C23).</summary>
+    [HttpGet("grimoire/code")]
+    public ActionResult<GrimoireCodeDto> GrimoireCode()
+    {
+        return Ok(new GrimoireCodeDto(CurrentUserId().ToString()));
+    }
+
+    /// <summary>
+    /// Crosses the caller's grimoire with another user's (C23): what they have that you lack, what
+    /// you have that they lack, and the common ground. 400 for your own code; 404 when the other
+    /// grimoire code is not a real user.
+    /// </summary>
+    [HttpGet("grimoire/compare")]
+    public async Task<ActionResult<CrossedGrimoiresDto>> CompareGrimoires([FromQuery] Guid other, CancellationToken ct)
+    {
+        Guid userId = CurrentUserId();
+
+        if (other == Guid.Empty || other == userId)
+        {
+            return BadRequest(new { message = "Paste a friend's grimoire code, not your own." });
+        }
+
+        if (!await _db.Users.AnyAsync(u => u.Id == other, ct))
+        {
+            return NotFound(new { message = "No grimoire answers to that code." });
+        }
+
+        HashSet<Guid> mine = (await _db.Rites
+                .Where(r => r.UserId == userId && r.State == RiteState.Summoned)
+                .Select(r => r.ArtistId)
+                .ToListAsync(ct))
+            .ToHashSet();
+
+        HashSet<Guid> theirs = (await _db.Rites
+                .Where(r => r.UserId == other && r.State == RiteState.Summoned)
+                .Select(r => r.ArtistId)
+                .ToListAsync(ct))
+            .ToHashSet();
+
+        List<Guid> theirsOnlyIds = theirs.Where(id => !mine.Contains(id)).ToList();
+        List<Guid> yoursOnlyIds = mine.Where(id => !theirs.Contains(id)).ToList();
+        List<Guid> sharedIds = mine.Where(theirs.Contains).ToList();
+
+        Dictionary<Guid, ArtistSummaryDto> summaries = await SummariesAsync(
+            theirsOnlyIds.Concat(yoursOnlyIds).Concat(sharedIds).ToHashSet(), ct);
+
+        return Ok(new CrossedGrimoiresDto(
+            Order(theirsOnlyIds, summaries),
+            Order(yoursOnlyIds, summaries),
+            Order(sharedIds, summaries)));
+    }
+
+    private async Task<Dictionary<Guid, ArtistSummaryDto>> SummariesAsync(IReadOnlySet<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.Artists
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.Id))
+            .Select(a => new ArtistSummaryDto(a.Id, a.Name, a.Country, a.FormedYear, a.Rank))
+            .ToDictionaryAsync(a => a.Id, ct);
+    }
+
+    private static List<ArtistSummaryDto> Order(IEnumerable<Guid> ids, IReadOnlyDictionary<Guid, ArtistSummaryDto> summaries)
+    {
+        return ids
+            .Select(id => summaries.TryGetValue(id, out ArtistSummaryDto? s) ? s : null)
+            .Where(s => s is not null)
+            .Select(s => s!)
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
