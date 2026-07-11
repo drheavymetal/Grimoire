@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Grimoire</title>
+    <!--
+      Favicon = the small sibling mark (D27): no wordmark, thick stroke, the generation loss reduced
+      to three coarse dots so it survives 16px, on the void so it reads as its own object. The
+      sulphur axis is the only colour. Inline SVG data URI — self-contained, no network.
+    -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='14' fill='%230B0B0D'/%3E%3Cpath d='M65 22 A30 30 0 1 0 65 78' fill='none' stroke='%23E6E2D9' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='79' cy='39' r='4' fill='%23E6E2D9'/%3E%3Ccircle cx='83' cy='52' r='3.2' fill='%23E6E2D9' opacity='0.7'/%3E%3Ccircle cx='78' cy='64' r='2.6' fill='%23E6E2D9' opacity='0.5'/%3E%3Cline x1='50' y1='12' x2='50' y2='88' stroke='%23D6C34A' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
     <script>
       // Anti-FOUC: apply the persisted theme before first paint so the page never
       // flashes the wrong artifact (cassette vs. photocopied flyer).

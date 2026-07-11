@@ -42,29 +42,57 @@ export function RitePlayer({ audioUrl, autoPlay = true }: { audioUrl: string; au
   }
 
   return (
-    <div className="border border-line bg-panel p-6">
-      <div className="flex items-center gap-4">
+    // The ritual: a signal that sounds in the dark, blind. Concentric rings, a sulphur core that
+    // pulses only while it plays, and the time counting up — no name, no cover, nothing to judge by
+    // but the ear. The pulse stops under prefers-reduced-motion (styles.css).
+    <div className="flyer border border-line bg-panel px-6 py-8">
+      <p className="text-center font-mono text-xs uppercase tracking-[0.3em] text-faint">
+        {t('rite.blindTitle')}
+      </p>
+
+      <div className="relative mx-auto mt-6 grid h-56 w-56 place-items-center sm:h-64 sm:w-64">
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border border-line" />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-[14%] rounded-full border border-line" />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-[28%] rounded-full border border-line" />
+        {isPlaying ? (
+          <>
+            <span aria-hidden="true" className="signal-pulse pointer-events-none absolute inset-0 rounded-full border border-accent" />
+            <span aria-hidden="true" className="signal-pulse signal-pulse-delay pointer-events-none absolute inset-0 rounded-full border border-accent" />
+          </>
+        ) : null}
         <button
           type="button"
           onClick={toggle}
           aria-label={isPlaying ? t('rite.pause') : t('rite.play')}
-          className="flex h-14 w-14 shrink-0 items-center justify-center border border-accent text-2xl text-accent hover:bg-accent hover:text-bg"
+          className="relative z-10 grid h-16 w-16 place-items-center rounded-full bg-accent text-2xl text-bg shadow-[0_0_28px_6px_rgba(214,195,74,0.35)] hover:opacity-90"
         >
           {isPlaying ? '❙❙' : '▶'}
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-2xl text-strong">{t('rite.blindTitle')}</p>
-          <p className="font-mono text-xs text-muted">{t('rite.blindHint')}</p>
-        </div>
       </div>
 
-      <div className="mt-5 h-1 w-full bg-line">
+      <p className="mt-6 text-center font-mono text-xs tracking-[0.2em] text-muted">
+        {formatTime(state.positionSec)} / {formatTime(state.durationSec)}
+      </p>
+      <p className="mt-3 text-center font-mono text-xs text-faint">{t('rite.blindHint')}</p>
+
+      <div className="mx-auto mt-4 h-px w-full max-w-md bg-line">
         <div className="h-full bg-accent" style={{ width: `${progress * 100}%` }} />
       </div>
 
       {state.status === 'error' ? (
-        <p className="mt-3 font-mono text-xs text-danger">{t('rite.audioError')}</p>
+        <p className="mt-3 text-center font-mono text-xs text-danger">{t('rite.audioError')}</p>
       ) : null}
     </div>
   );
+}
+
+// mm:ss for the blind counter. Pure, local — a NaN/negative duration reads as 0:00, never a lie.
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0:00';
+  }
+  const total = Math.floor(seconds);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }

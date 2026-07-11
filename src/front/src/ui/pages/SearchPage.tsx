@@ -5,6 +5,7 @@ import { useArtistSearch } from '../../core/hooks/useArtistSearch';
 import { useSemanticSearch } from '../../core/hooks/useSemanticSearch';
 import { useDebouncedValue } from '../../core/hooks/useDebouncedValue';
 import type { ArtistSummary, SemanticHit } from '../../core/domain/types';
+import { Mark, Wordmark } from '../Logo';
 
 type Mode = 'name' | 'meaning';
 
@@ -24,14 +25,28 @@ export function SearchPage() {
 
   return (
     <section>
-      {/* The splash is a surface of impact (Q2 hybrid, DESIGN §2): the photocopied flyer grain in
-          light mode, clean in dark (the cassette). The .flyer class paints grain only in light. */}
-      <div className="flyer -mx-5 -mt-8 border-b border-line px-5 pb-6 pt-8">
-        <h1 className="font-display text-4xl text-strong">{t('search.heading')}</h1>
-        <p className="mt-2 font-mono text-xs text-muted">
-          {mode === 'name' ? t('search.hint') : t('search.semanticHint')}
+      {/* The hero splash — a surface of impact (Q2 hybrid, DESIGN §2): the photocopied flyer grain
+          in light, clean void in dark. The mark and wordmark develop like a photo, then the thesis
+          states the whole app in two lines before a word is read. */}
+      <div className="flyer -mx-5 -mt-10 border-b border-line px-5 pb-10 pt-12 text-center">
+        <Mark size={92} className="mx-auto text-strong" title={t('app.title')} />
+        <Wordmark develop className="mt-6 block text-[clamp(2.6rem,10vw,5rem)] leading-none text-strong" />
+        <p className="mx-auto mt-6 max-w-[44ch] text-[clamp(1rem,2.2vw,1.25rem)] leading-snug text-strong">
+          {t('landing.thesis')}
         </p>
+        <p className="mx-auto mt-3 max-w-[52ch] text-sm text-muted">{t('landing.sub')}</p>
+        <Link
+          to="/rite"
+          className="mt-7 inline-flex items-center gap-2 bg-accent px-6 py-3 font-mono text-xs uppercase tracking-[0.2em] text-bg no-underline hover:opacity-90"
+        >
+          {t('landing.begin')}
+        </Link>
       </div>
+
+      <h1 className="mt-12 font-display text-4xl text-strong">{t('search.heading')}</h1>
+      <p className="mt-2 font-mono text-xs text-muted">
+        {mode === 'name' ? t('search.hint') : t('search.semanticHint')}
+      </p>
 
       <div className="mt-5 flex gap-2">
         <ModeTab active={mode === 'name'} onClick={() => setMode('name')} label={t('search.byName')} />

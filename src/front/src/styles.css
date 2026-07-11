@@ -4,49 +4,77 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Two real artifacts (DECISIONS D14):
- *   light = the photocopied flyer (paper, toner, halftone)
- *   dark  = the cassette (the void, clean, no grain)
- * Palette hex values converted to OKLCH.
+ * Grimoire visual system v2 (DESIGN + D14/D27/D38, ratified for the autonomous build).
+ *
+ * Two real artifacts, not a theme and its inversion:
+ *   dark  = the cassette — the void, clean, silent. No grain. A tape-hiss scanline is the
+ *           only texture, and it lives ONLY on the void (D14).
+ *   light = the photocopied flyer — dirty paper, toner, halftone. Grain is opt-in per surface
+ *           via .flyer, reserved for surfaces of impact (splash / reveal) — the Q2 hybrid.
+ *
+ * Monochrome with a single accent: sulphur #D6C34A. Oxblood #9B2C2F is the only other note of
+ * colour, reserved for Banish. Hex values are the exact tokens of the approved reference.
  */
 :root {
-  --paper: oklch(0.875 0.011 95.2);
-  --ink: oklch(0.203 0.008 297.1);
-  --ash-light: oklch(0.442 0.008 88.7);
-  --sulphur-light: oklch(0.587 0.114 97.5);
-  --oxblood: oklch(0.32 0.108 21.9);
+  /* light = the flyer. Sampled paper is a cold dirty grey (#E5E1DA, D27), never warm cream. */
+  --paper: #e5e1da;
+  --paper-panel: #dcd8cd;
+  --paper-panel-2: #ece9e0;
+  --ink: #1a1a1e;
+  --ash-light: #55534c;
+  --faint-light: #86847c;
+  /* On paper the bright sulphur is illegible (1.60:1, D27); the deep variant is used for
+     strokes and focus only, never body text. */
+  --sulphur-deep: #8f7c18;
+  --oxblood: #8f2427;
+  --line-light: #c7c2b6;
 
   --surface-bg: var(--paper);
-  --surface-panel: oklch(0.915 0.008 95);
+  --surface-panel: var(--paper-panel);
+  --surface-panel-2: var(--paper-panel-2);
   --text-strong: var(--ink);
   --text-muted: var(--ash-light);
-  --accent: var(--sulphur-light);
+  --text-faint: var(--faint-light);
+  --accent: var(--sulphur-deep);
+  --accent-deep: var(--sulphur-deep);
   --danger: var(--oxblood);
-  --line: oklch(0.78 0.008 95);
+  --line: var(--line-light);
 }
 
 .dark {
-  --void: oklch(0.151 0.004 285.9);
-  --toner: oklch(0.192 0.004 286);
-  --ash-dark: oklch(0.677 0.008 80.7);
-  --bone: oklch(0.913 0.013 86.8);
-  --sulphur-dark: oklch(0.811 0.14 100.3);
+  /* dark = the cassette. The void, and two elevations of it. */
+  --void: #0b0b0d;
+  --void-2: #101014;
+  --panel: #131317;
+  --bone: #e6e2d9;
+  --ash-dark: #8f8d86;
+  --faint-dark: #5a5852;
+  --sulphur: #d6c34a;
+  --sulphur-deep-d: #8f7c18;
+  --oxblood-d: #9b2c2f;
+  --line-dark: #26262b;
 
   --surface-bg: var(--void);
-  --surface-panel: var(--toner);
+  --surface-panel: var(--panel);
+  --surface-panel-2: var(--void-2);
   --text-strong: var(--bone);
   --text-muted: var(--ash-dark);
-  --accent: var(--sulphur-dark);
-  --danger: var(--oxblood);
-  --line: oklch(0.27 0.005 286);
+  --text-faint: var(--faint-dark);
+  --accent: var(--sulphur);
+  --accent-deep: var(--sulphur-deep-d);
+  --danger: var(--oxblood-d);
+  --line: var(--line-dark);
 }
 
 @theme inline {
   --color-bg: var(--surface-bg);
   --color-panel: var(--surface-panel);
+  --color-panel2: var(--surface-panel-2);
   --color-strong: var(--text-strong);
   --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
   --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
   --color-danger: var(--danger);
   --color-line: var(--line);
 
@@ -70,13 +98,30 @@ body {
 }
 
 /*
- * Q2 — light mode is a HYBRID (DESIGN §2, ratified for the autonomous build). The photocopied
- * flyer (dirty paper + halftone/toner grain) is reserved for surfaces of IMPACT — the splash and
- * the Rite reveal — while long reading bodies (the ficha) stay clean paper for legibility. The
- * body itself no longer carries grain: it is opt-in per surface via the .flyer class.
- *
- * Dark mode (the cassette) is always clean: no grain, ever. Halftone lives only in light — the
- * void has no grain (D14). So .flyer paints nothing in dark, keeping the two artifacts distinct.
+ * Tape hiss — a barely-there scanline, ONLY on the void (dark). The cassette has no visual
+ * noise, only silence; this is the single texture the void carries (D14). Light mode has no
+ * scanline — its texture is the flyer halftone, applied per surface below.
+ */
+.dark body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    rgba(255, 255, 255, 0.012) 2px 3px
+  );
+  mix-blend-mode: screen;
+}
+
+/*
+ * Q2 — light mode is a HYBRID (DESIGN §2, ratified). The photocopied flyer (dirty paper +
+ * halftone/toner grain) is reserved for surfaces of IMPACT — the splash and the Rite reveal —
+ * while long reading bodies stay clean paper for legibility. Dark mode (the cassette) is always
+ * clean: .flyer paints nothing in dark, keeping the two artifacts distinct.
  */
 :root:not(.dark) .flyer {
   background-image:
@@ -84,4 +129,62 @@ body {
     radial-gradient(color-mix(in oklch, var(--text-muted) 22%, transparent) 0.5px, transparent 0.6px);
   background-size: 4px 4px, 7px 7px;
   background-position: 0 0, 2px 3px;
+}
+
+/*
+ * Accessibility floor (DESIGN §7): keyboard focus is ALWAYS visible, in sulphur — never the
+ * browser default, never invisible. Applied to every interactive element.
+ */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Component atmosphere. Keyframes and the ritual signal live here so
+ * the ui/ layer only composes classes — core/ never sees the DOM.
+ * ------------------------------------------------------------------ */
+
+/* The wordmark develops once, like a photo emerging in the developer (DESIGN §3.1). */
+@keyframes grimoire-develop {
+  from {
+    filter: contrast(1.4) blur(3px);
+    opacity: 0.25;
+  }
+  to {
+    filter: none;
+    opacity: 1;
+  }
+}
+.wordmark-develop {
+  animation: grimoire-develop 0.9s ease-out both;
+  animation-delay: 0.15s;
+}
+
+/* The Rite signal — a source that pulses in the dark while a band sounds blind. */
+@keyframes grimoire-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+.signal-pulse {
+  animation: grimoire-pulse 3s ease-out infinite;
+}
+.signal-pulse-delay {
+  animation-delay: 1.5s;
+}
+
+/* Reduced motion (DESIGN §5/§7): the develop, the pulse and any cue stop. The reveal itself is
+   gated in core/reveal.ts; this covers the purely decorative motion. */
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-develop,
+  .signal-pulse {
+    animation: none !important;
+  }
 }

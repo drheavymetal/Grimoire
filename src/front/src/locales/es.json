@@ -3,6 +3,11 @@
     "title": "Grimoire",
     "tagline": "Descubrimiento musical para la periferia"
   },
+  "landing": {
+    "thesis": "No dejas de escuchar lo mismo por falta de recomendaciones. Filtras por etiqueta antes que por oído.",
+    "sub": "Grimoire te sirve una banda a ciegas — sin nombre, sin género, sin portada. Cuarenta y cinco segundos. Solo se revela si te gusta.",
+    "begin": "Comienza el rito →"
+  },
   "nav": {
     "search": "Buscar",
     "rite": "El Rito",

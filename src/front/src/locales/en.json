@@ -3,6 +3,11 @@
     "title": "Grimoire",
     "tagline": "Music discovery for the periphery"
   },
+  "landing": {
+    "thesis": "You do not keep hearing the same thing for lack of recommendations. You filter by tag before you filter by ear.",
+    "sub": "Grimoire serves a band blind — no name, no genre, no cover. Forty-five seconds. It is revealed only if you like it.",
+    "begin": "Begin the rite →"
+  },
   "nav": {
     "search": "Search",
     "rite": "The Rite",
