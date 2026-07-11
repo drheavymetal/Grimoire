@@ -19,14 +19,22 @@ public record ReleaseDto(
     DateOnly? ReleaseDate,
     string? CoverUrl);
 
-/// <summary>A bloodline edge, for the artist page (feature B16, populated later).</summary>
+/// <summary>
+/// A bloodline edge, for the lineup timeline (B7/B8), the member page (B10) and the
+/// bloodline graph (B16). <see cref="CounterpartId"/> is the artist on the other end
+/// from the artist being viewed — the member when viewing a band, the band when
+/// viewing a person — so the timeline can label each row without a second lookup.
+/// </summary>
 public record ArtistEdgeDto(
     Guid FromId,
     Guid ToId,
     EdgeKind Kind,
     DateOnly? BeginDate,
     DateOnly? EndDate,
-    string[] Instruments);
+    string[] Instruments,
+    Guid CounterpartId,
+    string CounterpartName,
+    ArtistKind CounterpartKind);
 
 /// <summary>Full artist shape for the artist page (feature B4).</summary>
 public record ArtistDetailDto(

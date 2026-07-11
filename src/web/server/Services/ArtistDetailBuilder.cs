@@ -32,11 +32,35 @@ public sealed class ArtistDetailBuilder
             return null;
         }
 
-        List<ArtistEdgeDto> edges = await _db.ArtistEdges
+        var rawEdges = await _db.ArtistEdges
             .AsNoTracking()
             .Where(e => e.FromId == id || e.ToId == id)
-            .Select(e => new ArtistEdgeDto(e.FromId, e.ToId, e.Kind, e.BeginDate, e.EndDate, e.Instruments))
+            .Select(e => new { e.FromId, e.ToId, e.Kind, e.BeginDate, e.EndDate, e.Instruments })
             .ToListAsync(ct);
+
+        // Resolve the counterpart (the artist on the other end from `id`) so the
+        // lineup timeline can label each row without the client doing a second round trip.
+        List<Guid> counterpartIds = rawEdges
+            .Select(e => e.FromId == id ? e.ToId : e.FromId)
+            .Distinct()
+            .ToList();
+
+        Dictionary<Guid, (string Name, ArtistKind Kind)> counterparts = await _db.Artists
+            .AsNoTracking()
+            .Where(a => counterpartIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.Name, a.Kind })
+            .ToDictionaryAsync(a => a.Id, a => (a.Name, a.Kind), ct);
+
+        List<ArtistEdgeDto> edges = rawEdges
+            .Select(e =>
+            {
+                Guid counterpartId = e.FromId == id ? e.ToId : e.FromId;
+                counterparts.TryGetValue(counterpartId, out (string Name, ArtistKind Kind) counterpart);
+                return new ArtistEdgeDto(
+                    e.FromId, e.ToId, e.Kind, e.BeginDate, e.EndDate, e.Instruments,
+                    counterpartId, counterpart.Name ?? string.Empty, counterpart.Kind);
+            })
+            .ToList();
 
         List<ReleaseDto> releases = artist.Releases
             .OrderBy(r => r.ReleaseDate ?? DateOnly.MaxValue)
