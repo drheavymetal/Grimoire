@@ -53,7 +53,7 @@ export function WeeklyItem({ item, index }: { item: WeeklyItemData; index: numbe
         </p>
       ) : (
         <div className="mt-3 space-y-3">
-          <RitePlayer key={item.token} audioUrl={item.audioUrl} />
+          <RitePlayer key={item.token} audioUrl={item.audioUrl} autoPlay={false} />
 
           {phase === 'listening' ? (
             <div className="grid grid-cols-3 gap-2">

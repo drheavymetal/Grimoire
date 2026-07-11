@@ -7,7 +7,11 @@ import type { AudioState } from '../../core/audio/types';
 // never HTMLAudioElement in core (invariant 6, D12). The <audio> points ONLY at the
 // proxied capability URL — the origin iTunes/Deezer URL never reaches the client. No band
 // name, cover, country or genre is shown: this is the whole point of the rite.
-export function RitePlayer({ audioUrl }: { audioUrl: string }) {
+// autoPlay defaults to true for the single daily rite (the serve was a user gesture). Screens
+// that mount several players at once — the Weekly Rite's seven — pass autoPlay={false} so they
+// don't all sound together; the listener presses play on the one they want, and the global audio
+// coordination (audio.web.ts) still guarantees only one sounds at a time.
+export function RitePlayer({ audioUrl, autoPlay = true }: { audioUrl: string; autoPlay?: boolean }) {
   const { t } = useTranslation();
   const audio = useMemo(() => createWebAudio(), []);
   const [state, setState] = useState<AudioState>(() => audio.getState());
@@ -15,15 +19,16 @@ export function RitePlayer({ audioUrl }: { audioUrl: string }) {
   useEffect(() => {
     const unsubscribe = audio.subscribe(setState);
     audio.load(audioUrl);
-    // Attempt autoplay (the serve was a user gesture); if the browser blocks it, the
-    // player simply stays paused and the listener presses play.
-    void audio.play().catch(() => undefined);
+    if (autoPlay) {
+      // If the browser blocks autoplay, the player simply stays paused and the listener presses play.
+      void audio.play().catch(() => undefined);
+    }
 
     return () => {
       unsubscribe();
       audio.dispose();
     };
-  }, [audio, audioUrl]);
+  }, [audio, audioUrl, autoPlay]);
 
   const isPlaying = state.status === 'playing';
   const progress = state.durationSec > 0 ? Math.min(1, state.positionSec / state.durationSec) : 0;
