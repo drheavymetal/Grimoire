@@ -6,6 +6,14 @@ import { I18nextProvider } from 'react-i18next';
 
 import '@fontsource/redaction/400.css';
 import '@fontsource/redaction/700.css';
+// Graded corrosion cuts (D14/D38): the rank drives which face a band name renders in — 10 is the
+// most corroded (Nameless), 100 the crispest (Known). Wired via redactionFontFamily in ui/.
+import '@fontsource/redaction-10/400.css';
+import '@fontsource/redaction-20/400.css';
+import '@fontsource/redaction-35/400.css';
+import '@fontsource/redaction-50/400.css';
+import '@fontsource/redaction-70/400.css';
+import '@fontsource/redaction-100/400.css';
 import '@fontsource/archivo/400.css';
 import '@fontsource/archivo/600.css';
 import '@fontsource/courier-prime/400.css';

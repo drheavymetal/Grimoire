@@ -7,6 +7,7 @@
     "search": "Buscar",
     "rite": "El Rito",
     "lineage": "Linaje",
+    "atlas": "Atlas",
     "grimoire": "Grimorio",
     "logout": "Salir",
     "toggleTheme": "Cambiar tema",
@@ -120,6 +121,20 @@
     "next": "Invocar otra",
     "emptyTitle": "Nada responde en ese anillo",
     "emptyBody": "O empujaste el deslizador hacia el abismo y nada servible vive tan lejos, o ya invocaste todo lo que hay tan cerca. Mueve el deslizador hacia atrás, afloja los filtros, o vuelve más tarde."
+  },
+  "atlas": {
+    "heading": "El Atlas",
+    "intro": "El catálogo entero como un solo cielo. Cada estrella es una banda, situada por el sonido de su embedding. Donde tienes gusto, las estrellas más cercanas a ti arden en azufre — y la oscuridad entre los cúmulos es el terreno que ninguna banda ha reclamado.",
+    "loading": "Cartografiando el cielo…",
+    "error": "El cielo no se pudo cargar. Inténtalo de nuevo.",
+    "reset": "Reiniciar vista",
+    "hint": "Arrastra para mover · rueda para acercar · pulsa una estrella para abrirla",
+    "aria": "Campo de estrellas del Atlas, {{count}} bandas",
+    "emptyTitle": "Aún no hay cielo que cartografiar",
+    "emptyBody": "Todavía no se ha proyectado ninguna banda al mapa. El Atlas se llena en cuanto se sitúan los embeddings.",
+    "noTasteAnon": "Inicia sesión y siembra tu gusto para encontrarte entre las estrellas.",
+    "noTasteSignedIn": "Siembra tu gusto para encontrarte entre las estrellas.",
+    "toRite": "Empezar el rito →"
   },
   "grimoire": {
     "heading": "Tu grimorio",

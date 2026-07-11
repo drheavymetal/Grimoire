@@ -101,6 +101,10 @@ builder.Services.AddScoped<ArtistDetailBuilder>();
 // Rabbit Hole and grimoire-graph endpoints.
 builder.Services.AddScoped<LineageGraph>();
 
+// The Atlas (movement VI, C18/B22): reconstructs and caches the offline PCA basis so a live taste
+// vector can be placed on the same 2D map as the stored star field.
+builder.Services.AddSingleton<AtlasProjector>();
+
 // The discovery engine and its tunables (percentile ring — DECISIONS D26).
 RiteEngineOptions riteOptions = builder.Configuration.GetSection("Rite").Get<RiteEngineOptions>()
     ?? new RiteEngineOptions();

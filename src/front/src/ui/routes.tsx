@@ -5,6 +5,7 @@ import { ArtistPage } from './pages/ArtistPage';
 import { RitePage } from './pages/RitePage';
 import { GrimoirePage } from './pages/GrimoirePage';
 import { LineagePage } from './pages/LineagePage';
+import { AtlasPage } from './pages/AtlasPage';
 
 const rootRoute = createRootRoute({
   component: Layout,
@@ -40,12 +41,25 @@ const lineageRoute = createRoute({
   component: LineagePage,
 });
 
+const atlasRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/atlas',
+  component: AtlasPage,
+});
+
 function ArtistRouteComponent() {
   const { artistId } = artistRoute.useParams();
   return <ArtistPage artistId={artistId} />;
 }
 
-const routeTree = rootRoute.addChildren([searchRoute, artistRoute, riteRoute, grimoireRoute, lineageRoute]);
+const routeTree = rootRoute.addChildren([
+  searchRoute,
+  artistRoute,
+  riteRoute,
+  grimoireRoute,
+  lineageRoute,
+  atlasRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

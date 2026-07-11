@@ -256,10 +256,12 @@ function Reveal({ reveal }: { reveal: RiteReveal }) {
   const { artist, why } = reveal;
 
   return (
-    <div className="border border-accent p-6">
+    // The reveal is a surface of impact (Q2 hybrid, DESIGN §2): the photocopied flyer grain in
+    // light mode. Dark mode stays clean (the cassette). The .flyer class paints grain only in light.
+    <div className="flyer border border-accent p-6">
       <p className="font-mono text-xs uppercase text-accent">{t('rite.summoned')}</p>
       <div className="mt-2">
-        <RevealName name={artist.name} />
+        <RevealName name={artist.name} rank={artist.rank} />
       </div>
 
       <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-xs text-muted">

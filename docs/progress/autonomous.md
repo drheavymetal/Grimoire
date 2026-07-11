@@ -20,9 +20,11 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 - [ ] **Ola V — Escenas**: B20/B21 escenas+sellos, B12, B2 búsqueda semántica, B24 comparar, C6 muro de portadas, C7 duración, C11 escenas, C14 tarjeta, C21 minería de títulos, C22 regalo, C23 grimorios cruzados, C24 un álbum, C25 hiperprolífico, C26 deriva cromática.
 - [ ] **Ola VI — Espejo**: B17 Weekly Rite (WebPush), B18 Dark Twin, C18 Atlas (canvas/WebGL), B23 gaps, B25 anti-rec, C16 trayectoria, C20 el espejo.
 - [ ] **Ola VII — Clásica**: modelo `works`, ficha de compositor, linaje maestro-discípulo. (Datos de clásica ausentes en el corpus → shell + siembra mínima si MB lo permite; hueco declarado si no.)
-- [ ] **Ola Q — Firma visual**: cablear `redactionCutForRank` corregido en nombres/reveal (Q1 Opción 1); modo claro híbrido (Q2).
+- [x] **Ola Q — Firma visual** (Q1 cableado, Q2 híbrido) + C18 Atlas: cablear `redactionCutForRank` corregido en nombres/reveal (Q1 Opción 1); modo claro híbrido (Q2).
 - [ ] **Ola V&V — Verificación**: rondas de agentes con **Playwright** E2E sobre todas las features; arreglar fallos; audit --strict; commit+push.
 
 ## Bitácora
 - 02:32 CEST — push de mov. I+II (rank chain incluido). Backend del Gantt (edges con contraparte) commiteado. Arranca Ola D + Ola III en paralelo (frentes disjuntos: shared/console vs front).
 - 02:5x CEST — Ola D + Gantt verdes. Migración 4 (credits/works/deaths/xy). 67 influence, 309 xy. 168+46 tests. Commit+push.
+- 03:35 CEST — ETL créditos (21k credits, 179 labels, 24 deaths) + Visual (Q1/Q2/Atlas) verdes. Fix: tests xUnit huérfanos (backbone/IV/ETL en GrimoireTest) que los commits por-ruta se dejaron → recogidos ahora con add -A.
+

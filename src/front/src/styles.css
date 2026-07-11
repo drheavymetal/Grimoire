@@ -69,8 +69,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Halftone only in light mode; the void has no grain. */
-:root:not(.dark) body {
-  background-image: radial-gradient(var(--line) 0.5px, transparent 0.5px);
-  background-size: 4px 4px;
+/*
+ * Q2 — light mode is a HYBRID (DESIGN §2, ratified for the autonomous build). The photocopied
+ * flyer (dirty paper + halftone/toner grain) is reserved for surfaces of IMPACT — the splash and
+ * the Rite reveal — while long reading bodies (the ficha) stay clean paper for legibility. The
+ * body itself no longer carries grain: it is opt-in per surface via the .flyer class.
+ *
+ * Dark mode (the cassette) is always clean: no grain, ever. Halftone lives only in light — the
+ * void has no grain (D14). So .flyer paints nothing in dark, keeping the two artifacts distinct.
+ */
+:root:not(.dark) .flyer {
+  background-image:
+    radial-gradient(var(--line) 0.5px, transparent 0.6px),
+    radial-gradient(color-mix(in oklch, var(--text-muted) 22%, transparent) 0.5px, transparent 0.6px);
+  background-size: 4px 4px, 7px 7px;
+  background-position: 0 0, 2px 3px;
 }

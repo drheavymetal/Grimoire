@@ -110,4 +110,22 @@ describe('rite client contract', () => {
     expect(url).toBe('http://api.test/api/rite/seed');
     expect(JSON.parse(init.body as string)).toEqual({ artistIds: ['id-1', 'id-2'] });
   });
+
+  it('reads the atlas star field, with the taste position when present', async () => {
+    const payload = {
+      stars: [{ id: 'a', name: 'A', kind: 'Group', rank: 'Known', x: 1.5, y: -2.5 }],
+      taste: { x: 0.25, y: 0.75 },
+    };
+    const fetchImpl = vi.fn(async () => jsonResponse(payload));
+    const client = createGrimoireClient('http://api.test', {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      getAccessToken: () => 't',
+    });
+
+    const result = await client.atlas();
+
+    expect(result).toEqual(payload);
+    const [url] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('http://api.test/api/atlas');
+  });
 });

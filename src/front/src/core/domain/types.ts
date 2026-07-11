@@ -234,3 +234,32 @@ export interface MissingLink {
 export interface RabbitHole {
   steps: GraphNode[];
 }
+
+// ---------------------------------------------------------------------------
+// The Atlas (C18/B22): the whole catalogue as a 2D star field. Each star is an
+// artist's embedding projected to the plane by the backend (PCA of the centred
+// embeddings). The empty regions between the clusters are the gaps (B23).
+// ---------------------------------------------------------------------------
+
+// One star: an artist with a 2D position. Rank tints it; null rank is a plain star.
+export interface AtlasStar {
+  id: string;
+  name: string;
+  kind: ArtistKind;
+  rank: Rank | null;
+  x: number;
+  y: number;
+}
+
+// The signed-in user's taste, projected into the same plane as the stars ("you are here").
+// Null when the caller is anonymous or has no taste vector yet.
+export interface AtlasTaste {
+  x: number;
+  y: number;
+}
+
+// The Atlas payload: every projected star, plus the caller's taste position when known.
+export interface Atlas {
+  stars: AtlasStar[];
+  taste: AtlasTaste | null;
+}

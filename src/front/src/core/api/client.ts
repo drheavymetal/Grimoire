@@ -1,6 +1,7 @@
 import type {
   ArtistDetail,
   ArtistSummary,
+  Atlas,
   AuthTokens,
   Diaspora,
   Graph,
@@ -62,6 +63,13 @@ export interface GrimoireClient {
   rabbitHole(id: string, length: number, signal?: AbortSignal): Promise<RabbitHole>;
   /** The signed-in user's summoned bands and the edges between them (C17). */
   grimoireGraph(signal?: AbortSignal): Promise<Graph>;
+
+  // --- The Atlas (movement VI, C18/B22) ---
+  /**
+   * The whole catalogue as a 2D star field. Anonymous callers get just the stars; a signed-in
+   * caller with a taste vector also gets their projected "you are here" position.
+   */
+  atlas(signal?: AbortSignal): Promise<Atlas>;
 }
 
 export class ApiError extends Error {
@@ -247,6 +255,12 @@ export function createGrimoireClient(
     },
     grimoireGraph(signal) {
       return request<Graph>('/api/lineage/grimoire-graph', { auth: true, signal });
+    },
+
+    atlas(signal) {
+      // Anonymous-friendly: the endpoint returns stars without a token, and includes the taste
+      // position when a valid bearer is attached. auth:true attaches the token only if present.
+      return request<Atlas>('/api/atlas', { auth: true, signal });
     },
   };
 }

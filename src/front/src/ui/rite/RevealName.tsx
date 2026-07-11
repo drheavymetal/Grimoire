@@ -1,40 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  redactionCutForRank,
+  redactionFontFamily,
+  revealCutSequence,
+} from '../../core/domain/redaction';
 import { REVEAL_DURATION_MS, shouldAnimateReveal } from '../../core/domain/reveal';
+import type { Rank } from '../../core/domain/types';
 import { prefersReducedMotion } from '../../platform/motion.web';
 
-// The reveal (DESIGN 3.1): the band name emerges like a photograph in the developer —
-// blurred and faint, resolving to crisp over 600 ms. It lands on the BASE Redaction face,
-// NOT a rank-driven corrosion cut: rank is null across the corpus, so a cut chosen by rank
-// would render a lie (CLAUDE.md, D14/Q1). The develop is driven by React state, never by a
-// standalone CSS animation coupled to the DOM from core (D12): core owns the gate and the
-// timing constant; this component only paints.
+// The reveal (DESIGN §3.1): the band name develops like a photograph — it emerges in the most
+// corroded Redaction face and resolves, cut by cut, to the face its RANK earns, over 600 ms. A
+// Known walks all the way to crisp (100); a Nameless is a single corroded frame that never
+// resolves; an unknown rank lands crisp, because unknown is not rare (D35). This wires Q1's
+// signature into the reveal with the real graded faces (D14/D38), replacing the earlier blur/
+// contrast stand-in. The corrosion is only ever the band name — the datum — never the app mark (D27).
 //
-// prefers-reduced-motion (read in platform/) shows the name resolved immediately, with no
-// animation (DESIGN 5/7). The gate is a pure function in core so it is tested without a browser.
-export function RevealName({ name }: { name: string }) {
+// The develop is a state-driven walk through a pure, ordered sequence from core (D12): core owns the
+// sequence and the timing; this component only steps an index and paints. prefers-reduced-motion
+// (read in platform/) shows the final cut at once, no animation (DESIGN §5/§7).
+export function RevealName({ name, rank }: { name: string; rank: Rank | null }) {
+  const targetCut = redactionCutForRank(rank);
+  const sequence = useMemo(() => revealCutSequence(targetCut), [targetCut]);
   const animate = shouldAnimateReveal(prefersReducedMotion());
-  const [resolved, setResolved] = useState(!animate);
+
+  // Start at the most corroded frame when animating, or straight at the target when not.
+  const [step, setStep] = useState(() => (animate ? 0 : sequence.length - 1));
 
   useEffect(() => {
-    if (!animate) {
+    if (!animate || sequence.length <= 1) {
+      setStep(sequence.length - 1);
       return;
     }
 
-    // Start in the developing state, then flip on the next tick so the CSS transition runs.
-    const handle = setTimeout(() => setResolved(true), 20);
-    return () => clearTimeout(handle);
-  }, [animate]);
+    setStep(0);
+    const perStep = REVEAL_DURATION_MS / (sequence.length - 1);
+    const timers = sequence.map((_, i) => setTimeout(() => setStep(i), Math.round(perStep * i)));
+
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [animate, sequence]);
+
+  const cut = sequence[Math.min(step, sequence.length - 1)];
+  const resolved = step >= sequence.length - 1;
 
   return (
     <span
-      className="font-display text-5xl text-strong"
+      className="text-5xl text-strong"
       style={{
         display: 'inline-block',
-        transitionProperty: 'filter, opacity',
+        fontFamily: redactionFontFamily(cut),
+        transitionProperty: 'opacity',
         transitionTimingFunction: 'ease-out',
         transitionDuration: `${REVEAL_DURATION_MS}ms`,
-        filter: resolved ? 'blur(0) contrast(1)' : 'blur(10px) contrast(0.35)',
-        opacity: resolved ? 1 : 0.12,
+        opacity: resolved ? 1 : 0.55,
       }}
     >
       {name}

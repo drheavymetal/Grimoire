@@ -17,6 +17,24 @@ importers:
       '@fontsource/redaction':
         specifier: 5.2.5
         version: 5.2.5
+      '@fontsource/redaction-10':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/redaction-100':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/redaction-20':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/redaction-35':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/redaction-50':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/redaction-70':
+        specifier: 5.2.5
+        version: 5.2.5
       '@tanstack/react-query':
         specifier: 5.101.2
         version: 5.101.2(react@19.2.7)
@@ -373,6 +391,24 @@ packages:
 
   '@fontsource/courier-prime@5.2.8':
     resolution: {integrity: sha512-M3xOCcXnGuFi9TcGCrz4hm5yeWg4Sn35MALRLPnqNoHhawTFvhyi2KSI2+5RyFtDNJrb58bPh8LLipgiI9KA0w==}
+
+  '@fontsource/redaction-100@5.2.5':
+    resolution: {integrity: sha512-jMdz76grFd7fmXSf9t13ym+SgNmiereSF+L5xODpTZaMQychDM+UAHT6u8Z5TOS92a8cPsyUdkzLNEPJPH7l4g==}
+
+  '@fontsource/redaction-10@5.2.5':
+    resolution: {integrity: sha512-UqDJ8VeWlRy83wgsY3pT2s3jkItovR3TeOfMWOfCSdmuox4Ev8B9RrkPi5YA2zL6CX8RNwRrTi3Ua0fgAYQrlw==}
+
+  '@fontsource/redaction-20@5.2.5':
+    resolution: {integrity: sha512-sshbJ87SQL1NbwDxQMYdAKOFhm5ydsZU7FyMhnesfhVaVPsahyy4QOlMcsRMyWGQMayXyCWbCEu1wHgwlmC2mg==}
+
+  '@fontsource/redaction-35@5.2.5':
+    resolution: {integrity: sha512-DH66SsDHTd9wxSW9nym6FgdTry9VFYSSUoi9STWBT/FSR4kf7WtCUZf3ThvYj8TvCOl8Kxi6vUX+1DIgJiXX4w==}
+
+  '@fontsource/redaction-50@5.2.5':
+    resolution: {integrity: sha512-d5kZeWLNPAOk6vMQ21EbUrJFTgbBRhVWLw3p1Ebpc0u3GH+oQ0HYmT5hKtIRQEu7jF9Cbme9mffNguMC5ttkmA==}
+
+  '@fontsource/redaction-70@5.2.5':
+    resolution: {integrity: sha512-hQXJWzdeTuPOuHPigp1dhtOHn6ezWITSwoTj1R9mXcLjaJEdnL456VQgkETOwGZyl755YQmzpgOS1H6N9F29+A==}
 
   '@fontsource/redaction@5.2.5':
     resolution: {integrity: sha512-hK4XAsFsFP0MWv194PluZEBaLbMEbHvUKvCzbD+xJW/01BMYIk4LOSwmltXpBSF+mOGhexFUs82q9JV1EKI5/w==}
@@ -1847,6 +1883,18 @@ snapshots:
   '@fontsource/archivo@5.2.8': {}
 
   '@fontsource/courier-prime@5.2.8': {}
+
+  '@fontsource/redaction-100@5.2.5': {}
+
+  '@fontsource/redaction-10@5.2.5': {}
+
+  '@fontsource/redaction-20@5.2.5': {}
+
+  '@fontsource/redaction-35@5.2.5': {}
+
+  '@fontsource/redaction-50@5.2.5': {}
+
+  '@fontsource/redaction-70@5.2.5': {}
 
   '@fontsource/redaction@5.2.5': {}
 

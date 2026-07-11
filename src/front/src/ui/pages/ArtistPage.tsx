@@ -5,6 +5,7 @@ import { releaseTypeOrder } from '../../core/domain/rank';
 import { ApiError } from '../../core/api/client';
 import type { Release, ReleaseType } from '../../core/domain/types';
 import { Cover } from '../Cover';
+import { RankedName } from '../RankedName';
 import { LineupTimeline } from '../lineup/LineupTimeline';
 import { Bloodline } from '../lineage/Bloodline';
 import { Diaspora } from '../lineage/Diaspora';
@@ -40,9 +41,12 @@ export function ArtistPage({ artistId }: { artistId: string }) {
   return (
     <article>
       <BackLink />
-      {/* Rank is null across the whole corpus in movement I: the display uses the base
-          Redaction face, never a rank-driven corrosion cut (CLAUDE.md, D14/Q1). */}
-      <h1 className="mt-3 font-display text-5xl text-strong">{data.name}</h1>
+      {/* Q1 wired (D14/D38): the name renders in the Redaction cut its rank earns — Known crisp,
+          Nameless corroded, an unknown rank crisp (unknown is not rare, D35). The typography is
+          the datum. Corrosion is only ever the band name, never the app mark (D27). */}
+      <h1 className="mt-3">
+        <RankedName name={data.name} rank={data.rank} className="text-5xl text-strong" />
+      </h1>
 
       {/* The Gantt is the hero, in the header-photo slot (DESIGN 6): Grimoire has no band
           photos, so it shows the band's structure in time. B7/B8; reused for B10 (a person's

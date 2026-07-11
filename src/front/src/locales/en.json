@@ -7,6 +7,7 @@
     "search": "Search",
     "rite": "The Rite",
     "lineage": "Lineage",
+    "atlas": "Atlas",
     "grimoire": "Grimoire",
     "logout": "Sign out",
     "toggleTheme": "Toggle theme",
@@ -120,6 +121,20 @@
     "next": "Invoke another",
     "emptyTitle": "Nothing answers in that ring",
     "emptyBody": "Either you pushed the slider into the abyss and nothing servable lives that far out, or you have already invoked everything this close. Move the slider back, loosen the filters, or return later."
+  },
+  "atlas": {
+    "heading": "The Atlas",
+    "intro": "The whole catalogue as one sky. Each star is a band, placed by the sound of its embedding. Where you have a taste, the stars nearest you burn sulphur — and the dark between the clusters is the ground no band has claimed.",
+    "loading": "Charting the sky…",
+    "error": "The sky would not load. Try again.",
+    "reset": "Reset view",
+    "hint": "Drag to pan · scroll to zoom · click a star to open it",
+    "aria": "Atlas star field, {{count}} bands",
+    "emptyTitle": "No sky to chart yet",
+    "emptyBody": "No band has been projected to the map yet. The Atlas fills in once the embeddings are placed.",
+    "noTasteAnon": "Sign in and seed your taste to find yourself among the stars.",
+    "noTasteSignedIn": "Seed your taste to find yourself among the stars.",
+    "toRite": "Begin the rite →"
   },
   "grimoire": {
     "heading": "Your grimoire",
