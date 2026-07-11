@@ -1,0 +1,25 @@
+# Keep the build context small and prevent host artifacts from clobbering the
+# freshly produced ones inside the image (notably src/front COPY over a clean
+# pnpm install, and .NET bin/obj over dotnet publish output).
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/.vite
+**/*.tsbuildinfo
+
+# VCS and local tooling
+.git
+.gitignore
+**/.DS_Store
+
+# Docs, scripts and dev-only compose are not needed at image build time
+docs
+scripts
+build/dev
+build/demo
+
+# Test projects are not part of the runtime images
+src/web/GrimoireTest
+src/front/e2e
+src/front/playwright.config.ts
