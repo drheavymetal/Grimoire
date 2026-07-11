@@ -41,10 +41,8 @@ public sealed class EmbeddingJob : WorkerJob
 
     protected override string CommandName => "Embedding pass";
 
-    // Recompute the corpus mean (and re-embed the whole catalogue) only when far too few vectors
-    // exist to be resuming a real pass — i.e. a fresh catalogue. Above this we resume, reusing the
-    // persisted mean so already-centred vectors stay consistent with the ones we are about to add.
-    private const int FreshRebuildBelow = 40_000;
+    // A corpus mean persisted with at least this many artists is treated as a real catalogue-scale
+    // mean (D26) — the marker that lets a resume reuse it instead of clearing and starting over.
     private const int MeanSampleTarget = 6_000;
     private const int BatchSize = 400;
 
@@ -66,10 +64,17 @@ public sealed class EmbeddingJob : WorkerJob
 
         int embeddedNow = await db.Artists.CountAsync(a => a.Embedding != null, ct);
 
-        // Establish the corpus mean (D26). On a fresh catalogue we compute it from a sample and
-        // clear stale vectors so everything re-centres on the same mean; otherwise we resume.
+        // Establish the corpus mean (D26). A catalogue-scale mean is marked by persisting it with
+        // ArtistCount >= MeanSampleTarget. If one exists we RESUME on it (fill the remaining null
+        // vectors) — crucially, even mid-rebuild after a kill, so a restart never re-clears progress.
+        // Only when there is no catalogue mean (fresh catalogue, or the old tiny bootstrap mean) do
+        // we recompute from a sample and clear stale vectors so all re-centre on one mean.
+        CorpusStat? stat = await db.CorpusStats.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == CorpusStat.SingletonId, ct);
+        bool haveCatalogueMean = stat?.MeanEmbedding is not null && stat.ArtistCount >= MeanSampleTarget;
+
         float[] mean;
-        if (embeddedNow < FreshRebuildBelow)
+        if (!haveCatalogueMean)
         {
             _logger.LogInformation(
                 "Fresh embedding rebuild ({Existing} existing): computing the corpus mean from a sample of {Sample}.",
@@ -84,22 +89,15 @@ public sealed class EmbeddingJob : WorkerJob
 
             mean = sampleMean;
             await db.Database.ExecuteSqlRawAsync("UPDATE artists SET embedding = NULL", ct);
-            await PersistMeanAsync(db, mean, 0, ct);
+            // Persist with the sample size as the "catalogue mean exists" marker, so a later resume
+            // (after a kill mid-fill) reuses this mean instead of clearing and starting over.
+            await PersistMeanAsync(db, mean, MeanSampleTarget, ct);
             await db.SaveChangesAsync(ct);
             db.ChangeTracker.Clear();
         }
         else
         {
-            CorpusStat? stat = await db.CorpusStats.AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == CorpusStat.SingletonId, ct);
-
-            if (stat?.MeanEmbedding is null)
-            {
-                _logger.LogWarning("Resuming, but no corpus mean is persisted; nothing to centre against. Aborting.");
-                return;
-            }
-
-            mean = stat.MeanEmbedding.ToArray();
+            mean = stat!.MeanEmbedding!.ToArray();
             _logger.LogInformation("Resuming embedding pass ({Existing} already centred) with the persisted mean.", embeddedNow);
         }
 
