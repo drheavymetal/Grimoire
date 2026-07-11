@@ -1,7 +1,9 @@
 import type {
   AntiRec,
   ArtistDetail,
+  ArtistDuration,
   ArtistSummary,
+  ArtistThemes,
   Atlas,
   AuthTokens,
   CompareResult,
@@ -43,7 +45,9 @@ import type {
   ServedRite,
   ServeFilters,
   TasteStatus,
+  Track,
   Trajectory,
+  VersionGraph,
   WeeklyRite,
 } from '../domain/types';
 
@@ -69,6 +73,14 @@ export interface GrimoireClient {
   getComposer(id: string, signal?: AbortSignal): Promise<ComposerDetail>;
   /** The release with the most lineup turnover around it (B12). Null when nothing ever changed. */
   pivotalRelease(id: string, signal?: AbortSignal): Promise<PivotalRelease | null>;
+  /** The tracklist of one release in a band's discography (B5): position, title, length. */
+  releaseTracks(artistId: string, releaseId: string, signal?: AbortSignal): Promise<Track[]>;
+  /** The lyrical themes a band's song titles evoke, an approximation (C21). */
+  artistThemes(id: string, signal?: AbortSignal): Promise<ArtistThemes>;
+  /** The cross-artist covers touching a band's recordings, as a graph plus a list (C10). */
+  artistVersions(id: string, signal?: AbortSignal): Promise<VersionGraph>;
+  /** Bands ranked by mean track length — the duration axis, funeral doom ↔ grindcore (C7). */
+  durationAxis(pole: 'long' | 'short', limit: number, signal?: AbortSignal): Promise<ArtistDuration[]>;
   /**
    * URL of the proxied, disk-cached cover for a release-group MBID. Pure string building
    * (no fetch, no DOM), so it stays portable; the UI feeds it to an <img src>.
@@ -301,6 +313,22 @@ export function createGrimoireClient(
     pivotalRelease(id, signal) {
       // 204 No Content when the band's lineup never changed around any dated release.
       return requestMaybe<PivotalRelease>(`/api/artists/${encodeURIComponent(id)}/pivotal-release`, { signal });
+    },
+    releaseTracks(artistId, releaseId, signal) {
+      return request<Track[]>(
+        `/api/artists/${encodeURIComponent(artistId)}/releases/${encodeURIComponent(releaseId)}/tracks`,
+        { signal },
+      );
+    },
+    artistThemes(id, signal) {
+      return request<ArtistThemes>(`/api/artists/${encodeURIComponent(id)}/themes`, { signal });
+    },
+    artistVersions(id, signal) {
+      return request<VersionGraph>(`/api/artists/${encodeURIComponent(id)}/versions`, { signal });
+    },
+    durationAxis(pole, limit, signal) {
+      const params = new URLSearchParams({ pole, limit: String(limit) });
+      return request<ArtistDuration[]>(`/api/catalogue/duration-axis?${params.toString()}`, { signal });
     },
     coverUrl(mbid) {
       return `${root}/api/covers/release-group/${encodeURIComponent(mbid)}`;

@@ -11,6 +11,7 @@ import { GraphErrorBoundary } from '../GraphErrorBoundary';
 import { Cover } from '../Cover';
 import { PageHeader } from '../PageHeader';
 import { SectionHead } from '../SectionHead';
+import { DurationAxis } from '../recordings/DurationAxis';
 
 // Movement V — the Explore hub: the catalogue turned over and looked at from odd angles. The wall of
 // covers (C6), comparing two bands (B24), the one-album bands (C24), the hyperprolific (C25), and
@@ -30,6 +31,7 @@ export function ExplorePage() {
 
       <CoverWallSection />
       <CompareSection />
+      <DurationAxis />
       <RareInstrumentsSection />
       <OneAlbumSection />
       <HyperprolificSection />

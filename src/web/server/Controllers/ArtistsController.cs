@@ -167,4 +167,143 @@ public class ArtistsController : ControllerBase
 
         return Ok(dto);
     }
+
+    /// <summary>
+    /// The tracklist of one release in this band's discography (B5): each recording's position,
+    /// title and length in milliseconds, ordered by position. Length is null when MusicBrainz never
+    /// timed the track — the front renders an em dash, never a fabricated duration (C7 honesty).
+    /// 404 when the release is unknown or does not belong to this artist (no cross-artist leakage).
+    /// Returns an empty list for a release whose tracks the import never reached — a designed empty
+    /// state (R2), not an error.
+    /// </summary>
+    [HttpGet("{id:guid}/releases/{releaseId:guid}/tracks")]
+    public async Task<ActionResult<IReadOnlyList<TrackDto>>> Tracks(Guid id, Guid releaseId, CancellationToken ct = default)
+    {
+        bool belongs = await _db.Releases
+            .AsNoTracking()
+            .AnyAsync(r => r.Id == releaseId && r.ArtistId == id, ct);
+        if (!belongs)
+        {
+            return NotFound();
+        }
+
+        List<TrackDto> tracks = await _db.Recordings
+            .AsNoTracking()
+            .Where(rec => rec.ReleaseId == releaseId)
+            .OrderBy(rec => rec.Position)
+            .Select(rec => new TrackDto(rec.Position, rec.Title, rec.LengthMs))
+            .ToListAsync(ct);
+
+        return Ok(tracks);
+    }
+
+    /// <summary>
+    /// Song-title mining for a band (C21): the lyrical themes its recording titles evoke, most
+    /// present first, over a closed bilingual vocabulary (<see cref="TitleLexicon"/>). It is an
+    /// <b>approximation</b> from titles — not a curated lyrical fact, and the UI says so (D17). An
+    /// empty theme list is honest: the band's titles simply matched no theme word.
+    /// </summary>
+    [HttpGet("{id:guid}/themes")]
+    public async Task<ActionResult<ArtistThemesDto>> Themes(Guid id, CancellationToken ct = default)
+    {
+        bool exists = await _db.Artists.AsNoTracking().AnyAsync(a => a.Id == id, ct);
+        if (!exists)
+        {
+            return NotFound();
+        }
+
+        List<string> titles = await _db.Recordings
+            .AsNoTracking()
+            .Where(rec => _db.Releases.Any(r => r.Id == rec.ReleaseId && r.ArtistId == id))
+            .Select(rec => rec.Title)
+            .ToListAsync(ct);
+
+        IReadOnlyList<TitleLexicon.ThemeCount> themes = TitleLexicon.CountThemes(titles);
+
+        return Ok(new ArtistThemesDto(
+            titles.Count,
+            themes.Select(t => new ThemeCountDto(t.Theme, t.Count)).ToList()));
+    }
+
+    /// <summary>
+    /// The version graph of a band (C10, "quién versionó a quién"): every cross-artist cover that
+    /// touches one of this band's recordings — either the band was covered, or the band covered
+    /// someone else. Own remixes/remasters (same artist on both ends) are excluded (<see
+    /// cref="CoverGraphBuilder.CrossArtist"/>), because they are not the "someone else" story. Nodes
+    /// are artists (this band marked "ego"), edges carry the MusicBrainz relation as their label, and
+    /// the companion list gives the covered song each edge stands for. Empty for the vast majority of
+    /// the underground that no one has covered — a designed empty state (R2).
+    /// </summary>
+    [HttpGet("{id:guid}/versions")]
+    public async Task<ActionResult<VersionGraphDto>> Versions(Guid id, CancellationToken ct = default)
+    {
+        bool exists = await _db.Artists.AsNoTracking().AnyAsync(a => a.Id == id, ct);
+        if (!exists)
+        {
+            return NotFound();
+        }
+
+        // Cover relations where either the original or the covering recording belongs to this band.
+        var joined = await (
+            from cv in _db.CoverVersions.AsNoTracking()
+            join ro in _db.Recordings.AsNoTracking() on cv.OriginalRecordingId equals ro.Id
+            join rc in _db.Recordings.AsNoTracking() on cv.CoverRecordingId equals rc.Id
+            join relo in _db.Releases.AsNoTracking() on ro.ReleaseId equals relo.Id
+            join relc in _db.Releases.AsNoTracking() on rc.ReleaseId equals relc.Id
+            where relo.ArtistId == id || relc.ArtistId == id
+            select new
+            {
+                OriginalArtistId = relo.ArtistId,
+                CoverArtistId = relc.ArtistId,
+                cv.Relation,
+                ro.Title,
+            }).ToListAsync(ct);
+
+        IReadOnlyList<CoverGraphBuilder.RawCover> crossArtist = CoverGraphBuilder.CrossArtist(
+            joined.Select(j => new CoverGraphBuilder.RawCover(j.OriginalArtistId, j.CoverArtistId, j.Relation, j.Title)));
+
+        if (crossArtist.Count == 0)
+        {
+            return Ok(new VersionGraphDto(new GraphDto([], []), []));
+        }
+
+        // Names/kind/rank for every artist on either end of a surviving edge, including this band.
+        HashSet<Guid> artistIds = crossArtist
+            .SelectMany(c => new[] { c.OriginalArtistId, c.CoverArtistId })
+            .ToHashSet();
+
+        Dictionary<Guid, GraphNodeDto> nodes = await _db.Artists
+            .AsNoTracking()
+            .Where(a => artistIds.Contains(a.Id))
+            .Select(a => new GraphNodeDto(a.Id, a.Name, a.Kind, a.Rank, a.Id == id ? "ego" : "node"))
+            .ToDictionaryAsync(n => n.Id, ct);
+
+        // Graph edges: one per distinct (original artist, cover artist, relation). The song titles
+        // live in the companion list, since the graph cannot carry them.
+        List<GraphEdgeDto> edges = crossArtist
+            .Select(c => (c.OriginalArtistId, c.CoverArtistId, c.Relation))
+            .Distinct()
+            .Select(e => new GraphEdgeDto(e.OriginalArtistId, e.CoverArtistId, "cover", e.Relation))
+            .ToList();
+
+        List<GraphNodeDto> orderedNodes = nodes.Values
+            .OrderByDescending(n => n.Role == "ego")
+            .ThenBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        List<CoverEdgeDto> versions = crossArtist
+            .Select(c => new CoverEdgeDto(
+                c.OriginalArtistId,
+                nodes.TryGetValue(c.OriginalArtistId, out GraphNodeDto? on) ? on.Name : string.Empty,
+                c.CoverArtistId,
+                nodes.TryGetValue(c.CoverArtistId, out GraphNodeDto? cn) ? cn.Name : string.Empty,
+                c.Relation,
+                c.Title))
+            .OrderBy(v => v.OriginalArtistName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(v => v.CoverArtistName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(v => v.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Ok(new VersionGraphDto(new GraphDto(orderedNodes, edges), versions));
+    }
 }

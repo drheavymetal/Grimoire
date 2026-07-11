@@ -368,7 +368,14 @@
     "splitsTitle": "La red de splits",
     "splitsHint": "Bandas que compartieron un disco. El grafo social real del underground. Clic en un nodo para abrirlo.",
     "splitsEmpty": "Ningún split resuelve ambas bandas al catálogo todavía — la mayoría de los compañeros de split no están en este corpus.",
-    "eyebrow": "El catálogo, del revés"
+    "eyebrow": "El catálogo, del revés",
+    "durationTitle": "El eje de la duración",
+    "durationHint": "Bandas por su duración media de tema — el eje que ninguna etiqueta de género captura. El funeral doom se arrastra en un extremo, el grindcore estalla en el otro. Una curiosidad, no una afirmación de género.",
+    "durationLong": "Más largos",
+    "durationShort": "Más cortos",
+    "durationMeta_one": "media de {{count}} tema",
+    "durationMeta_other": "media de {{count}} temas",
+    "durationEmpty": "Ninguna banda tiene aún suficientes temas cronometrados para situarla."
   },
   "gift": {
     "heading": "Un regalo, boca abajo",
@@ -525,5 +532,53 @@
       "miss": "Fallo"
     },
     "eyebrow": "Apuesta el año, a ciegas"
+  },
+  "tracks": {
+    "heading": "Lista de temas",
+    "loading": "Leyendo la lista de temas…",
+    "error": "La lista de temas no cargó.",
+    "empty": "No hay temas registrados para esta edición. La cinta nunca se indexó."
+  },
+  "themes": {
+    "title": "Temas en los títulos",
+    "hint_one": "Aproximado a partir de {{count}} título — una conjetura de temática por las palabras, no un dato curado.",
+    "hint_other": "Aproximado a partir de {{count}} títulos — una conjetura de temática por las palabras, no un dato curado.",
+    "empty": "Ninguna palabra temática asomó en los títulos."
+  },
+  "theme": {
+    "death": "Muerte",
+    "blood": "Sangre",
+    "war": "Guerra",
+    "winter": "Invierno",
+    "forest": "Bosque",
+    "fire": "Fuego",
+    "night": "Noche",
+    "darkness": "Oscuridad",
+    "ritual": "Ritual",
+    "cosmos": "Cosmos",
+    "religion": "Religión",
+    "sea": "Mar"
+  },
+  "versions": {
+    "title": "Versiones",
+    "hint": "Quién versionó a esta banda, o a quién versionó ella — solo las versiones entre artistas distintos. La relación etiqueta cada arista; los remixes propios quedan fuera.",
+    "loading": "Rastreando las versiones…",
+    "error": "El grafo de versiones no cargó.",
+    "empty": "Nadie ha versionado los temas de esta banda, y ella no ha versionado a nadie. El linaje está en silencio aquí."
+  },
+  "versionRelation": {
+    "remix": "remix",
+    "edit": "edición",
+    "karaoke": "karaoke",
+    "instrumental": "instrumental",
+    "remaster": "remasterización",
+    "a cappella": "a capela",
+    "other versions": "versión"
+  },
+  "chromatic": {
+    "title": "Deriva cromática",
+    "hint": "El color dominante de cada portada, de la más antigua a la más reciente — muestreado de la propia imagen, un promedio, no una paleta curada. Los huecos son portadas que el archivo no tiene.",
+    "empty": "Aún no hay portadas que muestrear.",
+    "tainted": "Las portadas no pudieron leerse para extraer su color aquí."
   }
 }

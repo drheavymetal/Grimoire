@@ -368,7 +368,14 @@
     "splitsTitle": "The split network",
     "splitsHint": "Bands that shared one record. The real social graph of the underground. Click a node to open it.",
     "splitsEmpty": "No split resolves both bands to the catalogue yet — most split partners are not in this corpus.",
-    "eyebrow": "The catalogue, turned over"
+    "eyebrow": "The catalogue, turned over",
+    "durationTitle": "The duration axis",
+    "durationHint": "Bands by their average track length — the pole no genre tag captures. Funeral doom crawls at one end, grindcore erupts at the other. A curiosity, not a claim of genre.",
+    "durationLong": "Longest",
+    "durationShort": "Shortest",
+    "durationMeta_one": "avg over {{count}} track",
+    "durationMeta_other": "avg over {{count}} tracks",
+    "durationEmpty": "No band has enough timed tracks to place yet."
   },
   "gift": {
     "heading": "A gift, face down",
@@ -525,5 +532,53 @@
       "miss": "Miss"
     },
     "eyebrow": "Bet the year, blind"
+  },
+  "tracks": {
+    "heading": "Tracklist",
+    "loading": "Reading the tracklist…",
+    "error": "The tracklist would not load.",
+    "empty": "No tracks recorded for this release. The tape was never indexed."
+  },
+  "themes": {
+    "title": "Themes in the titles",
+    "hint_one": "Approximated from {{count}} song title — a guess at theme from the words alone, not a curated fact.",
+    "hint_other": "Approximated from {{count}} song titles — a guess at theme from the words alone, not a curated fact.",
+    "empty": "No theme word surfaced in the titles."
+  },
+  "theme": {
+    "death": "Death",
+    "blood": "Blood",
+    "war": "War",
+    "winter": "Winter",
+    "forest": "Forest",
+    "fire": "Fire",
+    "night": "Night",
+    "darkness": "Darkness",
+    "ritual": "Ritual",
+    "cosmos": "Cosmos",
+    "religion": "Religion",
+    "sea": "Sea"
+  },
+  "versions": {
+    "title": "Versions",
+    "hint": "Who covered this band, or whom it covered — the cross-artist versions only. The relation labels each edge; the band's own remixes are left out.",
+    "loading": "Tracing the versions…",
+    "error": "The version graph would not load.",
+    "empty": "No one has covered this band's songs, and it has covered no one else. The lineage is quiet here."
+  },
+  "versionRelation": {
+    "remix": "remix",
+    "edit": "edit",
+    "karaoke": "karaoke",
+    "instrumental": "instrumental",
+    "remaster": "remaster",
+    "a cappella": "a cappella",
+    "other versions": "version"
+  },
+  "chromatic": {
+    "title": "Chromatic drift",
+    "hint": "The dominant colour of each album cover, oldest to newest — sampled from the art itself, an average, not a curated palette. Gaps are covers the archive lacks.",
+    "empty": "No cover art to sample yet.",
+    "tainted": "The covers could not be read for their colour here."
   }
 }

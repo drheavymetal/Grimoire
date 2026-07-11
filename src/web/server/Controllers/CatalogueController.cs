@@ -19,6 +19,10 @@ public class CatalogueController : ControllerBase
 {
     private const int MaxRows = 60;
 
+    // A band needs at least this many timed tracks before its mean track length is trustworthy on
+    // the duration axis (C7) — enough that one outlier piece cannot define the whole catalogue.
+    private const int MinTimedTracks = 20;
+
     private readonly GrimoireDbContext _db;
 
     public CatalogueController(GrimoireDbContext db)
@@ -113,6 +117,69 @@ public class CatalogueController : ControllerBase
             .OrderByDescending(b => b.Ratio)
             .ThenBy(b => b.Name)
             .Take(MaxRows)
+            .ToList();
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The duration axis (C7): bands ranked by their mean track length, the pole no genre tag
+    /// captures — funeral doom at one end, grindcore at the other. <paramref name="pole"/> picks the
+    /// end: <c>long</c> (default) for the longest averages, <c>short</c> for the shortest. The
+    /// average is over a band's <b>timed</b> recordings only (MusicBrainz nulls are absences, not
+    /// zeros); a band needs at least <see cref="MinTimedTracks"/> timed tracks to appear, so a single
+    /// six-hour ambient piece cannot masquerade as a catalogue. It is an axis of curiosity, not a
+    /// claim of genre.
+    /// </summary>
+    [HttpGet("duration-axis")]
+    public async Task<ActionResult<IReadOnlyList<ArtistDurationDto>>> DurationAxis(
+        [FromQuery] string pole = "long",
+        [FromQuery] int limit = 30,
+        CancellationToken ct = default)
+    {
+        int take = Math.Clamp(limit, 1, MaxRows);
+        bool shortest = string.Equals(pole, "short", StringComparison.OrdinalIgnoreCase);
+
+        // Set-based: average the non-null lengths per band, keep only bands with enough timed
+        // tracks, then order by that average toward the requested pole. avg() already ignores NULLs.
+        var query = _db.Recordings
+            .AsNoTracking()
+            .Where(rec => rec.LengthMs != null)
+            .GroupBy(rec => _db.Releases.Where(r => r.Id == rec.ReleaseId).Select(r => r.ArtistId).FirstOrDefault())
+            .Select(g => new
+            {
+                ArtistId = g.Key,
+                TimedTrackCount = g.Count(),
+                AverageMs = g.Average(rec => (double)rec.LengthMs!.Value),
+            })
+            .Where(g => g.TimedTrackCount >= MinTimedTracks);
+
+        var ranked = shortest
+            ? query.OrderBy(g => g.AverageMs).ThenBy(g => g.ArtistId)
+            : query.OrderByDescending(g => g.AverageMs).ThenBy(g => g.ArtistId);
+
+        var top = await ranked.Take(take).ToListAsync(ct);
+
+        if (top.Count == 0)
+        {
+            return Ok(Array.Empty<ArtistDurationDto>());
+        }
+
+        // Keep only bands (a person's "average track" is not a discovery axis) and attach identity.
+        List<Guid> artistIds = top.Select(t => t.ArtistId).ToList();
+        Dictionary<Guid, (string Name, Rank? Rank, string? Country, ArtistKind Kind)> meta = await _db.Artists
+            .AsNoTracking()
+            .Where(a => artistIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.Name, a.Rank, a.Country, a.Kind })
+            .ToDictionaryAsync(a => a.Id, a => (a.Name, a.Rank, a.Country, a.Kind), ct);
+
+        List<ArtistDurationDto> result = top
+            .Where(t => meta.TryGetValue(t.ArtistId, out (string Name, Rank? Rank, string? Country, ArtistKind Kind) m) && m.Kind == ArtistKind.Group)
+            .Select(t =>
+            {
+                (string Name, Rank? Rank, string? Country, ArtistKind Kind) m = meta[t.ArtistId];
+                return new ArtistDurationDto(t.ArtistId, m.Name, m.Rank, m.Country, t.TimedTrackCount, t.AverageMs);
+            })
             .ToList();
 
         return Ok(result);

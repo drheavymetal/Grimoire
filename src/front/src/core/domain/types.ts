@@ -69,6 +69,61 @@ export interface ArtistDetail {
 }
 
 // ---------------------------------------------------------------------------
+// Movement V — recording features over the tracklist: B5 (discography tracklist),
+// C7 (duration as an axis), C21 (song-title mining), C10 (the version graph).
+// ---------------------------------------------------------------------------
+
+// One track of a release (B5): its position, title and length in milliseconds. `lengthMs` is null
+// when MusicBrainz never timed it — the UI shows an em dash, never a fabricated duration.
+export interface Track {
+  position: number;
+  title: string;
+  lengthMs: number | null;
+}
+
+// A band on the duration axis (C7): its mean track length in ms over its timed recordings only,
+// and the number of tracks that average rests on (the sample size).
+export interface ArtistDuration {
+  id: string;
+  name: string;
+  rank: Rank | null;
+  country: string | null;
+  timedTrackCount: number;
+  averageMs: number;
+}
+
+// One approximated lyrical theme and how many of a band's titles evoke it (C21).
+export interface ThemeCount {
+  theme: string;
+  count: number;
+}
+
+// The title-mining result for a band (C21): the themes its titles evoke (most present first) and
+// how many titles the approximation ran over. It is an approximation from titles, not curated.
+export interface ArtistThemes {
+  titleCount: number;
+  themes: ThemeCount[];
+}
+
+// One cross-artist cover in the version graph (C10): who was covered, who covered them, the
+// MusicBrainz relation, and the covered song's title (the graph edge cannot carry the song).
+export interface CoverEdge {
+  originalArtistId: string;
+  originalArtistName: string;
+  coverArtistId: string;
+  coverArtistName: string;
+  relation: string;
+  title: string;
+}
+
+// The version graph of a band (C10): the shared graph payload plus the list of individual covers
+// with their song titles. Empty when no one has covered this band's recordings.
+export interface VersionGraph {
+  graph: Graph;
+  versions: CoverEdge[];
+}
+
+// ---------------------------------------------------------------------------
 // Movement VII — the composer body (D11). A composer is not a band: no Gantt, no
 // members, no rank (classical listeners lie). The hero is the grouped list of works
 // plus two lineages (teacher/student and influence).
@@ -280,12 +335,13 @@ export interface GraphNode {
 }
 
 // An edge: a shared-membership link (person↔band), a declared influence (band→band), a shared
-// split (band↔band, C9), or a pedagogical relation (master→apprentice, movement VII). The painter
-// draws influence dashed, teacher solid accent, and the rest a faint solid line.
+// split (band↔band, C9), a pedagogical relation (master→apprentice, movement VII), or a cover /
+// version (recording→recording collapsed to artist→artist, C10). The painter draws influence and
+// cover dashed accent, teacher solid accent, and the rest a faint solid line.
 export interface GraphEdge {
   source: string;
   target: string;
-  kind: 'member' | 'influence' | 'split' | 'teacher';
+  kind: 'member' | 'influence' | 'split' | 'teacher' | 'cover';
   label: string | null;
 }
 

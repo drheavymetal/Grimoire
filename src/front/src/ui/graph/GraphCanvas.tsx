@@ -21,13 +21,17 @@ interface Props {
   graph: Graph;
   height?: number;
   onNodeClick?: (id: string) => void;
+  // When set, each edge that carries a label is annotated at its midpoint. Off by default so the
+  // dense lineage graphs (Bloodline, splits) stay uncluttered; the version graph (C10) turns it on
+  // to show the cover relation on the edge.
+  showEdgeLabels?: boolean;
 }
 
 const PADDING = 36;
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 4;
 
-export function GraphCanvas({ graph, height = 440, onNodeClick }: Props) {
+export function GraphCanvas({ graph, height = 440, onNodeClick, showEdgeLabels = false }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [containerRef, measuredWidth] = useMeasuredWidth<HTMLDivElement>();
@@ -142,28 +146,45 @@ export function GraphCanvas({ graph, height = 440, onNodeClick }: Props) {
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
         >
-          {/* Edges first, under the nodes. Member/split = faint solid line; influence = dashed
-              accent; teacher (the pedagogical chain, movement VII) = solid accent — a real relation,
-              drawn stronger than the dashed "influenced by". */}
+          {/* Edges first, under the nodes. Member/split = faint solid line; influence and cover =
+              dashed accent; teacher (the pedagogical chain, movement VII) = solid accent — a real
+              relation, drawn stronger than the dashed "influenced by". The version graph (C10) can
+              annotate each edge with its cover relation at the midpoint. */}
           {graph.edges.map((edge, i) => {
             const a = positions.get(edge.source);
             const b = positions.get(edge.target);
             if (a === undefined || b === undefined) {
               return null;
             }
-            const accented = edge.kind === 'influence' || edge.kind === 'teacher';
+            const accented = edge.kind === 'influence' || edge.kind === 'teacher' || edge.kind === 'cover';
+            const dashed = edge.kind === 'influence' || edge.kind === 'cover';
             return (
-              <line
-                key={`e-${edge.source}-${edge.target}-${i}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={accented ? 'var(--color-accent)' : 'currentColor'}
-                strokeOpacity={accented ? 0.55 : 0.25}
-                strokeWidth={edge.kind === 'teacher' ? 1.5 : 1}
-                strokeDasharray={edge.kind === 'influence' ? '4 3' : undefined}
-              />
+              <g key={`e-${edge.source}-${edge.target}-${i}`}>
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={accented ? 'var(--color-accent)' : 'currentColor'}
+                  strokeOpacity={accented ? 0.55 : 0.25}
+                  strokeWidth={edge.kind === 'teacher' ? 1.5 : 1}
+                  strokeDasharray={dashed ? '4 3' : undefined}
+                />
+                {showEdgeLabels && edge.label !== null && edge.label.length > 0 ? (
+                  <text
+                    x={(a.x + b.x) / 2}
+                    y={(a.y + b.y) / 2}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="font-mono"
+                    fontSize={9}
+                    fill="var(--color-accent)"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {edge.label}
+                  </text>
+                ) : null}
+              </g>
             );
           })}
 

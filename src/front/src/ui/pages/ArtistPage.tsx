@@ -25,6 +25,10 @@ import { Bloodline } from '../lineage/Bloodline';
 import { Diaspora } from '../lineage/Diaspora';
 import { MemberBands } from '../lineage/MemberBands';
 import { RabbitHole } from '../lineage/RabbitHole';
+import { Tracklist } from '../recordings/Tracklist';
+import { ArtistThemes } from '../recordings/ArtistThemes';
+import { Versions } from '../recordings/Versions';
+import { ChromaticDrift } from '../recordings/ChromaticDrift';
 
 export function ArtistPage({ artistId }: { artistId: string }) {
   const { t } = useTranslation();
@@ -134,6 +138,9 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
           otherwise the endpoint returns nothing and this section is absent (no invented drama). */}
       {pivotal ? <PivotalReleaseCallout pivotal={pivotal} /> : null}
 
+      {/* C21 — the lyrical themes the band's song titles evoke (an approximation, marked as such). */}
+      <ArtistThemes artistId={data.id} />
+
       <section className="mt-8">
         <h2 className="font-display text-2xl text-strong">{t('artist.releases')}</h2>
         {data.releases.length > 0 ? (
@@ -143,6 +150,7 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
               .map((type) => (
                 <ReleaseGroup
                   key={type}
+                  artistId={data.id}
                   type={type}
                   releases={grouped[type]}
                   creditsByRelease={creditsByRelease}
@@ -155,6 +163,10 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
         )}
       </section>
 
+      {/* C26 — chromatic drift: the dominant colour of the album covers across time, sampled on the
+          client from the proxied art. Shown only when there are albums with cover art. */}
+      {data.kind === 'Group' ? <ChromaticDrift releases={data.releases} /> : null}
+
       {/* Movement IV — Lineage. Bloodline is the ego graph of any artist (B16). Bands also get
           their diaspora (B11) and a rabbit hole (C8); people get the bands they played in (B3). */}
       <Bloodline artistId={data.id} />
@@ -165,6 +177,8 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
         <>
           <Diaspora artistId={data.id} />
           <RabbitHole artistId={data.id} />
+          {/* C10 — the version graph: who covered this band, or whom it covered (cross-artist). */}
+          <Versions artistId={data.id} />
           {/* C22 — send this band as a blind, signed gift (signed-in only). */}
           <GiftButton artistId={data.id} />
         </>
@@ -174,11 +188,13 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
 }
 
 function ReleaseGroup({
+  artistId,
   type,
   releases,
   creditsByRelease,
   pivotalReleaseId,
 }: {
+  artistId: string;
   type: ReleaseType;
   releases: Release[];
   creditsByRelease: Map<string, ReleaseCredits>;
@@ -195,6 +211,7 @@ function ReleaseGroup({
         {releases.map((release) => (
           <ReleaseRow
             key={release.id}
+            artistId={artistId}
             release={release}
             credits={creditsByRelease.get(release.id)}
             isPivotal={release.id === pivotalReleaseId}
@@ -209,10 +226,12 @@ function ReleaseGroup({
 // for the whole discography; this row shows whichever the map holds for it, and a designed
 // "no credits" state otherwise (R2 — the underground is thin, the ficha must degrade with dignity).
 function ReleaseRow({
+  artistId,
   release,
   credits,
   isPivotal,
 }: {
+  artistId: string;
   release: Release;
   credits: ReleaseCredits | undefined;
   isPivotal: boolean;
@@ -243,7 +262,10 @@ function ReleaseRow({
       </div>
 
       {open ? (
-        <div className="mt-2 pl-[calc(3rem+0.75rem)]">
+        <div className="mt-2 space-y-3 pl-[calc(3rem+0.75rem)]">
+          {/* B5 — the tracklist, fetched lazily now the row is open. */}
+          <Tracklist artistId={artistId} releaseId={release.id} enabled={open} />
+          {/* B9 — the per-release credits, or a designed "no credits" state. */}
           {credits !== undefined && hasCredits(credits) ? (
             <ReleaseCreditsPanel credits={credits} />
           ) : (

@@ -88,11 +88,17 @@ public class CoversController : ControllerBase
             case CoverOutcome.Found:
                 // The cache is durable; let the browser hold the image for a week.
                 Response.Headers.CacheControl = "public, max-age=604800";
+                // Chromatic drift (C26) reads the cover's pixels on a client canvas to sample its
+                // palette. That needs a crossOrigin='anonymous' <img>, which only avoids tainting
+                // the canvas when the response carries CORS headers — even from our own proxy. The
+                // art is public, so an open ACAO is safe here.
+                Response.Headers.AccessControlAllowOrigin = "*";
                 return PhysicalFile(result.FilePath!, "image/jpeg");
 
             case CoverOutcome.NotFound:
                 // The miss is cached too, but let the browser back off for a day.
                 Response.Headers.CacheControl = "public, max-age=86400";
+                Response.Headers.AccessControlAllowOrigin = "*";
                 return NotFound();
 
             default:
