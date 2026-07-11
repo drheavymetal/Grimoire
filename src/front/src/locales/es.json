@@ -154,5 +154,21 @@
     "Split": "Splits",
     "Live": "En directo",
     "Compilation": "Recopilatorios"
+  },
+  "lineup": {
+    "title": "Línea de formación",
+    "hint": "Señala un lanzamiento para iluminar quién estaba en la banda",
+    "aria": "Línea de formación, {{count}} filas",
+    "releaseMark": "Lanzamiento: {{title}}, {{year}}",
+    "emptyBand": "Formación aún sin trazar. Las fechas de los miembros llegan cuando se recopila a las personas de la banda — el underground es escaso aquí.",
+    "emptyPerson": "Sin bandas trazadas todavía. Las membresías de esta persona no se han recopilado.",
+    "instrument": {
+      "vocals": "Voz",
+      "guitar": "Guitarra",
+      "bass": "Bajo",
+      "drums": "Batería",
+      "keys": "Teclados",
+      "other": "Otro"
+    }
   }
 }

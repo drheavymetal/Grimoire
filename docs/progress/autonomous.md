@@ -14,8 +14,8 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 
 ## Olas
 
-- [ ] **Ola D — Data backbone** (dueño único de migraciones): crear `credits`, `works`, `artists.death_*`; confirmar `artists.xy`. Poblar gratis: Wikidata P737→`artist_edges(influenced_by)`, P570/P20→fallecimientos, MB label-rels→`labels`/`releases.label_id`, MB artist-rels de release→`credits` (best-effort), UMAP→`artists.xy`.
-- [ ] **Ola III — Gantt (héroe)**: B7 timeline, B8 miembros-al-pasar-por-disco, B10 página de miembro. [relanzar] + C12 In Memoriam, C15 instrumentos raros, B9 créditos por disco.
+- [x] **Ola D — Data backbone** (dueño único de migraciones): crear `credits`, `works`, `artists.death_*`; confirmar `artists.xy`. Poblar gratis: Wikidata P737→`artist_edges(influenced_by)`, P570/P20→fallecimientos, MB label-rels→`labels`/`releases.label_id`, MB artist-rels de release→`credits` (best-effort), UMAP→`artists.xy`.
+- [~] **Ola III — Gantt (héroe)** (B7/B8/B10 hechos; B9/C12/C15 esperan datos): B7 timeline, B8 miembros-al-pasar-por-disco, B10 página de miembro. [relanzar] + C12 In Memoriam, C15 instrumentos raros, B9 créditos por disco.
 - [ ] **Ola IV — Linaje**: B16 Bloodline (d3-force+SVG, D18), B19 Six Degrees (BFS), B11 diáspora, B3 búsqueda por miembro, C5 eslabón perdido, C8 Rabbit Hole, C9 splits, C10 versiones, C17 tu grimorio grafo.
 - [ ] **Ola V — Escenas**: B20/B21 escenas+sellos, B12, B2 búsqueda semántica, B24 comparar, C6 muro de portadas, C7 duración, C11 escenas, C14 tarjeta, C21 minería de títulos, C22 regalo, C23 grimorios cruzados, C24 un álbum, C25 hiperprolífico, C26 deriva cromática.
 - [ ] **Ola VI — Espejo**: B17 Weekly Rite (WebPush), B18 Dark Twin, C18 Atlas (canvas/WebGL), B23 gaps, B25 anti-rec, C16 trayectoria, C20 el espejo.
@@ -25,3 +25,4 @@ Este fichero es el **estado durable** entre rondas. Se actualiza y commitea en c
 
 ## Bitácora
 - 02:32 CEST — push de mov. I+II (rank chain incluido). Backend del Gantt (edges con contraparte) commiteado. Arranca Ola D + Ola III en paralelo (frentes disjuntos: shared/console vs front).
+- 02:5x CEST — Ola D + Gantt verdes. Migración 4 (credits/works/deaths/xy). 67 influence, 309 xy. 168+46 tests. Commit+push.

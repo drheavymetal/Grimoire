@@ -154,5 +154,21 @@
     "Split": "Splits",
     "Live": "Live",
     "Compilation": "Compilations"
+  },
+  "lineup": {
+    "title": "Lineup timeline",
+    "hint": "Point at a release to light up who was in the band",
+    "aria": "Lineup timeline, {{count}} rows",
+    "releaseMark": "Release: {{title}}, {{year}}",
+    "emptyBand": "No lineup traced yet. Member dates arrive when the band's people are gathered — the underground is thin here.",
+    "emptyPerson": "No bands traced yet. This person's memberships have not been gathered.",
+    "instrument": {
+      "vocals": "Vocals",
+      "guitar": "Guitar",
+      "bass": "Bass",
+      "drums": "Drums",
+      "keys": "Keys",
+      "other": "Other"
+    }
   }
 }

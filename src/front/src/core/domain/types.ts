@@ -32,6 +32,12 @@ export interface ArtistEdge {
   beginDate: string | null;
   endDate: string | null;
   instruments: string[];
+  // The artist on the OTHER end from the one being viewed: the member when viewing a
+  // band, the band when viewing a person. The backend resolves it so the lineup timeline
+  // (B7/B8) and the member page (B10) can label each row without a second lookup.
+  counterpartId: string;
+  counterpartName: string;
+  counterpartKind: ArtistKind;
 }
 
 export interface ArtistDetail {
