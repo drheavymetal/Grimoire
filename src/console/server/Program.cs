@@ -2,10 +2,12 @@ using System.Net;
 using Grimoire.Library.Data;
 using Grimoire.Library.Enrichment;
 using Grimoire.Worker;
+using Grimoire.Worker.Credits;
 using Grimoire.Worker.Embedding;
 using Grimoire.Worker.Listeners;
 using Grimoire.Worker.Atlas;
 using Grimoire.Worker.MusicBrainz;
+using Grimoire.Worker.PersonLinks;
 using Grimoire.Worker.Preview;
 using Grimoire.Worker.Wikidata;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +20,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -38,6 +40,9 @@ if (verb is null)
     Console.WriteLine("  influence   Import Wikidata P737 influence into artist_edges (influenced_by, B16).");
     Console.WriteLine("  deaths      Populate death date/place from Wikidata P570/P20 (C12 In Memoriam).");
     Console.WriteLine("  atlas       Project embeddings to 2D (xy_x/xy_y) for the Atlas (C18/B22).");
+    Console.WriteLine("  credits     Import performer/production credits from MusicBrainz (B9). Batched, resumable.");
+    Console.WriteLine("  labels      Import labels + releases.label_id from MusicBrainz (B20/B21). Batched, resumable.");
+    Console.WriteLine("  personlinks Fetch url-rels for member rows so they gain a Wikidata QID (unblocks 'deaths').");
     return;
 }
 
@@ -89,6 +94,24 @@ switch (verb)
         break;
     case "atlas":
         builder.Services.AddHostedService<AtlasJob>();
+        break;
+    case "credits":
+        ConfigureMusicBrainz(builder);
+        ConfigureEtlCache(builder);
+        builder.Services.AddSingleton(BuildCreditsOptions(builder));
+        builder.Services.AddHostedService<CreditsJob>();
+        break;
+    case "labels":
+        ConfigureMusicBrainz(builder);
+        ConfigureEtlCache(builder);
+        builder.Services.AddSingleton(BuildCreditsOptions(builder));
+        builder.Services.AddHostedService<LabelsJob>();
+        break;
+    case "personlinks":
+        ConfigureMusicBrainz(builder);
+        ConfigureEtlCache(builder);
+        builder.Services.AddSingleton(BuildPersonLinksOptions(builder));
+        builder.Services.AddHostedService<PersonLinksJob>();
         break;
 }
 
@@ -225,6 +248,43 @@ static void ConfigureEmbeddings(HostApplicationBuilder builder)
         sp.GetRequiredService<IHttpClientFactory>().CreateClient("ollama"),
         model,
         sp.GetRequiredService<ILogger<OllamaClient>>()));
+}
+
+// The shared disk cache for the credits/labels/personlinks passes (release JSON + progress ledgers).
+static void ConfigureEtlCache(HostApplicationBuilder builder)
+{
+    builder.Services.AddSingleton(new EtlCache(EtlCache.ResolveRoot()));
+}
+
+static CreditsOptions BuildCreditsOptions(HostApplicationBuilder builder)
+{
+    int limit = builder.Configuration.GetValue("Credits:Limit", 300);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_CREDITS_LIMIT"), out int envLimit) && envLimit > 0)
+    {
+        limit = envLimit;
+    }
+
+    int countryLimit = builder.Configuration.GetValue("Credits:LabelCountryLimit", 200);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_LABEL_COUNTRY_LIMIT"), out int envCountry) && envCountry > 0)
+    {
+        countryLimit = envCountry;
+    }
+
+    return new CreditsOptions { Limit = limit, LabelCountryLimit = countryLimit };
+}
+
+static PersonLinksOptions BuildPersonLinksOptions(HostApplicationBuilder builder)
+{
+    int limit = builder.Configuration.GetValue("PersonLinks:Limit", 300);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_PERSONLINKS_LIMIT"), out int envLimit) && envLimit > 0)
+    {
+        limit = envLimit;
+    }
+
+    return new PersonLinksOptions { Limit = limit };
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

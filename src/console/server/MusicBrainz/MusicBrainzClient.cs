@@ -73,6 +73,38 @@ public class MusicBrainzClient
         return await GetAsync<ReleaseGroupResponse>(url, ct);
     }
 
+    /// <summary>
+    /// Browses the concrete releases of a release-group, pulling in one call the label-info, the
+    /// billed artist credit, and every recording with its recording-level artist relations
+    /// (performers, instruments, vocals, production). This is the single MusicBrainz request that
+    /// feeds both the credits and the labels ETL (features B9, B20/B21).
+    /// </summary>
+    public async Task<ReleaseBrowseResponse?> GetReleasesForCreditsAsync(string releaseGroupMbid, int limit, CancellationToken ct)
+    {
+        const string inc = "artist-credits+labels+recordings+artist-rels+recording-level-rels";
+        string url = $"release?release-group={releaseGroupMbid}&inc={inc}&limit={limit}&fmt=json";
+        return await GetAsync<ReleaseBrowseResponse>(url, ct);
+    }
+
+    /// <summary>
+    /// Looks up a single label to obtain its country, which the release label-info does not carry.
+    /// </summary>
+    public async Task<MbLabel?> GetLabelAsync(string mbid, CancellationToken ct)
+    {
+        string url = $"label/{mbid}?fmt=json";
+        return await GetAsync<MbLabel>(url, ct);
+    }
+
+    /// <summary>
+    /// Fetches an artist's url-rels (and tags) so a minimal member row can gain its external
+    /// links — notably the Wikidata QID that the deaths pass (C12) needs. Same shape as
+    /// <see cref="GetArtistAsync"/>; named for intent at the call site.
+    /// </summary>
+    public Task<MbArtist?> GetArtistLinksAsync(string mbid, CancellationToken ct)
+    {
+        return GetArtistAsync(mbid, ct);
+    }
+
     private async Task<T?> GetAsync<T>(string url, CancellationToken ct)
         where T : class
     {
