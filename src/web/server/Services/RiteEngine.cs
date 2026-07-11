@@ -87,6 +87,9 @@ public sealed class RiteEngine
     /// <summary>
     /// Finds one band to serve, or null when the ring is empty (a legitimate outcome for a tight
     /// slider on a small pool — the caller degrades with a designed empty state, not an error).
+    /// When <paramref name="scorableOnly"/> is set the pool is further narrowed to bands with a
+    /// formed year, a country and at least one tag, so the "guess the decade" game (feature C27)
+    /// can score every dimension against a real value.
     /// </summary>
     public async Task<RiteCandidate?> FindAsync(
         Guid userId,
@@ -94,12 +97,91 @@ public sealed class RiteEngine
         Vector? repulsion,
         double comfort,
         RiteFilters filters,
+        CancellationToken ct,
+        bool scorableOnly = false)
+    {
+        IReadOnlyList<RiteCandidate> chosen = await FindManyAsync(
+            userId, taste, repulsion, comfort, filters, 1, ct, scorableOnly);
+
+        return chosen.Count > 0 ? chosen[0] : null;
+    }
+
+    /// <summary>
+    /// Finds up to <paramref name="count"/> <b>distinct</b> bands from the same ring, for the blind
+    /// duel (feature C2): two bands the user picks between. Returns fewer than asked (possibly zero)
+    /// when the ring cannot supply that many — the caller shows a designed empty state, never an
+    /// error. Each band is drawn without replacement by the same rarity-weighted pick that
+    /// <see cref="FindAsync"/> uses, so a duel is two independent, rarity-biased draws from the ring.
+    /// </summary>
+    public async Task<IReadOnlyList<RiteCandidate>> FindManyAsync(
+        Guid userId,
+        Vector taste,
+        Vector? repulsion,
+        double comfort,
+        RiteFilters filters,
+        int count,
+        CancellationToken ct,
+        bool scorableOnly = false)
+    {
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        (List<RingRow> ring, double riskPercentile) = await RingAsync(
+            userId, taste, repulsion, comfort, filters, scorableOnly, ct);
+
+        if (ring.Count == 0)
+        {
+            return [];
+        }
+
+        // Draw `count` distinct bands without replacement, each by the rarity-weighted pick. The
+        // ring already fixed the distance band (D26/D31); the rarity term only reorders inside it,
+        // biasing toward rarity while keeping the exploration, and null listeners weigh NEUTRALLY so
+        // the dark tail without Last.fm data never dominates (see RaritySelector).
+        List<RingRow> pool = ring;
+        List<RiteCandidate> chosen = new(Math.Min(count, pool.Count));
+
+        while (chosen.Count < count && pool.Count > 0)
+        {
+            double[] rarityTerms = pool
+                .Select(c => RaritySelector.RarityTerm(c.Listeners, _options.RarityWeight))
+                .ToArray();
+
+            int index = RaritySelector.SelectIndex(rarityTerms, _nextUnit);
+            RingRow row = pool[index];
+            chosen.Add(new RiteCandidate(row.Id, row.Distance, riskPercentile));
+            pool.RemoveAt(index);
+        }
+
+        return chosen;
+    }
+
+    /// <summary>A band that survived the ring query, with what the rarity pick needs.</summary>
+    private sealed record RingRow(Guid Id, double Distance, int? Listeners);
+
+    /// <summary>
+    /// The shared ring query behind both <see cref="FindAsync"/> and <see cref="FindManyAsync"/>:
+    /// sample the distance distribution, read the two radii at the slider's percentiles, then run
+    /// the ranged HNSW query — excluding what the user already judged (except banished bands past
+    /// their second-chance window), applying the decade/country filters, keeping the ring and
+    /// subtracting the repulsion. Returns the survivors and the risk percentile the pick reports.
+    /// </summary>
+    private async Task<(List<RingRow> Ring, double RiskPercentile)> RingAsync(
+        Guid userId,
+        Vector taste,
+        Vector? repulsion,
+        double comfort,
+        RiteFilters filters,
+        bool scorableOnly,
         CancellationToken ct)
     {
         // 1. Sample the servable pool's distance distribution to the taste vector, then read the
         //    two ring radii at the slider's percentiles. The sample defines the ring; the query
-        //    below applies it.
-        List<double> sample = await ServablePool()
+        //    below applies it. The sample is drawn from the SAME pool the query uses, so scorable
+        //    duels/decade games get percentiles calibrated to the scorable pool.
+        List<double> sample = await ServablePool(scorableOnly)
             .OrderBy(_ => EF.Functions.Random())
             .Take(_options.SampleSize)
             .Select(a => a.Embedding!.CosineDistance(taste))
@@ -107,7 +189,7 @@ public sealed class RiteEngine
 
         if (sample.Count == 0)
         {
-            return null;
+            return ([], (Percentile(comfort).Lo + Percentile(comfort).Hi) / 2.0);
         }
 
         (double rLo, double rHi) = RingResolver.ResolveRadii(comfort, sample, _options.RingWidthPct);
@@ -119,7 +201,7 @@ public sealed class RiteEngine
         double? safeRadius = null;
         if (repulsion is not null)
         {
-            List<double> repulsionSample = await ServablePool()
+            List<double> repulsionSample = await ServablePool(scorableOnly)
                 .OrderBy(_ => EF.Functions.Random())
                 .Take(_options.SampleSize)
                 .Select(a => a.Embedding!.CosineDistance(repulsion))
@@ -131,9 +213,7 @@ public sealed class RiteEngine
             }
         }
 
-        // 3. The ranged HNSW query. Exclude what the user already judged (except banished bands
-        //    past their second-chance window), apply the decade/country filters, keep the ring,
-        //    subtract the repulsion, and take one band at random from what survives.
+        // 3. The ranged HNSW query.
         DateTimeOffset secondChanceCutoff = DateTimeOffset.UtcNow - SecondChanceAfter;
 
         IQueryable<Guid> excluded = _db.Rites
@@ -143,7 +223,7 @@ public sealed class RiteEngine
                           && r.ResolvedAt < secondChanceCutoff))
             .Select(r => r.ArtistId);
 
-        var ranked = ServablePool()
+        var ranked = ServablePool(scorableOnly)
             .Where(a => !excluded.Contains(a.Id));
 
         if (!string.IsNullOrWhiteSpace(filters.Country))
@@ -177,34 +257,33 @@ public sealed class RiteEngine
             inRing = inRing.Where(x => x.RepulsionDistance != null && x.RepulsionDistance > safe);
         }
 
-        // 4. Pull the ring's survivors and pick ONE, weighted toward rarer bands (SPEC §6 rarity
-        //    term, superseding D31's "no rarity term while listeners is null"). The ring already
-        //    fixed the distance band (D26/D31); the rarity term only reorders inside it, as a
-        //    weighted-random draw — it biases toward rarity while keeping the exploration, and it
-        //    never collapses to "always the single rarest band". Null listeners get a NEUTRAL term,
-        //    so the dark tail without Last.fm data never dominates (see RaritySelector).
-        var candidates = await inRing
-            .Select(x => new { x.Id, x.Distance, x.Listeners })
+        List<RingRow> ring = await inRing
+            .Select(x => new RingRow(x.Id, x.Distance, x.Listeners))
             .ToListAsync(ct);
 
-        if (candidates.Count == 0)
-        {
-            return null;
-        }
-
-        double[] rarityTerms = candidates
-            .Select(c => RaritySelector.RarityTerm(c.Listeners, _options.RarityWeight))
-            .ToArray();
-
-        int index = RaritySelector.SelectIndex(rarityTerms, _nextUnit);
-        var chosen = candidates[index];
-
-        return new RiteCandidate(chosen.Id, chosen.Distance, riskPercentile);
+        return (ring, riskPercentile);
     }
 
-    /// <summary>The servable pool: embeddable and audible (DECISIONS D25).</summary>
-    private IQueryable<Library.Models.Artist> ServablePool()
+    private static (double Lo, double Hi) Percentile(double comfort)
     {
-        return _db.Artists.Where(a => a.Embedding != null && a.PreviewUrl != null);
+        return RingResolver.Percentiles(comfort, RingResolver.DefaultWidthPct);
+    }
+
+    /// <summary>
+    /// The servable pool: embeddable and audible (DECISIONS D25). When <paramref name="scorableOnly"/>
+    /// is set it is narrowed to bands with a formed year, a country and at least one tag, so the
+    /// decade game (feature C27) never serves a band it cannot score against real data.
+    /// </summary>
+    private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false)
+    {
+        IQueryable<Library.Models.Artist> pool = _db.Artists
+            .Where(a => a.Embedding != null && a.PreviewUrl != null);
+
+        if (scorableOnly)
+        {
+            pool = pool.Where(a => a.FormedYear != null && a.Country != null && a.Tags.Length > 0);
+        }
+
+        return pool;
     }
 }

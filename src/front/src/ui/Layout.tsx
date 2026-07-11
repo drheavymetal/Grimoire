@@ -33,6 +33,12 @@ export function Layout() {
             <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.rite')}
             </Link>
+            <Link to="/duel" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.duel')}
+            </Link>
+            <Link to="/decade" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.decade')}
+            </Link>
             <Link to="/weekly" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.weekly')}
             </Link>

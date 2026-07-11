@@ -226,37 +226,15 @@ public class RiteController : ControllerBase
         }
 
         // An abandoned Served rite (served but never Summoned/Banished/Again) must not lock its band
-        // out of the pool forever: the ring excludes everything the user has rited (RiteEngine), and
-        // with a small servable pool (D25) serve-and-abandon would exhaust it and return 204 for good.
-        // A new serve supersedes any dangling one — drop the user's unresolved Served rites so those
-        // bands return to the pool. Resolved rites carry real signal and are kept. See DECISIONS D39.
-        // FindAsync already ran with the old rows present, so the just-abandoned band is not re-served
-        // this turn; it becomes eligible again only on a later serve.
-        List<Rite> abandoned = await _db.Rites
-            .Where(r => r.UserId == userId && r.State == RiteState.Served)
-            .ToListAsync(ct);
+        // out of the pool forever (DECISIONS D39). FindAsync already ran with the old rows present,
+        // so the just-abandoned band is not re-served this turn; it becomes eligible on a later serve.
+        await PurgeAbandonedServedAsync(userId, ct);
 
-        if (abandoned.Count > 0)
-        {
-            _db.Rites.RemoveRange(abandoned);
-        }
-
-        Rite rite = new()
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            ArtistId = candidate.ArtistId,
-            State = RiteState.Served,
-            Risk = (float)candidate.RiskPercentile,
-            ServedAt = DateTimeOffset.UtcNow,
-        };
-
+        Rite rite = NewServed(userId, candidate);
         _db.Rites.Add(rite);
         await _db.SaveChangesAsync(ct);
 
-        string audioUrl = $"{Request.Scheme}://{Request.Host}/api/rite/{rite.Id}/audio";
-
-        return Ok(new ServedRiteDto(rite.Id, candidate.RiskPercentile, audioUrl));
+        return Ok(new ServedRiteDto(rite.Id, candidate.RiskPercentile, AudioUrlFor(rite.Id)));
     }
 
     /// <summary>
@@ -392,6 +370,249 @@ public class RiteController : ControllerBase
     }
 
     // -----------------------------------------------------------------------
+    // The blind duel (feature C2, DECISIONS D16)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Starts a blind duel (feature C2): two bands drawn from the same ring, both served blind. The
+    /// user listens to each and picks one; the pairwise preference (Bradley-Terry) teaches the taste
+    /// vector more than a lone like. Returns 409 without a taste (run cold start first) and 204 when
+    /// the ring cannot supply two distinct bands (a designed empty state on a small pool — D25).
+    /// </summary>
+    [HttpPost("duel")]
+    public async Task<ActionResult<DuelServedDto>> Duel(DuelRequest request, CancellationToken ct)
+    {
+        Guid userId = CurrentUserId();
+
+        UserTaste? taste = await _db.UserTastes.FirstOrDefaultAsync(t => t.UserId == userId, ct);
+
+        if (taste?.Embedding is null)
+        {
+            return Conflict(new { message = "No taste yet. Seed it by choosing bands or importing Last.fm before a duel." });
+        }
+
+        RiteFilters filters = new(request.Country, request.DecadeFrom, request.DecadeTo);
+
+        IReadOnlyList<RiteCandidate> pair = await _engine.FindManyAsync(
+            userId, taste.Embedding, taste.Repulsion, request.Comfort, filters, 2, ct);
+
+        if (pair.Count < 2)
+        {
+            // The ring could not offer two distinct bands: too tight a slider on a small pool, or
+            // everything this close already judged. The front shows a designed empty state (D25).
+            return NoContent();
+        }
+
+        // A duel supersedes any dangling Served rites (DECISIONS D39): FindManyAsync ran with the old
+        // rows present, so the just-abandoned bands are not re-served this turn.
+        await PurgeAbandonedServedAsync(userId, ct);
+
+        Rite left = NewServed(userId, pair[0]);
+        Rite right = NewServed(userId, pair[1]);
+        _db.Rites.Add(left);
+        _db.Rites.Add(right);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new DuelServedDto(SideOf(left), SideOf(right)));
+    }
+
+    /// <summary>
+    /// Resolves a duel (feature C2): the winner the user preferred over the loser. The taste vector
+    /// moves toward the winner and away from the loser (Bradley-Terry, DuelMath), the winner enters
+    /// the grimoire (Summoned) and is revealed, and the loser is set aside (Again — seen, excluded,
+    /// but NOT banished: the user did not reject it, only preferred the other). Both tokens must be
+    /// the caller's own unresolved served rites. 400 if the tokens are equal, 404 if either is not
+    /// found, 409 if either was already resolved.
+    /// </summary>
+    [HttpPost("duel/resolve")]
+    public async Task<ActionResult<DuelResultDto>> ResolveDuel(DuelResolveRequest request, CancellationToken ct)
+    {
+        Guid userId = CurrentUserId();
+
+        if (request.WinnerToken == request.LoserToken)
+        {
+            return BadRequest(new { message = "A duel needs two different bands." });
+        }
+
+        Rite? winner = await _db.Rites.FirstOrDefaultAsync(r => r.Id == request.WinnerToken && r.UserId == userId, ct);
+        Rite? loser = await _db.Rites.FirstOrDefaultAsync(r => r.Id == request.LoserToken && r.UserId == userId, ct);
+
+        if (winner is null || loser is null)
+        {
+            return NotFound(new { message = "One or both duel rites do not exist for this user." });
+        }
+
+        if (winner.State != RiteState.Served || loser.State != RiteState.Served)
+        {
+            return Conflict(new { message = "This duel has already been resolved." });
+        }
+
+        var winnerRow = await _db.Artists
+            .Where(a => a.Id == winner.ArtistId)
+            .Select(a => new { a.Embedding, a.Rank })
+            .FirstOrDefaultAsync(ct);
+
+        float[]? loserEmbedding = (await _db.Artists
+                .Where(a => a.Id == loser.ArtistId)
+                .Select(a => a.Embedding)
+                .FirstOrDefaultAsync(ct))
+            ?.ToArray();
+
+        float[]? winnerEmbedding = winnerRow?.Embedding?.ToArray();
+        Rank? winnerRank = winnerRow?.Rank;
+
+        UserTaste taste = await UpsertTasteAsync(userId, ct);
+
+        // Bradley-Terry: pull the taste toward the winner and push it away from the loser (D16). Both
+        // embeddings are already centred (D26) — DuelMath only blends, it never re-centres. A served
+        // band always has an embedding (the pool requires it), but we guard rather than assume.
+        if (winnerEmbedding is not null && loserEmbedding is not null)
+        {
+            taste.Embedding = new Vector(DuelMath.ApplyDuel(taste.Embedding?.ToArray(), winnerEmbedding, loserEmbedding));
+            taste.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        winner.State = RiteState.Summoned;
+        winner.ResolvedAt = now;
+        loser.State = RiteState.Again;
+        loser.ResolvedAt = now;
+
+        // Depth Score (feature B15): recompute over everything summoned, the winner included. The
+        // winner is still Served in the DB (its state change is unsaved), so we sum the other summoned
+        // bands' ranks and add the winner's. A null rank scores nothing — no rank is invented (D36).
+        List<Rank?> summonedRanks = await _db.Rites
+            .Where(r => r.UserId == userId && r.State == RiteState.Summoned && r.ArtistId != winner.ArtistId)
+            .Join(_db.Artists, r => r.ArtistId, a => a.Id, (r, a) => a.Rank)
+            .ToListAsync(ct);
+
+        summonedRanks.Add(winnerRank);
+        taste.DepthScore = DepthScore.Compute(summonedRanks);
+
+        // The taste vector moved: snapshot the new position on the trajectory (C16).
+        AddSnapshot(userId, taste);
+
+        await _db.SaveChangesAsync(ct);
+
+        RiteRevealDto? reveal = await BuildRevealAsync(
+            userId, winner.ArtistId, taste.Embedding?.ToArray(), winnerEmbedding, taste.DepthScore, ct);
+
+        if (reveal is null)
+        {
+            return NotFound(new { message = "The winning band could not be revealed." });
+        }
+
+        return Ok(new DuelResultDto(reveal));
+    }
+
+    // -----------------------------------------------------------------------
+    // Guess the decade (feature C27)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Serves one blind band for the decade game (feature C27). Same blind serve as the rite, but
+    /// the pool is narrowed to scorable bands (formed year, country and at least one tag) so every
+    /// bet is judged against real data. 409 without a taste; 204 when no scorable band is in reach.
+    /// </summary>
+    [HttpPost("decade")]
+    public async Task<ActionResult<DecadeServedDto>> ServeDecade(DecadeServeRequest request, CancellationToken ct)
+    {
+        Guid userId = CurrentUserId();
+
+        UserTaste? taste = await _db.UserTastes.FirstOrDefaultAsync(t => t.UserId == userId, ct);
+
+        if (taste?.Embedding is null)
+        {
+            return Conflict(new { message = "No taste yet. Seed it by choosing bands or importing Last.fm before the decade game." });
+        }
+
+        RiteCandidate? candidate = await _engine.FindAsync(
+            userId, taste.Embedding, taste.Repulsion, request.Comfort, new RiteFilters(null, null, null), ct, scorableOnly: true);
+
+        if (candidate is null)
+        {
+            return NoContent();
+        }
+
+        await PurgeAbandonedServedAsync(userId, ct);
+
+        Rite rite = NewServed(userId, candidate);
+        _db.Rites.Add(rite);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new DecadeServedDto(rite.Id, AudioUrlFor(rite.Id)));
+    }
+
+    /// <summary>
+    /// Scores a decade-game bet (feature C27) and reveals the band. The player bets a decade, a
+    /// country and a subgenre; each is scored against the band's real data (DecadeScore). The decade
+    /// game trains the ear — it does NOT move the taste vector (a bet is not a preference) — so the
+    /// band is set aside (Again: seen and excluded, never banished). The scoreboard is accumulated in
+    /// the session by the front. 404 if the rite is not the caller's; 409 if it was already resolved.
+    /// </summary>
+    [HttpPost("{token:guid}/guess")]
+    public async Task<ActionResult<DecadeScoreDto>> Guess(Guid token, DecadeGuessRequest request, CancellationToken ct)
+    {
+        Guid userId = CurrentUserId();
+
+        Rite? rite = await _db.Rites.FirstOrDefaultAsync(r => r.Id == token && r.UserId == userId, ct);
+
+        if (rite is null)
+        {
+            return NotFound(new { message = "No such rite for this user." });
+        }
+
+        if (rite.State != RiteState.Served)
+        {
+            return Conflict(new { message = "This band has already been revealed." });
+        }
+
+        var truth = await _db.Artists
+            .Where(a => a.Id == rite.ArtistId)
+            .Select(a => new { a.FormedYear, a.Country, a.Tags })
+            .FirstOrDefaultAsync(ct);
+
+        if (truth is null)
+        {
+            return NotFound(new { message = "The served band no longer exists." });
+        }
+
+        RoundScore score = DecadeScore.Score(
+            new DecadeGuess(request.Decade, request.Country, request.Subgenre),
+            new DecadeTruth(truth.FormedYear, truth.Country, truth.Tags));
+
+        // Seen and scored: set aside (Again). No taste change — ear training is not a preference.
+        rite.State = RiteState.Again;
+        rite.ResolvedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        ArtistDetailDto? artist = await _details.BuildAsync(rite.ArtistId, ct);
+
+        if (artist is null)
+        {
+            return NotFound(new { message = "The band could not be revealed." });
+        }
+
+        string actualDecade = truth.FormedYear is int year ? $"{DecadeScore.DecadeOf(year)}s" : "—";
+        string actualTags = truth.Tags.Length > 0 ? string.Join(", ", truth.Tags) : "—";
+
+        DecadeScoreDto dto = new(
+            artist,
+            new DecadeDimensionDto($"{DecadeScore.DecadeOf(request.Decade)}s", actualDecade, Outcome(score.Decade), score.Decade.Points),
+            new DecadeDimensionDto(request.Country ?? string.Empty, truth.Country ?? "—", Outcome(score.Country), score.Country.Points),
+            new DecadeDimensionDto(request.Subgenre ?? string.Empty, actualTags, Outcome(score.Subgenre), score.Subgenre.Points),
+            score.Total,
+            RoundScore.MaxPoints);
+
+        return Ok(dto);
+    }
+
+    private static string Outcome(DimensionScore dimension)
+    {
+        return dimension.Outcome.ToString().ToLowerInvariant();
+    }
+
+    // -----------------------------------------------------------------------
     // The grimoire: rites in state Summoned (SPEC §10 — "the grimoire is not a table")
     // -----------------------------------------------------------------------
 
@@ -499,6 +720,49 @@ public class RiteController : ControllerBase
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    /// <summary>A fresh Served rite for a chosen candidate (shared by serve, duel and the decade game).</summary>
+    private Rite NewServed(Guid userId, RiteCandidate candidate)
+    {
+        return new Rite
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            ArtistId = candidate.ArtistId,
+            State = RiteState.Served,
+            Risk = (float)candidate.RiskPercentile,
+            ServedAt = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>The capability audio URL for a rite id (the origin preview URL never reaches the client).</summary>
+    private string AudioUrlFor(Guid riteId)
+    {
+        return $"{Request.Scheme}://{Request.Host}/api/rite/{riteId}/audio";
+    }
+
+    /// <summary>One blind side of a duel: its token and its proxied audio URL. No name, no origin.</summary>
+    private DuelSideDto SideOf(Rite rite)
+    {
+        return new DuelSideDto(rite.Id, AudioUrlFor(rite.Id));
+    }
+
+    /// <summary>
+    /// Drops the user's unresolved Served rites (DECISIONS D39): an abandoned serve carries no signal
+    /// and must not lock its band out of the small servable pool (D25) forever. Callers run their
+    /// FindAsync/FindManyAsync BEFORE this so the just-abandoned band is not re-served the same turn.
+    /// </summary>
+    private async Task PurgeAbandonedServedAsync(Guid userId, CancellationToken ct)
+    {
+        List<Rite> abandoned = await _db.Rites
+            .Where(r => r.UserId == userId && r.State == RiteState.Served)
+            .ToListAsync(ct);
+
+        if (abandoned.Count > 0)
+        {
+            _db.Rites.RemoveRange(abandoned);
+        }
+    }
 
     private async Task<RiteRevealDto?> BuildRevealAsync(
         Guid userId,

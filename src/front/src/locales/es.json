@@ -6,6 +6,8 @@
   "nav": {
     "search": "Buscar",
     "rite": "El Rito",
+    "duel": "Duelo",
+    "decade": "Década",
     "scenes": "Escenas",
     "labels": "Sellos",
     "lineage": "Linaje",
@@ -140,6 +142,8 @@
     "checking": "Leyendo tu grimorio…",
     "tasteError": "No se pudo leer tu gusto. Inténtalo de nuevo.",
     "toGrimoire": "Tu grimorio →",
+    "toDuel": "Duelo →",
+    "toDecade": "Década →",
     "comfort": "Confort",
     "abyss": "Abismo",
     "sliderLabel": "De Confort a Abismo: cuán lejos de tu gusto alcanzar",
@@ -455,5 +459,48 @@
     "gapsNone": "Ninguno: lo has tocado todo aquí.",
     "gapsAtlasHint": "Estos huecos son las regiones vacías del Atlas.",
     "gapsToAtlas": "Ver el Atlas →"
+  },
+  "duel": {
+    "heading": "El Duelo",
+    "subheading": "Dos bandas, ambas a ciegas. Escucha cada una y elige una. Una preferencia enseña tu gusto mucho más que un like suelto: tira hacia la banda que elegiste y aleja de la que descartaste.",
+    "toRite": "El Rito →",
+    "begin": "Empezar el duelo",
+    "again": "Otro duelo",
+    "summoning": "Buscando en la oscuridad…",
+    "error": "El duelo no quiso comenzar. Inténtalo de nuevo.",
+    "emptyTitle": "El anillo no puede presentar dos",
+    "emptyBody": "Un duelo necesita dos bandas distintas al alcance, y el anillo no pudo ofrecerlas: el pool servible es pequeño, o ya juzgaste todo lo que hay tan cerca. Mueve el deslizador hacia atrás o vuelve más tarde.",
+    "sideA": "La primera",
+    "sideB": "La segunda",
+    "choose": "Elegir esta",
+    "winner": "Preferiste",
+    "resolveError": "No se pudo registrar la elección. Inténtalo de nuevo."
+  },
+  "decade": {
+    "heading": "Adivina la Década",
+    "subheading": "Una banda, a ciegas. Apuesta su década, país y subgénero de oído; luego se revela y se puntúa contra la verdad. Entrena el oído, que es la misión de la app.",
+    "toRite": "El Rito →",
+    "play": "Servir una banda",
+    "next": "Siguiente banda",
+    "summoning": "Buscando en la oscuridad…",
+    "serveError": "Ninguna banda quiso sonar. Inténtalo de nuevo.",
+    "emptyTitle": "Nada puntuable al alcance",
+    "emptyBody": "El juego de la década solo sirve bandas con año, país y género conocidos. Ahora mismo no hay ninguna al alcance: puede que ya las jugaras todas tan cerca. Mueve el deslizador o vuelve más tarde.",
+    "scoreboard": "{{points}} de {{max}} en {{rounds}} rondas",
+    "yourBet": "Tu apuesta",
+    "decade": "Década",
+    "country": "País",
+    "subgenre": "Subgénero",
+    "subgenrePlaceholder": "black metal",
+    "revealAndScore": "Revelar y puntuar",
+    "scoring": "Puntuando…",
+    "guessError": "No se pudo puntuar la apuesta. Inténtalo de nuevo.",
+    "roundScore": "Esta ronda: {{points}} de {{max}}",
+    "noBet": "sin apuesta",
+    "outcome": {
+      "hit": "Acierto",
+      "close": "Cerca",
+      "miss": "Fallo"
+    }
   }
 }

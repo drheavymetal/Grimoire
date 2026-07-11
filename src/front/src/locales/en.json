@@ -6,6 +6,8 @@
   "nav": {
     "search": "Search",
     "rite": "The Rite",
+    "duel": "Duel",
+    "decade": "Decade",
     "scenes": "Scenes",
     "labels": "Labels",
     "lineage": "Lineage",
@@ -140,6 +142,8 @@
     "checking": "Reading your grimoire…",
     "tasteError": "Your taste could not be read. Try again.",
     "toGrimoire": "Your grimoire →",
+    "toDuel": "Duel →",
+    "toDecade": "Decade →",
     "comfort": "Comfort",
     "abyss": "Abyss",
     "sliderLabel": "Comfort to Abyss: how far from your taste to reach",
@@ -455,5 +459,48 @@
     "gapsNone": "None: you have touched all of these.",
     "gapsAtlasHint": "These gaps are the empty regions of the Atlas.",
     "gapsToAtlas": "See the Atlas →"
+  },
+  "duel": {
+    "heading": "The Duel",
+    "subheading": "Two bands, both blind. Hear each, then choose one. A preference teaches your taste far more than a lone like: it pulls toward the band you chose and away from the one you passed over.",
+    "toRite": "The Rite →",
+    "begin": "Begin the duel",
+    "again": "Duel again",
+    "summoning": "Reaching into the dark…",
+    "error": "The duel would not begin. Try again.",
+    "emptyTitle": "The ring cannot field two",
+    "emptyBody": "A duel needs two distinct bands in reach, and the ring could not offer them — the servable pool is small, or you have already judged everything this close. Move the slider back or return later.",
+    "sideA": "The first",
+    "sideB": "The second",
+    "choose": "Choose this one",
+    "winner": "You preferred",
+    "resolveError": "That choice could not be recorded. Try again."
+  },
+  "decade": {
+    "heading": "Guess the Decade",
+    "subheading": "A band, blind. Bet its decade, country and subgenre by ear, then it is revealed and scored against the truth. It trains the ear — which is the whole point of the app.",
+    "toRite": "The Rite →",
+    "play": "Serve a band",
+    "next": "Next band",
+    "summoning": "Reaching into the dark…",
+    "serveError": "No band would play. Try again.",
+    "emptyTitle": "Nothing scorable in reach",
+    "emptyBody": "The decade game only serves bands with a known year, country and genre. None is in reach right now — you may have played them all this close. Move the slider, or return later.",
+    "scoreboard": "{{points}} of {{max}} across {{rounds}} rounds",
+    "yourBet": "Your bet",
+    "decade": "Decade",
+    "country": "Country",
+    "subgenre": "Subgenre",
+    "subgenrePlaceholder": "black metal",
+    "revealAndScore": "Reveal and score",
+    "scoring": "Scoring…",
+    "guessError": "That bet could not be scored. Try again.",
+    "roundScore": "This round: {{points}} of {{max}}",
+    "noBet": "no bet",
+    "outcome": {
+      "hit": "Hit",
+      "close": "Close",
+      "miss": "Miss"
+    }
   }
 }

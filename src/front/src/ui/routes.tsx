@@ -3,6 +3,8 @@ import { Layout } from './Layout';
 import { SearchPage } from './pages/SearchPage';
 import { ArtistPage } from './pages/ArtistPage';
 import { RitePage } from './pages/RitePage';
+import { DuelPage } from './pages/DuelPage';
+import { DecadePage } from './pages/DecadePage';
 import { GrimoirePage } from './pages/GrimoirePage';
 import { LineagePage } from './pages/LineagePage';
 import { AtlasPage } from './pages/AtlasPage';
@@ -35,6 +37,18 @@ const riteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rite',
   component: RitePage,
+});
+
+const duelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/duel',
+  component: DuelPage,
+});
+
+const decadeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/decade',
+  component: DecadePage,
 });
 
 const grimoireRoute = createRoute({
@@ -122,6 +136,8 @@ const routeTree = rootRoute.addChildren([
   searchRoute,
   artistRoute,
   riteRoute,
+  duelRoute,
+  decadeRoute,
   grimoireRoute,
   lineageRoute,
   atlasRoute,

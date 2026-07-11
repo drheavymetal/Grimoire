@@ -195,6 +195,73 @@ export interface GrimoireEntry {
 }
 
 // ---------------------------------------------------------------------------
+// The blind duel (feature C2, DECISIONS D16): two bands served blind, the user
+// picks one. The pairwise preference (Bradley-Terry) teaches the taste more than
+// a lone like. A duel is served with the same ServeFilters as a plain serve.
+// ---------------------------------------------------------------------------
+
+// One side of a duel, served blind: only the capability token and the proxied audio
+// URL. No name, country, cover or genre — the whole point is to judge by ear.
+export interface DuelSide {
+  token: string;
+  audioUrl: string;
+}
+
+// The two blind bands of a duel. `null` on the wire (HTTP 204) means the ring could
+// not supply two distinct bands — a designed empty state, not an error (D25).
+export interface DuelServed {
+  left: DuelSide;
+  right: DuelSide;
+}
+
+// The outcome of a duel: the winner is revealed (it entered the grimoire) and the taste
+// moved toward it and away from the loser. Reuses the summon reveal shape.
+export interface DuelResult {
+  reveal: RiteReveal;
+}
+
+// ---------------------------------------------------------------------------
+// Guess the decade (feature C27): The Rite with a scoreboard. 45 s blind, the user
+// bets a decade, a country and a subgenre, then the band is revealed and scored
+// against its real data. The scoreboard is accumulated in the session by the front.
+// ---------------------------------------------------------------------------
+
+// One blind band for the decade game: the capability token and the proxied audio URL.
+export interface DecadeServed {
+  token: string;
+  audioUrl: string;
+}
+
+// The player's bet. `decade` is any year in the decade (e.g. 1985 for the 1980s);
+// country and subgenre are optional — a player bets only what they are sure of.
+export interface DecadeGuess {
+  decade: number;
+  country?: string | null;
+  subgenre?: string | null;
+}
+
+export type GuessOutcome = 'hit' | 'close' | 'miss';
+
+// One scored dimension: what was bet, the truth, the outcome and the points earned.
+export interface DecadeDimension {
+  guess: string;
+  actual: string;
+  outcome: GuessOutcome;
+  points: number;
+}
+
+// The reveal and score of a decade round: the full band (to develop the name and link
+// to the ficha), the three scored dimensions, and the round total.
+export interface DecadeScoreResult {
+  artist: ArtistDetail;
+  decade: DecadeDimension;
+  country: DecadeDimension;
+  subgenre: DecadeDimension;
+  totalPoints: number;
+  maxPoints: number;
+}
+
+// ---------------------------------------------------------------------------
 // Lineage (movement IV): the graph features B16, B19, B11, B3, C5, C8, C17.
 // A graph is nodes (artists) plus edges (relations). The same shapes feed every
 // view; the shared GraphCanvas paints them.

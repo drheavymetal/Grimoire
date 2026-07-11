@@ -9,7 +9,12 @@ import type {
   CoverWallItem,
   CrossedGrimoires,
   DarkTwin,
+  DecadeGuess,
+  DecadeScoreResult,
+  DecadeServed,
   Diaspora,
+  DuelResult,
+  DuelServed,
   Gaps,
   Gift,
   GiftBlind,
@@ -84,6 +89,18 @@ export interface GrimoireClient {
   serve(filters: ServeFilters): Promise<ServedRite | null>;
   resolve(token: string, action: RiteAction): Promise<ResolveResult>;
   grimoire(signal?: AbortSignal): Promise<GrimoireEntry[]>;
+
+  // --- The blind duel (C2) ---
+  /** Serves two bands blind for a duel. Returns null when the ring cannot supply two (HTTP 204). */
+  duel(filters: ServeFilters): Promise<DuelServed | null>;
+  /** Resolves a duel: the winner the user preferred over the loser. Moves the taste, reveals the winner. */
+  resolveDuel(winnerToken: string, loserToken: string): Promise<DuelResult>;
+
+  // --- Guess the decade (C27) ---
+  /** Serves one scorable band blind for the decade game. Returns null when none is in reach (HTTP 204). */
+  serveDecade(comfort: number): Promise<DecadeServed | null>;
+  /** Scores a decade-game bet and reveals the band. */
+  guessDecade(token: string, guess: DecadeGuess): Promise<DecadeScoreResult>;
 
   // --- Lineage (movement IV) ---
   /** The ego graph of an artist: shared members + influence, N hops out (B16). */
@@ -340,6 +357,40 @@ export function createGrimoireClient(
     },
     grimoire(signal) {
       return request<GrimoireEntry[]>('/api/rite/grimoire', { auth: true, signal });
+    },
+
+    duel(filters) {
+      return requestMaybe<DuelServed>('/api/rite/duel', {
+        method: 'POST',
+        auth: true,
+        body: {
+          comfort: filters.comfort,
+          country: filters.country ?? null,
+          decadeFrom: filters.decadeFrom ?? null,
+          decadeTo: filters.decadeTo ?? null,
+        },
+      });
+    },
+    resolveDuel(winnerToken, loserToken) {
+      return request<DuelResult>('/api/rite/duel/resolve', {
+        method: 'POST',
+        auth: true,
+        body: { winnerToken, loserToken },
+      });
+    },
+    serveDecade(comfort) {
+      return requestMaybe<DecadeServed>('/api/rite/decade', {
+        method: 'POST',
+        auth: true,
+        body: { comfort },
+      });
+    },
+    guessDecade(token, guess) {
+      return request<DecadeScoreResult>(`/api/rite/${encodeURIComponent(token)}/guess`, {
+        method: 'POST',
+        auth: true,
+        body: { decade: guess.decade, country: guess.country ?? null, subgenre: guess.subgenre ?? null },
+      });
     },
 
     bloodline(id, hops, signal) {
