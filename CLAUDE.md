@@ -2,11 +2,13 @@
 
 App de descubrimiento musical para metal y rock (clásica más adelante). Producto independiente, gratuito, sin coste operativo. No forma parte de qlaios.
 
-**Estado**: movimiento I y movimiento II terminados, commiteados y verdes. El movimiento III (el Gantt) está sin empezar.
+**Estado (2026-07-11)**: **feature-complete y DESPLEGADO** en `https://grimoire.drheavymetal.com`. Los 7 movimientos hechos, catálogo real de **207 622 artistas** (dump completo de MusicBrainz, D5), motor a escala, escucha online JIT, rediseño visual v2. Quedan 5 features bloqueadas por datos (en curso) y el enriquecimiento perezoso (`listeners`).
+
+> **📖 Lee `docs/MEMORY.md` primero** — memoria consolidada en profundidad: la construcción por olas, los datos, la arquitectura, el despliegue (server, Traefik, cómo redesplegar, secretos, SSH), y los huecos. Lo de abajo («Dónde se dejó») es histórico de cuando el proyecto iba por el movimiento II.
 
 ---
 
-## Dónde se dejó (2026-07-11)
+## Dónde se dejó (histórico — movimiento II; el estado actual está en `docs/MEMORY.md`)
 
 ### Funciona, verificado contra la base viva
 

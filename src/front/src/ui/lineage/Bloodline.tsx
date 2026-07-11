@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBloodline } from '../../core/hooks/useLineage';
 import { GraphCanvas } from '../graph/GraphCanvas';
+import { GraphErrorBoundary } from '../GraphErrorBoundary';
 
 // B16 — Bloodline: the ego graph of one artist (shared members + declared influence), N hops out.
 // The hero of the lineage view. A hop control widens the neighbourhood; the graph is the shared
@@ -41,7 +42,9 @@ export function Bloodline({ artistId }: { artistId: string }) {
       ) : isError ? (
         <p className="mt-3 font-mono text-sm text-danger">{t('lineage.error')}</p>
       ) : data !== undefined ? (
-        <GraphCanvas graph={data} />
+        <GraphErrorBoundary>
+          <GraphCanvas graph={data} />
+        </GraphErrorBoundary>
       ) : null}
     </section>
   );

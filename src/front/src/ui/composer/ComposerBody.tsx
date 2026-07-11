@@ -4,6 +4,7 @@ import { useComposer } from '../../core/hooks/useComposer';
 import type { ArtistDetail, ComposerDetail, ComposerLink, WorkGroup } from '../../core/domain/types';
 import { RankedName } from '../RankedName';
 import { GraphCanvas } from '../graph/GraphCanvas';
+import { GraphErrorBoundary } from '../GraphErrorBoundary';
 
 // The composer body (movement VII, D11). A composer is NOT a band: no Gantt, no members, no rank
 // (classical listeners lie). The hero is the grouped list of works; below it, the two lineages
@@ -133,7 +134,11 @@ function ComposerLineageView({ composer }: { composer: ComposerDetail }) {
           </div>
           {/* The same relations as the shared lineage graph (D18): the ego in sulphur, the
               pedagogical chain solid, influence dashed. Clicking a node opens that composer. */}
-          {graph.nodes.length > 0 ? <GraphCanvas graph={graph} height={360} /> : null}
+          {graph.nodes.length > 0 ? (
+            <GraphErrorBoundary>
+              <GraphCanvas graph={graph} height={360} />
+            </GraphErrorBoundary>
+          ) : null}
         </>
       ) : (
         <p className="mt-3 font-mono text-xs text-muted">{t('composer.noLineage')}</p>

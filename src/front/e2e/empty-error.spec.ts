@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { DARKTHRONE } from './helpers';
 
 const GEALDYR = '25692f8b-d171-4b08-ba23-7e714aa8fd4e'; // a folk band with no member edges (D23)
 
@@ -21,4 +22,31 @@ test('a band with no member edges shows the empty lineup state', async ({ page }
   const empty = page.getByText(/No lineup traced yet/);
   const gantt = page.getByRole('group', { name: /Lineup timeline/ });
   await expect(empty.or(gantt)).toBeVisible();
+});
+
+// Invariant 5 / R2: if the lineage graph itself throws while laying out or painting (a pathological
+// payload, a d3-force blow-up at scale), the GraphErrorBoundary degrades that one section to a
+// designed empty state and leaves the rest of the ficha standing — never a white screen for the
+// whole route. We force the crash by returning a malformed bloodline payload (edges is not an array,
+// so the headless layout throws mid-render).
+test('a graph that throws while rendering degrades locally, not the whole page', async ({ page }) => {
+  await page.route('**/api/lineage/**/bloodline**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        nodes: [{ id: 'x', name: 'X', kind: 'Group', role: 'ego' }],
+        edges: 'boom',
+      }),
+    });
+  });
+
+  await page.goto(`/artist/${DARKTHRONE}`);
+
+  // The page shell survives: the artist name still renders.
+  await expect(page.locator('h1 span').first()).toHaveText('Darkthrone');
+  // The Bloodline section is present, and its graph collapses to the designed boundary fallback
+  // rather than tearing down the ficha.
+  await expect(page.getByRole('heading', { name: 'Bloodline' })).toBeVisible();
+  await expect(page.getByText('Could not draw the lineage.')).toBeVisible();
 });

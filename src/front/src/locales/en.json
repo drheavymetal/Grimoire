@@ -259,6 +259,7 @@
   },
   "graph": {
     "empty": "No connections to draw. This node stands alone in the graph.",
+    "renderError": "Could not draw the lineage.",
     "searchPlaceholder": "Find a node…",
     "reset": "Reset view",
     "hint": "Drag to pan · scroll to zoom · click a node to open it",

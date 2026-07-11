@@ -7,6 +7,7 @@ import { useCrossGrimoires, useGrimoireCode } from '../../core/hooks/useCrossedG
 import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { GraphCanvas } from '../graph/GraphCanvas';
+import { GraphErrorBoundary } from '../GraphErrorBoundary';
 import { PageHeader } from '../PageHeader';
 import { SectionHead } from '../SectionHead';
 import type { ArtistSummary, GrimoireEntry } from '../../core/domain/types';
@@ -189,7 +190,9 @@ function GrimoireGraph({ enabled, count }: { enabled: boolean; count: number }) 
       ) : isError ? (
         <p className="mt-3 font-mono text-sm text-danger">{t('lineage.error')}</p>
       ) : data !== undefined ? (
-        <GraphCanvas graph={data} />
+        <GraphErrorBoundary>
+          <GraphCanvas graph={data} />
+        </GraphErrorBoundary>
       ) : null}
     </section>
   );

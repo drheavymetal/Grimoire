@@ -259,6 +259,7 @@
   },
   "graph": {
     "empty": "No hay conexiones que dibujar. Este nodo está solo en el grafo.",
+    "renderError": "No se pudo dibujar el linaje.",
     "searchPlaceholder": "Busca un nodo…",
     "reset": "Restablecer vista",
     "hint": "Arrastra para desplazar · rueda para acercar · clic en un nodo para abrirlo",

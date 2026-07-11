@@ -7,6 +7,7 @@ import { useRareInstruments } from '../../core/hooks/useRareInstruments';
 import type { ArtistSummary, RareInstrument } from '../../core/domain/types';
 import { ArtistPicker } from '../lineage/ArtistPicker';
 import { GraphCanvas } from '../graph/GraphCanvas';
+import { GraphErrorBoundary } from '../GraphErrorBoundary';
 import { Cover } from '../Cover';
 import { PageHeader } from '../PageHeader';
 import { SectionHead } from '../SectionHead';
@@ -304,7 +305,9 @@ function SplitsSection() {
             <p className="font-body text-sm text-muted">{t('explore.splitsEmpty')}</p>
           </div>
         ) : (
-          <GraphCanvas graph={data} height={360} />
+          <GraphErrorBoundary>
+            <GraphCanvas graph={data} height={360} />
+          </GraphErrorBoundary>
         )
       ) : null}
     </div>
