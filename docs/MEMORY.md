@@ -22,7 +22,7 @@ La tesis: no dejamos de escuchar lo mismo por falta de recomendaciones, sino por
 - **Motor de descubrimiento a escala**: 175 230 embeddings centrados (D26), búsqueda en anillo por percentiles, proyección Atlas (xy) para las 175k.
 - **Escucha a ciegas online**: previews resueltos **just-in-time** al servir (iTunes→Deezer), stream por proxy anti-leak, **cero audio local** (D40).
 - **Rediseño visual v2** implementado en toda la app (identidad metal atmosférica: logo, corrosión por rareza, el Rito como ritual — ver §5).
-- **Feature-complete**: los 7 movimientos, B1–B26 y C1–C27 (salvo 5 features bloqueadas por datos, en curso — §7).
+- **Feature-complete**: los 7 movimientos, B1–B26 y C1–C27 (solo **C19** queda como hueco declarado por falta de toolchain de audio — §7). Incluye tracklists/duración/temas/versiones/paleta sobre **8 925 364 grabaciones** importadas de MB.
 - **Enriquecimiento perezoso** corriendo: `listeners`/`rank` (Last.fm, ~horas), `credits` (casi completo).
 
 Los 40+ commits viven en `origin/main` (github.com:drheavymetal/Grimoire), sin firma GPG.
@@ -104,11 +104,11 @@ Refresh tokens **no revocables** durante 16 días (sin logout server-side ni cor
 
 ## 7. Huecos y pendientes
 
-**Features bloqueadas por datos (en curso, ola de import de `recording`):**
-- **C7** eje de duración y **C21** minería de títulos — necesitan `recording` (título+duración) de MB, que no se importó en el primer pase.
-- **C10** grafo de versiones — necesita relaciones de cover de MB.
-- **C26** deriva cromática — paleta dominante de portadas (procesado de imagen server-side).
-- **C19** eje tímbrico — análisis de audio; **probablemente bloqueado** en este entorno (sin numpy/librosa/pip). D25 ya lo degradó a opcional.
+**Features de grabaciones — RESUELTAS** (import de `recording` de MB: 8 925 364 grabaciones, 99.9% de releases, títulos 100%, duración 91%; 21 418 versiones. Migración `AddRecordingsAndCoverVersions`, scripts `scripts/mb-import/recordings/`):
+- **B5** tracklist en la ficha (título + duración), **C7** eje de duración (media excluyendo null), **C21** minería de títulos (léxico cerrado es/en, marcado como aproximación — D17), **C10** grafo de versiones (cover_versions cross-artist), **C26** deriva cromática (el proxy de portadas añade CORS → paleta en cliente sin taint). Todas **desplegadas y verificadas en producción**.
+- **C19** eje tímbrico — **hueco declarado**: sin toolchain de audio (numpy/scipy/librosa/pip ausentes; ffmpeg sí, pero sin FFT solo saldría loudness/crest, un stub). D25 ya lo degradó a opcional (rescata 7%). No se finge.
+
+**Tech-debt menor**: el verbo `atlas` de consola es lento a escala (los xy de producción se poblaron con un script rápido de muestra+proyección SQL; el verbo debería adoptarlo para futuros refrescos).
 
 **Enriquecimiento perezoso** (no es código, corre solo): `listeners` recorre Last.fm por horas (la mayoría del underground no está allí); `preview_url` crece al usar el Rito.
 
