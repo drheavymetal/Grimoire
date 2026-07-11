@@ -142,14 +142,16 @@ export function GraphCanvas({ graph, height = 440, onNodeClick }: Props) {
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
         >
-          {/* Edges first, under the nodes. Member = solid faint line; influence = dashed accent. */}
+          {/* Edges first, under the nodes. Member/split = faint solid line; influence = dashed
+              accent; teacher (the pedagogical chain, movement VII) = solid accent — a real relation,
+              drawn stronger than the dashed "influenced by". */}
           {graph.edges.map((edge, i) => {
             const a = positions.get(edge.source);
             const b = positions.get(edge.target);
             if (a === undefined || b === undefined) {
               return null;
             }
-            const influence = edge.kind === 'influence';
+            const accented = edge.kind === 'influence' || edge.kind === 'teacher';
             return (
               <line
                 key={`e-${edge.source}-${edge.target}-${i}`}
@@ -157,10 +159,10 @@ export function GraphCanvas({ graph, height = 440, onNodeClick }: Props) {
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                stroke={influence ? 'var(--color-accent)' : 'currentColor'}
-                strokeOpacity={influence ? 0.55 : 0.25}
-                strokeWidth={1}
-                strokeDasharray={influence ? '4 3' : undefined}
+                stroke={accented ? 'var(--color-accent)' : 'currentColor'}
+                strokeOpacity={accented ? 0.55 : 0.25}
+                strokeWidth={edge.kind === 'teacher' ? 1.5 : 1}
+                strokeDasharray={edge.kind === 'influence' ? '4 3' : undefined}
               />
             );
           })}

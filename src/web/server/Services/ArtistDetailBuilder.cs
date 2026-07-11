@@ -68,6 +68,12 @@ public sealed class ArtistDetailBuilder
             .Select(r => new ReleaseDto(r.Id, r.Mbid, r.Title, r.Type, r.ReleaseDate, r.CoverUrl))
             .ToList();
 
+        // Whether this artist composed any work (movement VII, D11): the front picks the composer
+        // body over the band ficha from this flag. Cheap existence check against the works index.
+        bool hasWorks = await _db.Works
+            .AsNoTracking()
+            .AnyAsync(w => w.ComposerId == id, ct);
+
         return new ArtistDetailDto(
             artist.Id,
             artist.Name,
@@ -84,6 +90,7 @@ public sealed class ArtistDetailBuilder
             artist.ImageUrl,
             artist.Links,
             releases,
-            edges);
+            edges,
+            hasWorks);
     }
 }

@@ -96,6 +96,7 @@ builder.Services.AddHttpClient<CoverArtCache>(client =>
 
 // The Rite (movement II). Artist detail is shared by the artist page and the reveal.
 builder.Services.AddScoped<ArtistDetailBuilder>();
+builder.Services.AddScoped<ComposerDetailBuilder>();
 
 // Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
 // Rabbit Hole and grimoire-graph endpoints.

@@ -5,6 +5,7 @@ import type {
   Atlas,
   AuthTokens,
   CompareResult,
+  ComposerDetail,
   CoverWallItem,
   CrossedGrimoires,
   DarkTwin,
@@ -59,6 +60,8 @@ export interface GrimoireClient {
   getArtist(id: string, signal?: AbortSignal): Promise<ArtistDetail>;
   /** Per-release credits for a band's discography: performers (member vs guest) and production (B9). */
   artistCredits(id: string, signal?: AbortSignal): Promise<ReleaseCredits[]>;
+  /** A composer's works (grouped by kind) and lineage (teacher/student + influence), movement VII. */
+  getComposer(id: string, signal?: AbortSignal): Promise<ComposerDetail>;
   /** The release with the most lineup turnover around it (B12). Null when nothing ever changed. */
   pivotalRelease(id: string, signal?: AbortSignal): Promise<PivotalRelease | null>;
   /**
@@ -274,6 +277,9 @@ export function createGrimoireClient(
     },
     artistCredits(id, signal) {
       return request<ReleaseCredits[]>(`/api/artists/${encodeURIComponent(id)}/credits`, { signal });
+    },
+    getComposer(id, signal) {
+      return request<ComposerDetail>(`/api/composers/${encodeURIComponent(id)}`, { signal });
     },
     pivotalRelease(id, signal) {
       // 204 No Content when the band's lineup never changed around any dated release.

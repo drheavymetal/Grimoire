@@ -53,4 +53,8 @@ public record ArtistDetailDto(
     string? ImageUrl,
     Dictionary<string, string>? Links,
     IReadOnlyList<ReleaseDto> Releases,
-    IReadOnlyList<ArtistEdgeDto> Edges);
+    IReadOnlyList<ArtistEdgeDto> Edges,
+    // True when this artist composed at least one work (movement VII, D11). The front uses it to
+    // pick the composer body (works + master–apprentice lineage) over the band ficha (Gantt). A
+    // composer is an Artist with kind=Person whose works reference it; this is the cheap signal.
+    bool HasWorks);

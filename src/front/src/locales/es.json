@@ -97,6 +97,22 @@
     "creditsGuests": "Invitados",
     "creditsProduction": "Producción"
   },
+  "composer": {
+    "loading": "Leyendo el manuscrito…",
+    "error": "No se pudieron cargar las obras del compositor. Inténtalo de nuevo.",
+    "worksTitle": "Obras",
+    "worksHint": "Las composiciones atribuidas a este compositor, agrupadas por tipo.",
+    "workCount_one": "{{count}} obra",
+    "workCount_other": "{{count}} obras",
+    "unclassified": "Sin clasificar",
+    "noWorks": "Aún no se han recogido obras. MusicBrainz no atribuye ninguna a este compositor.",
+    "lineageTitle": "Linaje",
+    "lineageHint": "Con quién estudió este compositor, a quién enseñó y de quién bebió. La cadena pedagógica es una relación real (Fauré → Boulanger → Glass), no una etiqueta de género.",
+    "studiedWith": "Estudió con",
+    "taught": "Enseñó a",
+    "influencedBy": "Influido por",
+    "noLineage": "No hay linaje registrado. Las relaciones maestro-discípulo son escasas: solo un puñado recorre todo el corpus."
+  },
   "creditRole": {
     "producer": "producción",
     "engineer": "ingeniería",

@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useArtist } from '../../core/hooks/useArtist';
 import { useArtistCredits, usePivotalRelease } from '../../core/hooks/useArtistCredits';
 import { releaseTypeOrder } from '../../core/domain/rank';
+import { resolveArtistView } from '../../core/domain/artistView';
 import { splitPerformers, hasCredits } from '../../core/domain/credits';
+import { ComposerBody } from '../composer/ComposerBody';
 import { ApiError } from '../../core/api/client';
 import type {
   ArtistDetail,
@@ -46,6 +48,13 @@ export function ArtistPage({ artistId }: { artistId: string }) {
 
   if (data === undefined) {
     return null;
+  }
+
+  // Band vs composer (D11): an artist with works renders the composer body (works + master–
+  // apprentice lineage, no Gantt); a band or a plain member keeps the band ficha. The decision is
+  // a pure function so it is unit-tested without a browser.
+  if (resolveArtistView({ hasWorks: data.hasWorks, kind: data.kind }) === 'composer') {
+    return <ComposerBody data={data} />;
   }
 
   return <ArtistBody data={data} />;
