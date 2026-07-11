@@ -607,6 +607,15 @@ Con el catálogo completo (D5, 207k artistas), pre-resolver el `preview_url` de 
 
 ---
 
+## D41 — `listeners` empareja mbid-primero, con fallback por nombre (cobertura sobre precisión a escala)
+`2026-07-11` · vigente · **matiza D37** · ratificado por Pedro
+
+D37 emparejaba `listeners` **solo por MBID** (Last.fm `getInfo?mbid=`) para no coger la banda equivocada (D25). A escala del catálogo completo (D5, 207k) eso **falla masivamente**: Last.fm indexa cada banda bajo **su propio MBID**, que a menudo difiere del de MusicBrainz — así que el lookup por mbid **falla incluso con bandas famosas** (había dos «Iron Maiden» en la base; solo una matcheó). Resultado: **2 639 de 79 729 con tags (3,3%)** tenían rank, lo que **dejaba sin rank al 97%** del catálogo → sin Depth Score, sin degradación tipográfica, sin término de rareza para casi todo. La tesis de rareza iba a medias.
+
+**Decisión**: emparejado **híbrido** — MBID primero (preciso, sin ambigüedad); si no matchea, **fallback por nombre** (`getInfo?artist=NAME&autocorrect=0`) verificado **solo por nombre** (`NameMatch`), **aceptando un MBID distinto** (`ResolveByName`). El coste, que D37 evitaba: un nombre común podría coger la banda equivocada → rank equivocado en esa banda. Con la guarda de nombre exacto normalizado + `autocorrect=0`, el riesgo es bajo y acotado. Pedro lo ratificó: **sin cobertura de rank, media app no funciona**; vale más un rank aproximado para casi todos que uno perfecto para el 3%.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

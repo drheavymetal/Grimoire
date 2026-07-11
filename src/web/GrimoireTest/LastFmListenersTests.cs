@@ -136,4 +136,33 @@ public class LastFmListenersTests
 
         Assert.Equal(0, LastFmListeners.Resolve(response, "Darkthrone", Mbid));
     }
+
+    // --- ResolveByName: the mbid-then-name fallback (D41) ---
+
+    [Fact]
+    public void ResolveByName_NameMatches_AcceptsEvenWhenMbidDiffers()
+    {
+        // The whole point of the fallback: Last.fm indexes the band under a different mbid, which is
+        // why the id lookup missed it. Name matches → accept the count. (Invert: reject on differing
+        // mbid — this fails, proving the fallback works.)
+        LastFmArtistInfoResponse response = Info("Iron Maiden", OtherMbid.ToString(), "3243768");
+
+        Assert.Equal(3243768, LastFmListeners.ResolveByName(response, "Iron Maiden"));
+    }
+
+    [Fact]
+    public void ResolveByName_NameMismatch_ReturnsNull()
+    {
+        // A same-name query that resolves to a different band must not lend its listeners (D25).
+        LastFmArtistInfoResponse response = Info("Toto", null, "1200000");
+
+        Assert.Null(LastFmListeners.ResolveByName(response, "Death"));
+    }
+
+    [Fact]
+    public void ResolveByName_ErrorOrNull_ReturnsNull()
+    {
+        Assert.Null(LastFmListeners.ResolveByName(null, "Darkthrone"));
+        Assert.Null(LastFmListeners.ResolveByName(new LastFmArtistInfoResponse { Error = 6 }, "Darkthrone"));
+    }
 }

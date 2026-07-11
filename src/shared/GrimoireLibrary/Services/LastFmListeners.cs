@@ -83,6 +83,38 @@ public static class LastFmListeners
 
         return ParseListeners(response);
     }
+
+    /// <summary>
+    /// Name-only verification for the mbid-then-name fallback (DECISIONS D41). Accepts the listener
+    /// count when the returned band's name matches (<see cref="NameMatch"/>), <b>even if Last.fm's
+    /// own mbid differs from ours</b> — Last.fm frequently indexes a band under a different
+    /// MusicBrainz id than the one in our catalogue, so the id lookup misses even famous bands; the
+    /// name lookup recovers them. The name match still keeps a same-name band from lending its
+    /// listeners; a differing mbid is deliberately not treated as wrong-band here (the coverage/
+    /// precision trade-off Pedro ratified in D41). Returns <c>null</c> on error, missing artist, or
+    /// name mismatch.
+    /// </summary>
+    public static int? ResolveByName(LastFmArtistInfoResponse? response, string expectedName)
+    {
+        if (response is null || response.Error is not null)
+        {
+            return null;
+        }
+
+        LastFmArtist? artist = response.Artist;
+
+        if (artist is null || string.IsNullOrWhiteSpace(artist.Name))
+        {
+            return null;
+        }
+
+        if (!NameMatch.Matches(artist.Name, expectedName))
+        {
+            return null;
+        }
+
+        return ParseListeners(response);
+    }
 }
 
 /// <summary>Envelope of Last.fm <c>artist.getInfo</c>. On failure Last.fm returns an

@@ -50,19 +50,38 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
             return null;
         }
 
-        // Prefer an mbid lookup: Last.fm returns exactly our entity, so no name ambiguity (D25).
-        // Only an id-less artist falls back to a name lookup, verified by name afterwards.
-        bool byMbid = artist.Mbid != Guid.Empty;
+        // 1. Precise: mbid lookup. Last.fm returns exactly our entity, so a same-name collision
+        //    (the "Toto"/"Death" problem of D22) cannot happen. No name verification needed.
+        if (artist.Mbid != Guid.Empty)
+        {
+            LastFmArtistInfoResponse? byId = await GetInfoAsync(
+                $"2.0/?method=artist.getinfo&mbid={artist.Mbid}&api_key={Uri.EscapeDataString(_apiKey)}&format=json",
+                artist.Name, ct);
 
-        string url = byMbid
-            ? $"2.0/?method=artist.getinfo&mbid={artist.Mbid}"
-                + $"&api_key={Uri.EscapeDataString(_apiKey)}&format=json"
-            : $"2.0/?method=artist.getinfo&artist={Uri.EscapeDataString(artist.Name)}"
-                + $"&api_key={Uri.EscapeDataString(_apiKey)}&format=json&autocorrect=0";
+            int? listeners = LastFmListeners.ParseListeners(byId);
+            if (listeners is not null)
+            {
+                return new ArtistEnrichment { Listeners = listeners };
+            }
+        }
 
+        // 2. Fallback by name (D41). Last.fm frequently indexes a band under a different mbid than
+        //    MusicBrainz, so the id lookup misses it — even famous bands. The name lookup recovers
+        //    them; ResolveByName verifies the returned name matches (so a same-name band can't lend
+        //    its count) but accepts a differing mbid. autocorrect=0 keeps Last.fm from silently
+        //    redirecting to a different band.
+        LastFmArtistInfoResponse? byName = await GetInfoAsync(
+            $"2.0/?method=artist.getinfo&artist={Uri.EscapeDataString(artist.Name)}"
+                + $"&api_key={Uri.EscapeDataString(_apiKey)}&format=json&autocorrect=0",
+            artist.Name, ct);
+
+        int? named = LastFmListeners.ResolveByName(byName, artist.Name);
+        return named is null ? null : new ArtistEnrichment { Listeners = named };
+    }
+
+    private async Task<LastFmArtistInfoResponse?> GetInfoAsync(string url, string name, CancellationToken ct)
+    {
         await _limiter.WaitTurnAsync(ct);
-
-        LastFmArtistInfoResponse? response;
 
         try
         {
@@ -72,33 +91,22 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
             // legitimate gap, not a failure to log loudly.
             if (!http.IsSuccessStatusCode && http.StatusCode != System.Net.HttpStatusCode.NotFound)
             {
-                _logger.LogWarning("Last.fm getInfo for '{Name}' returned {Status}.", artist.Name, (int)http.StatusCode);
+                _logger.LogWarning("Last.fm getInfo for '{Name}' returned {Status}.", name, (int)http.StatusCode);
                 return null;
             }
 
-            response = await http.Content.ReadFromJsonAsync<LastFmArtistInfoResponse>(JsonOptions, ct);
+            return await http.Content.ReadFromJsonAsync<LastFmArtistInfoResponse>(JsonOptions, ct);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' failed.", artist.Name);
+            _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' failed.", name);
             return null;
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' returned unparseable JSON.", artist.Name);
+            _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' returned unparseable JSON.", name);
             return null;
         }
-
-        int? listeners = byMbid
-            ? LastFmListeners.ParseListeners(response)
-            : LastFmListeners.Resolve(response, artist.Name, artist.Mbid);
-
-        if (listeners is null)
-        {
-            return null;
-        }
-
-        return new ArtistEnrichment { Listeners = listeners };
     }
 
     public void Dispose()
