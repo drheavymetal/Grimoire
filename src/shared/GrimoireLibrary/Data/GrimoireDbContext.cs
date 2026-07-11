@@ -39,6 +39,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Work> Works => Set<Work>();
 
+    public DbSet<Recording> Recordings => Set<Recording>();
+
+    public DbSet<CoverVersion> CoverVersions => Set<CoverVersion>();
+
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     public DbSet<TasteSnapshot> TasteSnapshots => Set<TasteSnapshot>();
@@ -218,6 +222,46 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(w => w.ComposerId);
+        });
+
+        builder.Entity<Recording>(entity =>
+        {
+            entity.ToTable("recordings");
+            entity.HasKey(r => r.Id);
+
+            // A recording MBID is NOT globally unique here (the same recording can be a track
+            // on several releases), so the natural key is (release_id, position). Position is
+            // 1-based across all of a release's media, so it is unique within a release.
+            entity.HasIndex(r => new { r.ReleaseId, r.Position }).IsUnique();
+
+            // The cover graph resolves recordings by MBID, and C7/C21 query them by release.
+            entity.HasIndex(r => r.Mbid);
+
+            entity.HasOne(r => r.Release)
+                .WithMany()
+                .HasForeignKey(r => r.ReleaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<CoverVersion>(entity =>
+        {
+            entity.ToTable("cover_versions");
+            entity.HasKey(c => c.Id);
+
+            // One edge per (original, cover) pair; a repeat import upserts on it.
+            entity.HasIndex(c => new { c.OriginalRecordingId, c.CoverRecordingId }).IsUnique();
+
+            // Both endpoints are recordings. PostgreSQL allows two cascade paths to the same
+            // table, so deleting either recording drops the edge — no dangling versions.
+            entity.HasOne(c => c.Original)
+                .WithMany()
+                .HasForeignKey(c => c.OriginalRecordingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(c => c.Cover)
+                .WithMany()
+                .HasForeignKey(c => c.CoverRecordingId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<PushSubscription>(entity =>
