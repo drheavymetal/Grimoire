@@ -18,13 +18,17 @@ import type {
   LabelDetail,
   LabelSummary,
   MemberBands,
+  MemoriamEntry,
   MissingLink,
   NotifyResult,
   OneAlbumBand,
   PathResult,
+  PivotalRelease,
   ProlificBand,
   RabbitHole,
+  RareInstrument,
   Reflection,
+  ReleaseCredits,
   ResolveResult,
   RiteAction,
   Scene,
@@ -53,6 +57,10 @@ export interface GrimoireClient {
   // --- Catalogue (movement I) ---
   searchArtists(query: string, limit: number, signal?: AbortSignal): Promise<ArtistSummary[]>;
   getArtist(id: string, signal?: AbortSignal): Promise<ArtistDetail>;
+  /** Per-release credits for a band's discography: performers (member vs guest) and production (B9). */
+  artistCredits(id: string, signal?: AbortSignal): Promise<ReleaseCredits[]>;
+  /** The release with the most lineup turnover around it (B12). Null when nothing ever changed. */
+  pivotalRelease(id: string, signal?: AbortSignal): Promise<PivotalRelease | null>;
   /**
    * URL of the proxied, disk-cached cover for a release-group MBID. Pure string building
    * (no fetch, no DOM), so it stays portable; the UI feeds it to an <img src>.
@@ -154,6 +162,12 @@ export interface GrimoireClient {
   darkTwin(signal?: AbortSignal): Promise<DarkTwin>;
   /** Decades, countries and subgenres you have never summoned (B23). */
   gaps(signal?: AbortSignal): Promise<Gaps>;
+
+  // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
+  /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
+  memoriam(signal?: AbortSignal): Promise<MemoriamEntry[]>;
+  /** The rare instruments outside the standard rock kit, and who plays each (C15). */
+  rareInstruments(signal?: AbortSignal): Promise<RareInstrument[]>;
 }
 
 export class ApiError extends Error {
@@ -257,6 +271,13 @@ export function createGrimoireClient(
     },
     getArtist(id, signal) {
       return request<ArtistDetail>(`/api/artists/${encodeURIComponent(id)}`, { signal });
+    },
+    artistCredits(id, signal) {
+      return request<ReleaseCredits[]>(`/api/artists/${encodeURIComponent(id)}/credits`, { signal });
+    },
+    pivotalRelease(id, signal) {
+      // 204 No Content when the band's lineup never changed around any dated release.
+      return requestMaybe<PivotalRelease>(`/api/artists/${encodeURIComponent(id)}/pivotal-release`, { signal });
     },
     coverUrl(mbid) {
       return `${root}/api/covers/release-group/${encodeURIComponent(mbid)}`;
@@ -432,6 +453,13 @@ export function createGrimoireClient(
     },
     gaps(signal) {
       return request<Gaps>('/api/mirror/gaps', { auth: true, signal });
+    },
+
+    memoriam(signal) {
+      return request<MemoriamEntry[]>('/api/memoriam', { signal });
+    },
+    rareInstruments(signal) {
+      return request<RareInstrument[]>('/api/instruments/rare', { signal });
     },
   };
 }

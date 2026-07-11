@@ -21,6 +21,7 @@ public enum EdgeKind
     SideProject,
     Collaboration,
     Teacher,
+    Student,
     InfluencedBy,
 }
 

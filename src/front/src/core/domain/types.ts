@@ -537,3 +537,91 @@ export interface Gaps {
   countries: GapBucket[];
   subgenres: GapBucket[];
 }
+
+// ---------------------------------------------------------------------------
+// Movement III — per-release credits (B9). Who played what on each release,
+// separating official members from guests, plus production. Keyed by release id
+// so the artist page matches it to the discography it already holds.
+// ---------------------------------------------------------------------------
+
+// A performer on a release: their instruments and whether they were an official member or a
+// guest/session player (the D9 distinction — an official member and a guest are different facts).
+export interface PerformerCredit {
+  artistId: string;
+  name: string;
+  rank: Rank | null;
+  instruments: string[];
+  isGuest: boolean;
+}
+
+// A production credit: who produced, engineered, mixed or mastered the release.
+export interface ProductionCredit {
+  artistId: string;
+  name: string;
+  role: string;
+}
+
+// The credits of one release, keyed by releaseId. A release the ETL never reached is simply
+// absent from the list, and the front renders a designed "no credits" state for it.
+export interface ReleaseCredits {
+  releaseId: string;
+  performers: PerformerCredit[];
+  production: ProductionCredit[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement III — "the disc where everything changed" (B12): the release with the
+// most lineup turnover around its date, and who joined and left near it.
+// ---------------------------------------------------------------------------
+
+export interface TurnoverMember {
+  id: string;
+  name: string;
+}
+
+export interface PivotalRelease {
+  releaseId: string;
+  title: string;
+  year: number | null;
+  score: number;
+  joined: TurnoverMember[];
+  left: TurnoverMember[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement III — In Memoriam (C12): musicians in the grimoire who have died,
+// with their death date/place (Wikidata P570/P20) and the bands they played in.
+// ---------------------------------------------------------------------------
+
+export interface MemoriamBand {
+  id: string;
+  name: string;
+  rank: Rank | null;
+}
+
+export interface MemoriamEntry {
+  id: string;
+  name: string;
+  deathDate: string;
+  deathPlace: string | null;
+  bands: MemoriamBand[];
+}
+
+// ---------------------------------------------------------------------------
+// Movement III — rare instruments (C15): the folk/orchestral colour outside the
+// standard rock kit, and who plays each.
+// ---------------------------------------------------------------------------
+
+export interface RareInstrumentPlayer {
+  artistId: string;
+  name: string;
+  bandId: string;
+  bandName: string;
+  bandRank: Rank | null;
+}
+
+export interface RareInstrument {
+  instrument: string;
+  playerCount: number;
+  players: RareInstrumentPlayer[];
+}

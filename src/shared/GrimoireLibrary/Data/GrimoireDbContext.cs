@@ -208,6 +208,16 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.ToTable("works");
             entity.HasKey(w => w.Id);
             entity.HasIndex(w => w.Mbid).IsUnique();
+
+            // Work↔composer (movement VII, D11). A nullable FK to artists: a composer is an
+            // Artist (Person). Set-null on delete keeps the work if the composer row goes.
+            // Indexed so a composer's page can list their works cheaply.
+            entity.HasOne(w => w.Composer)
+                .WithMany()
+                .HasForeignKey(w => w.ComposerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(w => w.ComposerId);
         });
 
         builder.Entity<PushSubscription>(entity =>

@@ -16,7 +16,8 @@
     "toggleTheme": "Cambiar tema",
     "language": "Idioma",
     "weekly": "Semanal",
-    "mirror": "Espejo"
+    "mirror": "Espejo",
+    "memoriam": "In Memoriam"
   },
   "auth": {
     "email": "Correo",
@@ -90,7 +91,32 @@
     "releases": "Discografía",
     "noReleases": "Sin lanzamientos registrados todavía. La cinta nunca se prensó.",
     "listenersUnknown": "Recuento de oyentes aún sin recopilar",
-    "rankUnknown": "Aún sin inscribir"
+    "rankUnknown": "Aún sin inscribir",
+    "noCredits": "Sin créditos registrados para este lanzamiento. El underground es fino aquí — nadie los apuntó.",
+    "creditsMembers": "Miembros",
+    "creditsGuests": "Invitados",
+    "creditsProduction": "Producción"
+  },
+  "creditRole": {
+    "producer": "producción",
+    "engineer": "ingeniería",
+    "mix": "mezcla",
+    "master": "máster"
+  },
+  "pivotal": {
+    "badge": "Punto de inflexión",
+    "title": "El disco donde cambió todo",
+    "hint": "El lanzamiento con más cambios de formación a su alrededor — quién entró y quién salió.",
+    "joined": "Entraron a su alrededor",
+    "left": "Salieron a su alrededor"
+  },
+  "memoriam": {
+    "heading": "In Memoriam",
+    "intro": "Los músicos del grimorio que han fallecido. Un registro de quiénes fueron y qué tocaron — ni más, ni menos.",
+    "loading": "Leyendo los nombres…",
+    "error": "La página no se cargó. Inténtalo de nuevo.",
+    "empty": "No hay ningún fallecimiento registrado. El grimorio guarda a los suyos.",
+    "noBands": "Sus bandas aún no se han recopilado."
   },
   "rite": {
     "heading": "El Rito",
@@ -273,9 +299,14 @@
   },
   "explore": {
     "heading": "Explorar",
-    "intro": "El catálogo del revés, mirado desde ángulos raros: un muro de portadas, dos bandas comparadas, las bandas de un solo álbum, las incansables y la red de splits.",
+    "intro": "El catálogo del revés, mirado desde ángulos raros: un muro de portadas, dos bandas comparadas, los instrumentos raros, las bandas de un solo álbum, las incansables y la red de splits.",
     "loading": "Leyendo el catálogo…",
     "error": "Eso no se cargó. Inténtalo de nuevo.",
+    "rareTitle": "Instrumentos raros",
+    "rareHint": "El color folk y orquestal fuera del set estándar — violín, gaita, zanfona. Quién toca qué.",
+    "rareEmpty": "Ningún instrumento raro acreditado todavía.",
+    "rarePlayers_one": "{{count}} intérprete",
+    "rarePlayers_other": "{{count}} intérpretes",
     "wallTitle": "Muro de portadas",
     "wallHint": "Portadas del Cover Art Archive. Clic en una portada para abrir su banda.",
     "wallEmpty": "No hay portadas que mostrar todavía.",

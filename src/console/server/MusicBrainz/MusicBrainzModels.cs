@@ -45,8 +45,18 @@ public class MbArtist
     [JsonPropertyName("tags")]
     public List<MbTag>? Tags { get; set; }
 
+    [JsonPropertyName("aliases")]
+    public List<MbAlias>? Aliases { get; set; }
+
     [JsonPropertyName("relations")]
     public List<MbRelation>? Relations { get; set; }
+}
+
+/// <summary>An alternate name for an artist (transliteration, name order, historical spelling).</summary>
+public class MbAlias
+{
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 }
 
 public class MbLifeSpan
@@ -136,6 +146,30 @@ public class MbReleaseGroup
 
     [JsonPropertyName("first-release-date")]
     public string? FirstReleaseDate { get; set; }
+}
+
+/// <summary>Envelope of the work browse endpoint (works linked to an artist/composer).</summary>
+public class WorkBrowseResponse
+{
+    [JsonPropertyName("work-count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("works")]
+    public List<MbWork> Works { get; set; } = [];
+}
+
+/// <summary>A musical work (a composition) as returned by the work browse.</summary>
+public class MbWork
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    /// <summary>Work type (e.g. Symphony, Song, Opera). Null when MusicBrainz gives none.</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
 }
 
 /// <summary>Envelope of the release browse endpoint (releases within a release-group).</summary>

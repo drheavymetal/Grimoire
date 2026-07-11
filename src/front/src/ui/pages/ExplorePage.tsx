@@ -3,7 +3,8 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useCoverWall } from '../../core/hooks/useCoverWall';
 import { useCompare, useHyperprolific, useOneAlbumBands, useSplits } from '../../core/hooks/useCatalogue';
-import type { ArtistSummary } from '../../core/domain/types';
+import { useRareInstruments } from '../../core/hooks/useRareInstruments';
+import type { ArtistSummary, RareInstrument } from '../../core/domain/types';
 import { ArtistPicker } from '../lineage/ArtistPicker';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { Cover } from '../Cover';
@@ -25,10 +26,74 @@ export function ExplorePage() {
 
       <CoverWallSection />
       <CompareSection />
+      <RareInstrumentsSection />
       <OneAlbumSection />
       <HyperprolificSection />
       <SplitsSection />
     </section>
+  );
+}
+
+// C15 — rare instruments: the folk/orchestral colour outside the standard rock kit, and who plays it.
+function RareInstrumentsSection() {
+  const { t } = useTranslation();
+  const { data, isLoading, isError } = useRareInstruments();
+  const instruments = data ?? [];
+
+  return (
+    <div className="mt-12">
+      <h2 className="font-display text-2xl text-strong">{t('explore.rareTitle')}</h2>
+      <p className="mt-1 font-mono text-xs text-muted">{t('explore.rareHint')}</p>
+
+      {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
+      {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
+      {!isLoading && !isError && instruments.length === 0 ? (
+        <p className="mt-3 font-mono text-sm text-muted">{t('explore.rareEmpty')}</p>
+      ) : null}
+
+      {instruments.length > 0 ? (
+        <div className="mt-3 space-y-4">
+          {instruments.map((instrument) => (
+            <RareInstrumentCard key={instrument.instrument} instrument={instrument} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RareInstrumentCard({ instrument }: { instrument: RareInstrument }) {
+  const { t } = useTranslation();
+
+  return (
+    <article className="border border-line p-3">
+      <header className="flex items-baseline justify-between gap-3 border-b border-line pb-1.5">
+        <h3 className="font-display text-lg text-accent">{instrument.instrument}</h3>
+        <span className="shrink-0 font-mono text-xs text-muted">
+          {t('explore.rarePlayers', { count: instrument.playerCount })}
+        </span>
+      </header>
+      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {instrument.players.map((player) => (
+          <li key={`${player.artistId}-${player.bandId}`} className="font-body text-sm text-strong">
+            <Link
+              to="/artist/$artistId"
+              params={{ artistId: player.artistId }}
+              className="no-underline hover:text-accent"
+            >
+              {player.name}
+            </Link>
+            <Link
+              to="/artist/$artistId"
+              params={{ artistId: player.bandId }}
+              className="ml-1.5 font-mono text-xs text-muted no-underline hover:text-accent"
+            >
+              {player.bandName}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 

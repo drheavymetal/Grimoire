@@ -16,7 +16,8 @@
     "toggleTheme": "Toggle theme",
     "language": "Language",
     "weekly": "Weekly",
-    "mirror": "Mirror"
+    "mirror": "Mirror",
+    "memoriam": "In Memoriam"
   },
   "auth": {
     "email": "Email",
@@ -90,7 +91,32 @@
     "releases": "Discography",
     "noReleases": "No releases recorded yet. The tape was never pressed.",
     "listenersUnknown": "Listener count not yet gathered",
-    "rankUnknown": "Not yet inscribed"
+    "rankUnknown": "Not yet inscribed",
+    "noCredits": "No credits recorded for this release. The underground is thin here — nobody wrote them down.",
+    "creditsMembers": "Members",
+    "creditsGuests": "Guests",
+    "creditsProduction": "Production"
+  },
+  "creditRole": {
+    "producer": "producer",
+    "engineer": "engineer",
+    "mix": "mix",
+    "master": "master"
+  },
+  "pivotal": {
+    "badge": "Turning point",
+    "title": "The disc where everything changed",
+    "hint": "The release with the most lineup change around it — who came in and who went out.",
+    "joined": "Joined around it",
+    "left": "Left around it"
+  },
+  "memoriam": {
+    "heading": "In Memoriam",
+    "intro": "The musicians in the grimoire who have died. A record of who they were and what they played — no more, no less.",
+    "loading": "Reading the names…",
+    "error": "The page would not load. Try again.",
+    "empty": "No death is on record. The grimoire keeps its people.",
+    "noBands": "Their bands have not been gathered."
   },
   "rite": {
     "heading": "The Rite",
@@ -273,9 +299,14 @@
   },
   "explore": {
     "heading": "Explore",
-    "intro": "The catalogue turned over and looked at from odd angles: a wall of covers, two bands compared, the one-album bands, the relentless, and the split network.",
+    "intro": "The catalogue turned over and looked at from odd angles: a wall of covers, two bands compared, the rare instruments, the one-album bands, the relentless, and the split network.",
     "loading": "Reading the catalogue…",
     "error": "That would not load. Try again.",
+    "rareTitle": "Rare instruments",
+    "rareHint": "The folk and orchestral colour outside the standard kit — violin, bagpipe, hurdy gurdy. Who plays what.",
+    "rareEmpty": "No rare instrument credited yet.",
+    "rarePlayers_one": "{{count}} player",
+    "rarePlayers_other": "{{count}} players",
     "wallTitle": "Wall of covers",
     "wallHint": "Album art from the Cover Art Archive. Click a cover to open its band.",
     "wallEmpty": "No covers to show yet.",

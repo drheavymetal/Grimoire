@@ -1,9 +1,20 @@
+import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useArtist } from '../../core/hooks/useArtist';
+import { useArtistCredits, usePivotalRelease } from '../../core/hooks/useArtistCredits';
 import { releaseTypeOrder } from '../../core/domain/rank';
+import { splitPerformers, hasCredits } from '../../core/domain/credits';
 import { ApiError } from '../../core/api/client';
-import type { Release, ReleaseType } from '../../core/domain/types';
+import type {
+  ArtistDetail,
+  PerformerCredit,
+  PivotalRelease,
+  Release,
+  ReleaseCredits,
+  ReleaseType,
+  TurnoverMember,
+} from '../../core/domain/types';
 import { Cover } from '../Cover';
 import { RankedName } from '../RankedName';
 import { GiftButton } from '../GiftButton';
@@ -36,6 +47,20 @@ export function ArtistPage({ artistId }: { artistId: string }) {
   if (data === undefined) {
     return null;
   }
+
+  return <ArtistBody data={data} />;
+}
+
+function ArtistBody({ data }: { data: ArtistDetail }) {
+  const { t } = useTranslation();
+  // B9 — per-release credits, and B12 — the pivotal release. Both read real data through core/
+  // hooks; a band with no credits or no lineup change degrades to a designed empty state (R2).
+  const { data: credits } = useArtistCredits(data.id);
+  const { data: pivotal } = usePivotalRelease(data.id);
+
+  const creditsByRelease = new Map<string, ReleaseCredits>(
+    (credits ?? []).map((c) => [c.releaseId, c]),
+  );
 
   const grouped = groupReleases(data.releases);
 
@@ -95,6 +120,11 @@ export function ArtistPage({ artistId }: { artistId: string }) {
         )}
       </section>
 
+      {/* B12 — "the disc where everything changed": the release with the most lineup turnover
+          around it. Shown only when the band's lineup actually churned around a dated release;
+          otherwise the endpoint returns nothing and this section is absent (no invented drama). */}
+      {pivotal ? <PivotalReleaseCallout pivotal={pivotal} /> : null}
+
       <section className="mt-8">
         <h2 className="font-display text-2xl text-strong">{t('artist.releases')}</h2>
         {data.releases.length > 0 ? (
@@ -102,7 +132,13 @@ export function ArtistPage({ artistId }: { artistId: string }) {
             {releaseTypeOrder
               .filter((type) => grouped[type].length > 0)
               .map((type) => (
-                <ReleaseGroup key={type} type={type} releases={grouped[type]} />
+                <ReleaseGroup
+                  key={type}
+                  type={type}
+                  releases={grouped[type]}
+                  creditsByRelease={creditsByRelease}
+                  pivotalReleaseId={pivotal?.releaseId ?? null}
+                />
               ))}
           </div>
         ) : (
@@ -128,7 +164,17 @@ export function ArtistPage({ artistId }: { artistId: string }) {
   );
 }
 
-function ReleaseGroup({ type, releases }: { type: ReleaseType; releases: Release[] }) {
+function ReleaseGroup({
+  type,
+  releases,
+  creditsByRelease,
+  pivotalReleaseId,
+}: {
+  type: ReleaseType;
+  releases: Release[];
+  creditsByRelease: Map<string, ReleaseCredits>;
+  pivotalReleaseId: string | null;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -138,12 +184,184 @@ function ReleaseGroup({ type, releases }: { type: ReleaseType; releases: Release
       <h3 className="font-mono text-xs uppercase text-accent">{t(`releaseType.${type}`)}</h3>
       <ul className="mt-2 space-y-2">
         {releases.map((release) => (
-          <li key={release.id} className="flex items-center gap-3 border-b border-line pb-2">
-            <Cover mbid={release.mbid} title={release.title} />
-            <span className="min-w-0 flex-1 font-body text-strong">{release.title}</span>
-            <span className="shrink-0 font-mono text-xs text-muted">
-              {release.releaseDate ? release.releaseDate.slice(0, 4) : '—'}
+          <ReleaseRow
+            key={release.id}
+            release={release}
+            credits={creditsByRelease.get(release.id)}
+            isPivotal={release.id === pivotalReleaseId}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// One release row (B5) with its expandable per-release credits (B9). The credits are fetched once
+// for the whole discography; this row shows whichever the map holds for it, and a designed
+// "no credits" state otherwise (R2 — the underground is thin, the ficha must degrade with dignity).
+function ReleaseRow({
+  release,
+  credits,
+  isPivotal,
+}: {
+  release: Release;
+  credits: ReleaseCredits | undefined;
+  isPivotal: boolean;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li className="border-b border-line pb-2">
+      <div className="flex items-center gap-3">
+        <Cover mbid={release.mbid} title={release.title} />
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="min-w-0 flex-1 text-left font-body text-strong hover:text-accent"
+        >
+          {release.title}
+          {isPivotal ? (
+            <span className="ml-2 font-mono text-[0.6rem] uppercase text-accent">
+              {t('pivotal.badge')}
             </span>
+          ) : null}
+        </button>
+        <span className="shrink-0 font-mono text-xs text-muted">
+          {release.releaseDate ? release.releaseDate.slice(0, 4) : '—'}
+        </span>
+      </div>
+
+      {open ? (
+        <div className="mt-2 pl-[calc(3rem+0.75rem)]">
+          {credits !== undefined && hasCredits(credits) ? (
+            <ReleaseCreditsPanel credits={credits} />
+          ) : (
+            <p className="font-mono text-xs text-muted">{t('artist.noCredits')}</p>
+          )}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+// The per-release credits panel (B9): official members and guests kept apart (the D9 distinction),
+// each with their instruments, plus production. Names click through to the person's page.
+function ReleaseCreditsPanel({ credits }: { credits: ReleaseCredits }) {
+  const { t } = useTranslation();
+  const { members, guests } = splitPerformers(credits.performers);
+
+  return (
+    <div className="space-y-3">
+      {members.length > 0 ? (
+        <CreditList title={t('artist.creditsMembers')} performers={members} />
+      ) : null}
+      {guests.length > 0 ? (
+        <CreditList title={t('artist.creditsGuests')} performers={guests} />
+      ) : null}
+      {credits.production.length > 0 ? (
+        <div>
+          <h4 className="font-mono text-[0.6rem] uppercase text-muted">{t('artist.creditsProduction')}</h4>
+          <ul className="mt-1 space-y-0.5">
+            {credits.production.map((p) => (
+              <li key={`${p.artistId}-${p.role}`} className="font-body text-sm text-strong">
+                <Link
+                  to="/artist/$artistId"
+                  params={{ artistId: p.artistId }}
+                  className="no-underline hover:text-accent"
+                >
+                  {p.name}
+                </Link>
+                <span className="ml-2 font-mono text-xs text-muted">{t(`creditRole.${p.role}`)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CreditList({
+  title,
+  performers,
+}: {
+  title: string;
+  performers: PerformerCredit[];
+}) {
+  return (
+    <div>
+      <h4 className="font-mono text-[0.6rem] uppercase text-muted">{title}</h4>
+      <ul className="mt-1 space-y-0.5">
+        {performers.map((p) => (
+          <li key={p.artistId} className="font-body text-sm text-strong">
+            <Link
+              to="/artist/$artistId"
+              params={{ artistId: p.artistId }}
+              className="no-underline hover:text-accent"
+            >
+              {p.name}
+            </Link>
+            {p.instruments.length > 0 ? (
+              <span className="ml-2 font-mono text-xs text-muted">{p.instruments.join(', ')}</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// B12 — the callout for "the disc where everything changed": the release with the most lineup
+// turnover around its date, and who came in and went out near it.
+function PivotalReleaseCallout({ pivotal }: { pivotal: PivotalRelease }) {
+  const { t } = useTranslation();
+
+  return (
+    <section className="mt-8 border border-accent/40 p-4">
+      <h2 className="font-display text-xl text-strong">{t('pivotal.title')}</h2>
+      <p className="mt-1 font-mono text-xs text-muted">{t('pivotal.hint')}</p>
+
+      <p className="mt-3 font-body text-strong">
+        <span className="font-display text-lg text-accent">{pivotal.title}</span>
+        {pivotal.year !== null ? (
+          <span className="ml-2 font-mono text-xs text-muted">{pivotal.year}</span>
+        ) : null}
+      </p>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {pivotal.joined.length > 0 ? (
+          <TurnoverList title={t('pivotal.joined')} members={pivotal.joined} />
+        ) : null}
+        {pivotal.left.length > 0 ? (
+          <TurnoverList title={t('pivotal.left')} members={pivotal.left} />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function TurnoverList({
+  title,
+  members,
+}: {
+  title: string;
+  members: TurnoverMember[];
+}) {
+  return (
+    <div>
+      <h3 className="font-mono text-[0.6rem] uppercase text-muted">{title}</h3>
+      <ul className="mt-1 space-y-0.5">
+        {members.map((m) => (
+          <li key={m.id} className="font-body text-sm text-strong">
+            <Link
+              to="/artist/$artistId"
+              params={{ artistId: m.id }}
+              className="no-underline hover:text-accent"
+            >
+              {m.name}
+            </Link>
           </li>
         ))}
       </ul>

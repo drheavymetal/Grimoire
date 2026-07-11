@@ -6,6 +6,7 @@ using Grimoire.Worker.Credits;
 using Grimoire.Worker.Embedding;
 using Grimoire.Worker.Listeners;
 using Grimoire.Worker.Atlas;
+using Grimoire.Worker.Classical;
 using Grimoire.Worker.MusicBrainz;
 using Grimoire.Worker.PersonLinks;
 using Grimoire.Worker.Preview;
@@ -20,7 +21,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks", "classical"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -43,6 +44,7 @@ if (verb is null)
     Console.WriteLine("  credits     Import performer/production credits from MusicBrainz (B9). Batched, resumable.");
     Console.WriteLine("  labels      Import labels + releases.label_id from MusicBrainz (B20/B21). Batched, resumable.");
     Console.WriteLine("  personlinks Fetch url-rels for member rows so they gain a Wikidata QID (unblocks 'deaths').");
+    Console.WriteLine("  classical   Seed canonical composers, their works, and teacher/student edges (movement VII).");
     return;
 }
 
@@ -112,6 +114,11 @@ switch (verb)
         ConfigureEtlCache(builder);
         builder.Services.AddSingleton(BuildPersonLinksOptions(builder));
         builder.Services.AddHostedService<PersonLinksJob>();
+        break;
+    case "classical":
+        ConfigureMusicBrainz(builder);
+        builder.Services.AddSingleton(BuildClassicalOptions(builder));
+        builder.Services.AddHostedService<ClassicalJob>();
         break;
 }
 
@@ -285,6 +292,18 @@ static PersonLinksOptions BuildPersonLinksOptions(HostApplicationBuilder builder
     }
 
     return new PersonLinksOptions { Limit = limit };
+}
+
+static ClassicalOptions BuildClassicalOptions(HostApplicationBuilder builder)
+{
+    int works = builder.Configuration.GetValue("Classical:WorksPerComposer", 100);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_CLASSICAL_WORKS"), out int envWorks) && envWorks > 0)
+    {
+        works = envWorks;
+    }
+
+    return new ClassicalOptions { WorksPerComposer = works };
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

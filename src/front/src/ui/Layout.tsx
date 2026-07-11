@@ -60,6 +60,9 @@ export function Layout() {
             <Link to="/mirror" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.mirror')}
             </Link>
+            <Link to="/memoriam" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.memoriam')}
+            </Link>
             {isAuthenticated ? (
               <button
                 type="button"

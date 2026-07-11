@@ -74,6 +74,17 @@ public class MusicBrainzClient
     }
 
     /// <summary>
+    /// Browses the works linked to an artist (the compositions of a composer), for the classical
+    /// model (movement VII, D11). One page bounded by <paramref name="limit"/>: canonical composers
+    /// have thousands of works and the whole corpus is not needed to give a composer's page substance.
+    /// </summary>
+    public async Task<WorkBrowseResponse?> GetWorksForArtistAsync(string artistMbid, int limit, CancellationToken ct)
+    {
+        string url = $"work?artist={artistMbid}&limit={limit}&fmt=json";
+        return await GetAsync<WorkBrowseResponse>(url, ct);
+    }
+
+    /// <summary>
     /// Browses the concrete releases of a release-group, pulling in one call the label-info, the
     /// billed artist credit, and every recording with its recording-level artist relations
     /// (performers, instruments, vocals, production). This is the single MusicBrainz request that

@@ -13,6 +13,7 @@ import { ExplorePage } from './pages/ExplorePage';
 import { GiftPage } from './pages/GiftPage';
 import { WeeklyPage } from './pages/WeeklyPage';
 import { MirrorPage } from './pages/MirrorPage';
+import { MemoriamPage } from './pages/MemoriamPage';
 
 const rootRoute = createRootRoute({
   component: Layout,
@@ -96,6 +97,12 @@ const mirrorRoute = createRoute({
   component: MirrorPage,
 });
 
+const memoriamRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/memoriam',
+  component: MemoriamPage,
+});
+
 function ArtistRouteComponent() {
   const { artistId } = artistRoute.useParams();
   return <ArtistPage artistId={artistId} />;
@@ -125,6 +132,7 @@ const routeTree = rootRoute.addChildren([
   giftRoute,
   weeklyRoute,
   mirrorRoute,
+  memoriamRoute,
 ]);
 
 export const router = createRouter({ routeTree });
