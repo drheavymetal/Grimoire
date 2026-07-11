@@ -2,7 +2,13 @@ import type {
   ArtistDetail,
   ArtistSummary,
   AuthTokens,
+  Diaspora,
+  Graph,
   GrimoireEntry,
+  MemberBands,
+  MissingLink,
+  PathResult,
+  RabbitHole,
   ResolveResult,
   RiteAction,
   SeedCandidate,
@@ -40,6 +46,22 @@ export interface GrimoireClient {
   serve(filters: ServeFilters): Promise<ServedRite | null>;
   resolve(token: string, action: RiteAction): Promise<ResolveResult>;
   grimoire(signal?: AbortSignal): Promise<GrimoireEntry[]>;
+
+  // --- Lineage (movement IV) ---
+  /** The ego graph of an artist: shared members + influence, N hops out (B16). */
+  bloodline(id: string, hops: number, signal?: AbortSignal): Promise<Graph>;
+  /** Shortest path between two bands by shared members (B19). */
+  sixDegrees(from: string, to: string, signal?: AbortSignal): Promise<PathResult>;
+  /** Where a broken-up band's members went next (B11). */
+  diaspora(id: string, signal?: AbortSignal): Promise<Diaspora>;
+  /** Every band a musician played in (B3). */
+  memberBands(id: string, signal?: AbortSignal): Promise<MemberBands>;
+  /** The bands between two others in embedding space (C5). */
+  missingLink(from: string, to: string, signal?: AbortSignal): Promise<MissingLink>;
+  /** A guided walk through the lineage (C8). */
+  rabbitHole(id: string, length: number, signal?: AbortSignal): Promise<RabbitHole>;
+  /** The signed-in user's summoned bands and the edges between them (C17). */
+  grimoireGraph(signal?: AbortSignal): Promise<Graph>;
 }
 
 export class ApiError extends Error {
@@ -199,6 +221,32 @@ export function createGrimoireClient(
     },
     grimoire(signal) {
       return request<GrimoireEntry[]>('/api/rite/grimoire', { auth: true, signal });
+    },
+
+    bloodline(id, hops, signal) {
+      const params = new URLSearchParams({ hops: String(hops) });
+      return request<Graph>(`/api/lineage/${encodeURIComponent(id)}/bloodline?${params.toString()}`, { signal });
+    },
+    sixDegrees(from, to, signal) {
+      const params = new URLSearchParams({ from, to });
+      return request<PathResult>(`/api/lineage/six-degrees?${params.toString()}`, { signal });
+    },
+    diaspora(id, signal) {
+      return request<Diaspora>(`/api/lineage/${encodeURIComponent(id)}/diaspora`, { signal });
+    },
+    memberBands(id, signal) {
+      return request<MemberBands>(`/api/lineage/${encodeURIComponent(id)}/bands`, { signal });
+    },
+    missingLink(from, to, signal) {
+      const params = new URLSearchParams({ from, to });
+      return request<MissingLink>(`/api/lineage/missing-link?${params.toString()}`, { signal });
+    },
+    rabbitHole(id, length, signal) {
+      const params = new URLSearchParams({ length: String(length) });
+      return request<RabbitHole>(`/api/lineage/${encodeURIComponent(id)}/rabbit-hole?${params.toString()}`, { signal });
+    },
+    grimoireGraph(signal) {
+      return request<Graph>('/api/lineage/grimoire-graph', { auth: true, signal });
     },
   };
 }

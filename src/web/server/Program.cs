@@ -97,6 +97,10 @@ builder.Services.AddHttpClient<CoverArtCache>(client =>
 // The Rite (movement II). Artist detail is shared by the artist page and the reveal.
 builder.Services.AddScoped<ArtistDetailBuilder>();
 
+// Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
+// Rabbit Hole and grimoire-graph endpoints.
+builder.Services.AddScoped<LineageGraph>();
+
 // The discovery engine and its tunables (percentile ring — DECISIONS D26).
 RiteEngineOptions riteOptions = builder.Configuration.GetSection("Rite").Get<RiteEngineOptions>()
     ?? new RiteEngineOptions();

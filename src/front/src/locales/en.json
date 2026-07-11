@@ -6,6 +6,7 @@
   "nav": {
     "search": "Search",
     "rite": "The Rite",
+    "lineage": "Lineage",
     "grimoire": "Grimoire",
     "logout": "Sign out",
     "toggleTheme": "Toggle theme",
@@ -170,5 +171,50 @@
       "keys": "Keys",
       "other": "Other"
     }
+  },
+  "graph": {
+    "empty": "No connections to draw. This node stands alone in the graph.",
+    "searchPlaceholder": "Find a node…",
+    "reset": "Reset view",
+    "hint": "Drag to pan · scroll to zoom · click a node to open it",
+    "aria": "Lineage graph, {{count}} nodes"
+  },
+  "lineage": {
+    "loading": "Reading the blood…",
+    "error": "The lineage would not load. Try again.",
+    "change": "Change",
+    "pickPlaceholder": "Name a band…",
+    "bloodlineTitle": "Bloodline",
+    "bloodlineHint": "Shared members and declared influence. Click a node to open it.",
+    "hops": "Reach",
+    "diasporaTitle": "Diaspora",
+    "diasporaHint": "When this band broke up, its members scattered. Where each went next.",
+    "diasporaEmpty": "No dated diaspora traced. Either nobody has left for a dated later band, or the members' next bands are not in the grimoire yet.",
+    "leftIn": "left {{year}}",
+    "bandsTitle": "Bands",
+    "bandsEmpty": "No memberships on record. This person's bands have not been gathered.",
+    "rabbitHoleTitle": "Rabbit hole",
+    "rabbitHoleHint": "A guided walk down the lineage — each band leads to the next by a shared member or an influence.",
+    "rabbitHoleStart": "Fall in",
+    "rabbitHoleAgain": "Fall again",
+    "rabbitHoleDeadEnd": "The hole is shallow here — this band's neighbourhood runs out fast. Try one with more connections.",
+    "pageTitle": "Lineage",
+    "pageIntro": "The blood and the network of the underground. Two questions that take two bands: how they connect, and what lives between them.",
+    "sixDegreesTitle": "Six Degrees of Metal",
+    "sixDegreesHint": "The shortest chain of shared members connecting two bands.",
+    "fromBand": "From",
+    "toBand": "To",
+    "tracing": "Tracing the shortest path…",
+    "noPath": "No path connects these two in the graph we hold. They may be joined by members we have not gathered.",
+    "degrees_one": "{{count}} degree apart",
+    "degrees_other": "{{count}} degrees apart",
+    "missingLinkTitle": "The missing link",
+    "missingLinkHint": "What lives between two bands? We take the midpoint of their sound and find its nearest neighbours.",
+    "interpolating": "Interpolating the space between…",
+    "noEmbedding": "One or both of these bands has no embedding yet, so the space between them cannot be interpolated.",
+    "betweenLabel": "Between {{from}} and {{to}}",
+    "distance": "distance {{distance}}",
+    "grimoireGraphTitle": "Your grimoire as a graph",
+    "grimoireGraphHint": "Only the bands you have summoned, and the blood between them. Click a node to open it."
   }
 }

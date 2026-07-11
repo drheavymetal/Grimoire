@@ -6,6 +6,10 @@ import { ApiError } from '../../core/api/client';
 import type { Release, ReleaseType } from '../../core/domain/types';
 import { Cover } from '../Cover';
 import { LineupTimeline } from '../lineup/LineupTimeline';
+import { Bloodline } from '../lineage/Bloodline';
+import { Diaspora } from '../lineage/Diaspora';
+import { MemberBands } from '../lineage/MemberBands';
+import { RabbitHole } from '../lineage/RabbitHole';
 
 export function ArtistPage({ artistId }: { artistId: string }) {
   const { t } = useTranslation();
@@ -100,6 +104,19 @@ export function ArtistPage({ artistId }: { artistId: string }) {
           <p className="mt-2 font-mono text-xs text-muted">{t('artist.noReleases')}</p>
         )}
       </section>
+
+      {/* Movement IV — Lineage. Bloodline is the ego graph of any artist (B16). Bands also get
+          their diaspora (B11) and a rabbit hole (C8); people get the bands they played in (B3). */}
+      <Bloodline artistId={data.id} />
+
+      {data.kind === 'Person' ? <MemberBands personId={data.id} enabled={true} /> : null}
+
+      {data.kind === 'Group' ? (
+        <>
+          <Diaspora artistId={data.id} />
+          <RabbitHole artistId={data.id} />
+        </>
+      ) : null}
     </article>
   );
 }

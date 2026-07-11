@@ -33,6 +33,9 @@ export function Layout() {
             <Link to="/rite" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
               {t('nav.rite')}
             </Link>
+            <Link to="/lineage" className="font-mono text-xs uppercase text-muted no-underline hover:text-accent">
+              {t('nav.lineage')}
+            </Link>
             <Link
               to="/grimoire"
               className="font-mono text-xs uppercase text-muted no-underline hover:text-accent"

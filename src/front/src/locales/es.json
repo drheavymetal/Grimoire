@@ -6,6 +6,7 @@
   "nav": {
     "search": "Buscar",
     "rite": "El Rito",
+    "lineage": "Linaje",
     "grimoire": "Grimorio",
     "logout": "Salir",
     "toggleTheme": "Cambiar tema",
@@ -170,5 +171,50 @@
       "keys": "Teclados",
       "other": "Otro"
     }
+  },
+  "graph": {
+    "empty": "No hay conexiones que dibujar. Este nodo está solo en el grafo.",
+    "searchPlaceholder": "Busca un nodo…",
+    "reset": "Restablecer vista",
+    "hint": "Arrastra para desplazar · rueda para acercar · clic en un nodo para abrirlo",
+    "aria": "Grafo de linaje, {{count}} nodos"
+  },
+  "lineage": {
+    "loading": "Leyendo la sangre…",
+    "error": "El linaje no quiso cargar. Inténtalo de nuevo.",
+    "change": "Cambiar",
+    "pickPlaceholder": "Nombra una banda…",
+    "bloodlineTitle": "Linaje de sangre",
+    "bloodlineHint": "Miembros compartidos e influencia declarada. Clic en un nodo para abrirlo.",
+    "hops": "Alcance",
+    "diasporaTitle": "Diáspora",
+    "diasporaHint": "Cuando esta banda se rompió, sus miembros se dispersaron. A dónde fue cada uno después.",
+    "diasporaEmpty": "Sin diáspora datada. O nadie se fue a una banda posterior con fecha, o esas bandas de destino aún no están en el grimorio.",
+    "leftIn": "se fue en {{year}}",
+    "bandsTitle": "Bandas",
+    "bandsEmpty": "Sin membresías registradas. Las bandas de esta persona no se han recopilado.",
+    "rabbitHoleTitle": "Madriguera",
+    "rabbitHoleHint": "Un paseo guiado por el linaje: cada banda lleva a la siguiente por un miembro compartido o una influencia.",
+    "rabbitHoleStart": "Caer dentro",
+    "rabbitHoleAgain": "Caer de nuevo",
+    "rabbitHoleDeadEnd": "La madriguera es poco profunda aquí: el vecindario de esta banda se agota pronto. Prueba con una más conectada.",
+    "pageTitle": "Linaje",
+    "pageIntro": "La sangre y la red del underground. Dos preguntas que toman dos bandas: cómo se conectan, y qué vive entre ellas.",
+    "sixDegreesTitle": "Seis grados del metal",
+    "sixDegreesHint": "La cadena más corta de miembros compartidos que conecta dos bandas.",
+    "fromBand": "Desde",
+    "toBand": "Hasta",
+    "tracing": "Trazando el camino más corto…",
+    "noPath": "Ningún camino conecta a estas dos en el grafo que tenemos. Puede que las unan miembros que no hemos recopilado.",
+    "degrees_one": "a {{count}} grado",
+    "degrees_other": "a {{count}} grados",
+    "missingLinkTitle": "El eslabón perdido",
+    "missingLinkHint": "¿Qué vive entre dos bandas? Tomamos el punto medio de su sonido y buscamos sus vecinos más cercanos.",
+    "interpolating": "Interpolando el espacio intermedio…",
+    "noEmbedding": "Una de las dos bandas, o ambas, aún no tiene embedding, así que no se puede interpolar el espacio entre ellas.",
+    "betweenLabel": "Entre {{from}} y {{to}}",
+    "distance": "distancia {{distance}}",
+    "grimoireGraphTitle": "Tu grimorio como grafo",
+    "grimoireGraphHint": "Solo las bandas que has invocado, y la sangre entre ellas. Clic en un nodo para abrirlo."
   }
 }

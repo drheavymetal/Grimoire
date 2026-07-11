@@ -138,3 +138,99 @@ export interface GrimoireEntry {
   artist: ArtistSummary;
   resolvedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Lineage (movement IV): the graph features B16, B19, B11, B3, C5, C8, C17.
+// A graph is nodes (artists) plus edges (relations). The same shapes feed every
+// view; the shared GraphCanvas paints them.
+// ---------------------------------------------------------------------------
+
+// Which special place a node holds in its view: the ego of a Bloodline, the two
+// ends of a Six Degrees path, or a plain node otherwise.
+export type GraphNodeRole = 'ego' | 'source' | 'target' | 'node';
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  kind: ArtistKind;
+  rank: Rank | null;
+  role: GraphNodeRole;
+}
+
+// An edge: a shared-membership link (person↔band) or a declared influence (band→band).
+export interface GraphEdge {
+  source: string;
+  target: string;
+  kind: 'member' | 'influence';
+  label: string | null;
+}
+
+export interface Graph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+// A Six Degrees result (B19): the ordered chain band → member → band …, and the
+// band-to-band hop count. An empty `nodes` means the two bands are not connected.
+export interface PathResult {
+  nodes: GraphNode[];
+  degrees: number;
+}
+
+// One band a departing member joined next (B11 diaspora).
+export interface DiasporaDestination {
+  bandId: string;
+  bandName: string;
+  bandRank: Rank | null;
+  joinedYear: string | null;
+}
+
+export interface DiasporaMember {
+  memberId: string;
+  memberName: string;
+  leftDate: string | null;
+  destinations: DiasporaDestination[];
+}
+
+// A band's diaspora (B11): its departed members and where each went.
+export interface Diaspora {
+  band: GraphNode;
+  members: DiasporaMember[];
+}
+
+// One band a musician played in (B3), with their stint and instruments.
+export interface MemberBand {
+  bandId: string;
+  bandName: string;
+  bandKind: ArtistKind;
+  bandRank: Rank | null;
+  beginDate: string | null;
+  endDate: string | null;
+  instruments: string[];
+}
+
+// All the bands one musician played in (B3).
+export interface MemberBands {
+  member: GraphNode;
+  bands: MemberBand[];
+}
+
+// A neighbour found near the interpolated midpoint of two bands (C5, the missing link).
+export interface MissingLinkNeighbour {
+  id: string;
+  name: string;
+  kind: ArtistKind;
+  rank: Rank | null;
+  distance: number;
+}
+
+export interface MissingLink {
+  from: GraphNode;
+  to: GraphNode;
+  between: MissingLinkNeighbour[];
+}
+
+// A guided walk through the lineage (C8, Rabbit Hole).
+export interface RabbitHole {
+  steps: GraphNode[];
+}
