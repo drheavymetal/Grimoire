@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using Grimoire.Library.Data;
@@ -7,8 +8,10 @@ using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Polly;
 using Serilog;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -129,6 +132,27 @@ builder.Services.AddHttpClient<PreviewAudioProxy>(client =>
     })
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
+// Just-in-time preview resolution (DECISIONS D25/D19): at 207k artists the Rite cannot pre-resolve a
+// preview for the whole catalogue under the iTunes ceiling, so the URL is resolved at serve time from
+// the free iTunes and Deezer search APIs (iTunes first, Deezer as complement — never the reverse) and
+// cached on artists.preview_url. Two named clients with short timeouts and a retry on transient
+// failures / 429; the resolver itself paces the calls. A singleton so the pacing gates are shared.
+builder.Services.AddHttpClient(PreviewResolver.ITunesClientName, client =>
+    {
+        client.BaseAddress = new Uri("https://itunes.apple.com/");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Grimoire/0.1 ( pmanso@go2chain.es )");
+        client.Timeout = TimeSpan.FromSeconds(6);
+    })
+    .AddResilienceHandler("preview-itunes", ConfigurePreviewRetry);
+builder.Services.AddHttpClient(PreviewResolver.DeezerClientName, client =>
+    {
+        client.BaseAddress = new Uri("https://api.deezer.com/");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Grimoire/0.1 ( pmanso@go2chain.es )");
+        client.Timeout = TimeSpan.FromSeconds(6);
+    })
+    .AddResilienceHandler("preview-deezer", ConfigurePreviewRetry);
+builder.Services.AddSingleton<PreviewResolver>();
+
 // Semantic search (feature B2): embeds a free-text query with the same self-hosted nomic-embed-text
 // the ETL indexed with, then centres it by the stored corpus mean (D26/D31). Unreachable → 503.
 OllamaOptions ollamaOptions = builder.Configuration.GetSection("Ollama").Get<OllamaOptions>()
@@ -205,6 +229,24 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
+
+// Retry for the JIT preview clients: a few jittered exponential retries on a transient network error
+// or a 429/503 from the free search APIs, so a stray throttle does not sink a serve. Kept modest —
+// the resolver already paces the calls, and an unresolved preview is a legitimate outcome, not a fault.
+static void ConfigurePreviewRetry(ResiliencePipelineBuilder<HttpResponseMessage> pipeline)
+{
+    pipeline.AddRetry(new HttpRetryStrategyOptions
+    {
+        MaxRetryAttempts = 2,
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
+        Delay = TimeSpan.FromMilliseconds(400),
+        ShouldHandle = static args => ValueTask.FromResult(
+            args.Outcome.Exception is HttpRequestException
+            || args.Outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests }
+            || args.Outcome.Result is { StatusCode: HttpStatusCode.ServiceUnavailable }),
+    });
+}
 
 /// <summary>Exposed so the test host (WebApplicationFactory) can reference the entry point.</summary>
 public partial class Program

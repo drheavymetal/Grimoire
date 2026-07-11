@@ -26,10 +26,18 @@ public class RiteController : ControllerBase
     private const int MaxSeedArtists = 20;
     private const int DefaultLastFmTop = 40;
 
+    /// <summary>
+    /// How many distinct ring candidates a serve draws so it can skip the inaudible ones (DECISIONS
+    /// D25: ~48 % of the underground is insonorizable) and the just-in-time resolver still finds a
+    /// band that sounds. Also caps how many previews one serve resolves online, bounding its latency.
+    /// </summary>
+    private const int ServeCandidatePool = 12;
+
     private readonly GrimoireDbContext _db;
     private readonly RiteEngine _engine;
     private readonly ArtistDetailBuilder _details;
     private readonly PreviewAudioProxy _audio;
+    private readonly PreviewResolver _previews;
     private readonly IColdStartImport _lastFm;
     private readonly ILogger<RiteController> _logger;
 
@@ -38,6 +46,7 @@ public class RiteController : ControllerBase
         RiteEngine engine,
         ArtistDetailBuilder details,
         PreviewAudioProxy audio,
+        PreviewResolver previews,
         IColdStartImport lastFm,
         ILogger<RiteController> logger)
     {
@@ -45,6 +54,7 @@ public class RiteController : ControllerBase
         _engine = engine;
         _details = details;
         _audio = audio;
+        _previews = previews;
         _lastFm = lastFm;
         _logger = logger;
     }
@@ -210,23 +220,37 @@ public class RiteController : ControllerBase
 
         RiteFilters filters = new(request.Country, request.DecadeFrom, request.DecadeTo);
 
-        RiteCandidate? candidate = await _engine.FindAsync(
+        // Draw several ring candidates, not one: the ring is now the embedded catalogue (audibility is
+        // no longer pre-filtered — DECISIONS D25/D19), so we resolve the preview just-in-time and skip
+        // the inaudible bands until one sounds.
+        IReadOnlyList<RiteCandidate> candidates = await _engine.FindManyAsync(
             userId,
             taste.Embedding,
             taste.Repulsion,
             request.Comfort,
             filters,
+            ServeCandidatePool,
             ct);
+
+        if (candidates.Count == 0)
+        {
+            // Nothing in the ring at all: a tight slider or hard filter emptied it. The front shows a
+            // designed empty state (not an error).
+            return NoContent();
+        }
+
+        RiteCandidate? candidate = await FirstAudibleAsync(candidates, ct);
 
         if (candidate is null)
         {
-            // Nothing in the ring: the servable pool is small (DECISIONS D25) and a tight slider or
-            // hard filter can empty it. The front shows a designed empty state.
+            // The ring had bands, but none of the ones we probed could be made to sound (the JIT
+            // resolver returned null for each — genuinely inaudible, DECISIONS D25). Designed empty
+            // state, still not an error.
             return NoContent();
         }
 
         // An abandoned Served rite (served but never Summoned/Banished/Again) must not lock its band
-        // out of the pool forever (DECISIONS D39). FindAsync already ran with the old rows present,
+        // out of the pool forever (DECISIONS D39). FindManyAsync already ran with the old rows present,
         // so the just-abandoned band is not re-served this turn; it becomes eligible on a later serve.
         await PurgeAbandonedServedAsync(userId, ct);
 
@@ -393,13 +417,17 @@ public class RiteController : ControllerBase
 
         RiteFilters filters = new(request.Country, request.DecadeFrom, request.DecadeTo);
 
-        IReadOnlyList<RiteCandidate> pair = await _engine.FindManyAsync(
-            userId, taste.Embedding, taste.Repulsion, request.Comfort, filters, 2, ct);
+        // Draw a pool and keep the first two that can be made to sound (JIT preview resolution —
+        // DECISIONS D25/D19), the same way a single serve does.
+        IReadOnlyList<RiteCandidate> candidates = await _engine.FindManyAsync(
+            userId, taste.Embedding, taste.Repulsion, request.Comfort, filters, ServeCandidatePool, ct);
+
+        List<RiteCandidate> pair = await SelectAudibleAsync(candidates, 2, ct);
 
         if (pair.Count < 2)
         {
-            // The ring could not offer two distinct bands: too tight a slider on a small pool, or
-            // everything this close already judged. The front shows a designed empty state (D25).
+            // The ring could not offer two audible bands: too tight a slider, everything this close
+            // already judged, or the probed candidates were all inaudible. Designed empty state (D25).
             return NoContent();
         }
 
@@ -526,8 +554,16 @@ public class RiteController : ControllerBase
             return Conflict(new { message = "No taste yet. Seed it by choosing bands or importing Last.fm before the decade game." });
         }
 
-        RiteCandidate? candidate = await _engine.FindAsync(
-            userId, taste.Embedding, taste.Repulsion, request.Comfort, new RiteFilters(null, null, null), ct, scorableOnly: true);
+        IReadOnlyList<RiteCandidate> candidates = await _engine.FindManyAsync(
+            userId, taste.Embedding, taste.Repulsion, request.Comfort, new RiteFilters(null, null, null),
+            ServeCandidatePool, ct, scorableOnly: true);
+
+        if (candidates.Count == 0)
+        {
+            return NoContent();
+        }
+
+        RiteCandidate? candidate = await FirstAudibleAsync(candidates, ct);
 
         if (candidate is null)
         {
@@ -762,6 +798,127 @@ public class RiteController : ControllerBase
         {
             _db.Rites.RemoveRange(abandoned);
         }
+    }
+
+    /// <summary>The one audible band for a serve/decade round, or null when none of the drawn candidates can sound.</summary>
+    private async Task<RiteCandidate?> FirstAudibleAsync(IReadOnlyList<RiteCandidate> candidates, CancellationToken ct)
+    {
+        List<RiteCandidate> audible = await SelectAudibleAsync(candidates, 1, ct);
+
+        return audible.Count > 0 ? audible[0] : null;
+    }
+
+    /// <summary>
+    /// Walks the drawn ring candidates in order and returns up to <paramref name="needed"/> that can
+    /// actually sound (SPEC §5.3, DECISIONS D25/D19). A band is audible when its cached
+    /// <c>preview_url</c> is a streamable, allow-listed URL; when it has none and was never probed, the
+    /// preview is resolved just-in-time (<see cref="PreviewResolver"/>), the result cached on the row,
+    /// and later streamed through the existing proxy. A band that resolves to nothing — or to a host
+    /// outside the proxy allow-list — is marked probed so a later ring does not re-resolve it every
+    /// time (negative cache via the streaming-link marker; no <c>preview_url</c> is invented,
+    /// Invariant 5). The artist rows are tracked; the cache writes are saved here so the work survives
+    /// even a round that ends 204.
+    /// </summary>
+    private async Task<List<RiteCandidate>> SelectAudibleAsync(
+        IReadOnlyList<RiteCandidate> candidates,
+        int needed,
+        CancellationToken ct)
+    {
+        List<Guid> ids = candidates.Select(c => c.ArtistId).ToList();
+
+        Dictionary<Guid, Artist> artists = await _db.Artists
+            .Where(a => ids.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, ct);
+
+        List<RiteCandidate> audible = new(needed);
+        bool mutated = false;
+
+        foreach (RiteCandidate candidate in candidates)
+        {
+            if (audible.Count >= needed)
+            {
+                break;
+            }
+
+            if (!artists.TryGetValue(candidate.ArtistId, out Artist? artist))
+            {
+                continue;
+            }
+
+            // Already audible: a cached, streamable preview URL.
+            if (PreviewAudioProxy.IsAllowed(artist.PreviewUrl))
+            {
+                audible.Add(candidate);
+                continue;
+            }
+
+            // Already probed and found inaudible: skip it without another network call (negative cache).
+            if (WasProbed(artist.Links))
+            {
+                continue;
+            }
+
+            // Never probed and no usable cached URL: resolve online, iTunes first (DECISIONS D25).
+            PreviewResolution? resolution = await _previews.ResolveAsync(artist.Name, artist.Links, ct);
+            mutated = true;
+
+            if (resolution is not null && PreviewAudioProxy.IsAllowed(resolution.Url))
+            {
+                artist.PreviewUrl = resolution.Url;
+                MarkProbed(artist);
+                audible.Add(candidate);
+
+                _logger.LogInformation("Served band resolved a preview just-in-time from {Source}.", resolution.Source);
+            }
+            else
+            {
+                // Nothing streamable came back: cache the negative so the next ring skips it.
+                MarkProbed(artist);
+            }
+        }
+
+        if (mutated)
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return audible;
+    }
+
+    /// <summary>
+    /// True once an artist has been probed for a preview, whether or not one was found: it carries at
+    /// least one curated <c>listen:</c> link (the same marker the ETL's preview pass leaves). A probed
+    /// band with a null <c>preview_url</c> is genuinely inaudible and is not re-resolved every ring.
+    /// </summary>
+    private static bool WasProbed(IReadOnlyDictionary<string, string>? links)
+    {
+        return links is not null
+            && links.Keys.Any(k => k.StartsWith(StreamingLinks.Prefix, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Records that an artist was probed by merging the curated search links into <c>links</c> (the
+    /// ETL's convention, reused here). This is the negative-cache marker AND supplies the reveal's
+    /// outbound streaming links. A new dictionary instance makes the change detectable to EF; the raw
+    /// MusicBrainz url-rels already in the column are preserved.
+    /// </summary>
+    private static void MarkProbed(Artist artist)
+    {
+        if (string.IsNullOrWhiteSpace(artist.Name))
+        {
+            return;
+        }
+
+        Dictionary<string, string> merged = artist.Links is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(artist.Links, StringComparer.Ordinal);
+
+        foreach (KeyValuePair<string, string> link in StreamingLinks.Build(artist.Name, null, null))
+        {
+            merged[link.Key] = link.Value;
+        }
+
+        artist.Links = merged;
     }
 
     private async Task<RiteRevealDto?> BuildRevealAsync(

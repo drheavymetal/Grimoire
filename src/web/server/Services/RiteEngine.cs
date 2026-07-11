@@ -48,11 +48,15 @@ public sealed record RiteCandidate(Guid ArtistId, double Distance, double RiskPe
 /// </para>
 ///
 /// <para>
-/// The pool is <b>the servable set</b>: <c>preview_url IS NOT NULL</c> (DECISIONS D25 — the Rite
-/// pool is what can actually sound, a design constant not an edge case) and
-/// <c>embedding IS NOT NULL</c>. It also excludes what the user has already judged, except a
-/// banished band older than six months, which returns (feature C3, second chance). Repulsion
-/// actively subtracts: anything too close to the banished centroid is dropped (D4).
+/// The pool is <b>the embedded catalogue</b>: <c>embedding IS NOT NULL</c>. It no longer requires
+/// <c>preview_url IS NOT NULL</c>: at 207k artists the Rite cannot pre-resolve a preview for all of
+/// them under the iTunes ceiling (DECISIONS D25/D19), so audibility is decided at serve time —
+/// <see cref="RiteController"/> resolves the preview just-in-time for the band it is about to serve
+/// and skips to the next candidate when a band turns out to be inaudible. Pre-filtering on
+/// <c>preview_url</c> here would strand the ring in the tiny already-resolved pool. It still excludes
+/// what the user has already judged, except a banished band older than six months, which returns
+/// (feature C3, second chance). Repulsion actively subtracts: anything too close to the banished
+/// centroid is dropped (D4).
 /// </para>
 ///
 /// <para>
@@ -270,14 +274,16 @@ public sealed class RiteEngine
     }
 
     /// <summary>
-    /// The servable pool: embeddable and audible (DECISIONS D25). When <paramref name="scorableOnly"/>
-    /// is set it is narrowed to bands with a formed year, a country and at least one tag, so the
-    /// decade game (feature C27) never serves a band it cannot score against real data.
+    /// The ring pool: the embedded catalogue (<c>embedding IS NOT NULL</c>). Audibility is NOT filtered
+    /// here — at 207k artists a preview cannot be pre-resolved for all of them (DECISIONS D25/D19), so
+    /// the controller resolves it just-in-time at serve time and skips inaudible bands. When
+    /// <paramref name="scorableOnly"/> is set it is narrowed to bands with a formed year, a country and
+    /// at least one tag, so the decade game (feature C27) never serves a band it cannot score.
     /// </summary>
     private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false)
     {
         IQueryable<Library.Models.Artist> pool = _db.Artists
-            .Where(a => a.Embedding != null && a.PreviewUrl != null);
+            .Where(a => a.Embedding != null);
 
         if (scorableOnly)
         {

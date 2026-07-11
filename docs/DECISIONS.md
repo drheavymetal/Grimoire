@@ -594,6 +594,19 @@ D33 dejó que el motor excluyera del anillo **todo** lo riteado salvo lo desterr
 
 ---
 
+## D40 — La escucha a ciegas resuelve el preview online al servir (just-in-time), a escala de catálogo
+`2026-07-11` · vigente · escala el Rito a las 207k del import D5 · ver `docs/progress/jit-preview.md`
+
+Con el catálogo completo (D5, 207k artistas), pre-resolver el `preview_url` de todas es inviable (iTunes 20 req/min — D19). El Rito deja de servir de un pool pre-resuelto y pasa a **resolver el preview online en el momento de servir**:
+
+- **El anillo (D4/D26/D31) filtra solo por `embedding IS NOT NULL`** (se quita el requisito de `preview_url`). El pool de descubrimiento es todo lo embebible (~172k), no lo pre-resuelto (~80).
+- **Serve saca varios candidatos** (12) del anillo; para cada uno, si no tiene `preview_url`, lo **resuelve JIT** (`PreviewResolver`: **iTunes primero, Deezer de complemento** — D25; emparejado exacto por nombre, mejor null que banda equivocada), lo **persiste** (cache que crece orgánicamente), y sirve el primero que suene; si ninguno de los 12 suena → 204. Aplicado también a Duelo (C2) y Adivina-la-década (C27).
+- **Nada de audio local** (D10 intacto): solo se resuelve la **URL**; el stream sigue por el proxy de capacidad anti-leak (D32), que valida la URL resuelta contra su allowlist (iTunes/Apple/Deezer) antes de servir. La allowlist **no se abrió**.
+- **Caché de negativos sin migración**: se reutiliza el marcador `listen:` de `StreamingLinks` para no re-resolver insonorizables (~48%, D25) en cada anillo.
+- Coste típico por serve: 0–1 llamada a iTunes. El rate-limit interactivo (600/350 ms por host) se apoya en el retry ante 429; si crece el tráfico concurrente, encolar es el siguiente paso. Sin expiración del `preview_url` cacheado (una URL caducada → 404 del proxy → estado vacío); refrescarla sería un job del ETL.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
