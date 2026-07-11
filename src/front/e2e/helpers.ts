@@ -11,6 +11,18 @@ export const API = 'http://localhost:5080';
 export const DARKTHRONE = 'e1d59c3d-e185-4d54-8b7c-8682a650a6e6';
 export const BEETHOVEN = '656c423a-e270-4e8d-b3c1-c1780d712ee8';
 
+// Round-2 fixtures, each verified against the live DB before being fixed here.
+// AC/DC: rank Known (Redaction cut 100 — crisp) and has a real preview_url (so it is giftable).
+export const ACDC = 'ac9b5441-c3f1-445a-993e-4b617011b501';
+// Accept: rank Known, has an embedding — the "to" end of the missing-link interpolation.
+export const ACCEPT = 'ee812da2-af98-4eac-b351-fc620eecee85';
+// Chained and Desperate: rank Nameless (Redaction cut 10 — corroded, nearly illegible).
+export const NAMELESS_BAND = 'c0341cce-3b2a-4664-994d-f57bdeeaf07c';
+// Black Sabbath: heavy lineup churn → a real pivotal release ("The Eternal Idol", 1987) — B12.
+export const BLACK_SABBATH = 'ec38dc15-8c29-4820-9e60-a6bd53cb3961';
+// Cradle of Filth: the most member edges in the corpus (41) → a deep, non-repeating rabbit hole — C8.
+export const CRADLE_OF_FILTH = 'ff870e77-2260-430a-bcbe-fb70d1509aa2';
+
 const PASSWORD = 'Passw0rd!x2026';
 
 export function uniqueEmail(prefix = 'e2e'): string {

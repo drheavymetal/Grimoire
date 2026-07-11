@@ -585,6 +585,15 @@ En Redaction el número del corte es **legibilidad, no corrosión**: `redaction-
 
 ---
 
+## D39 — Un rito servido y abandonado no bloquea su banda; el siguiente serve lo supersede
+`2026-07-11` · vigente · **refina D33** · hallazgo de la revisión adversarial (V&V round 2)
+
+D33 dejó que el motor excluyera del anillo **todo** lo riteado salvo lo desterrado-viejo (C3). Consecuencia no vista: un rito en estado `Served` que el usuario **nunca resuelve** (pide otra banda sin pulsar Summon/Banish/Again) queda para siempre, y **excluye esa banda del pool permanentemente**. Con el pool servible pequeño (~80 hoy, D25), servir-y-abandonar repetidamente lo **agota** hasta que `serve` devuelve 204 para siempre.
+
+**Decisión**: un `Served` sin resolver **no lleva señal** (el usuario no juzgó nada), así que **no debe contar**. Al servir, se **purgan los `Served` sin resolver del usuario** antes de crear el nuevo — esas bandas vuelven al pool. Los estados resueltos (`Summoned`/`Banished`/`Again`) se conservan: esos sí llevan señal. El `FindAsync` corre **antes** de la purga, así que la banda recién abandonada no se re-sirve en el mismo turno (evita repetición inmediata); vuelve a ser elegible en un serve posterior. Implementado en `RiteController.Serve`.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

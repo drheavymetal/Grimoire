@@ -225,6 +225,22 @@ public class RiteController : ControllerBase
             return NoContent();
         }
 
+        // An abandoned Served rite (served but never Summoned/Banished/Again) must not lock its band
+        // out of the pool forever: the ring excludes everything the user has rited (RiteEngine), and
+        // with a small servable pool (D25) serve-and-abandon would exhaust it and return 204 for good.
+        // A new serve supersedes any dangling one — drop the user's unresolved Served rites so those
+        // bands return to the pool. Resolved rites carry real signal and are kept. See DECISIONS D39.
+        // FindAsync already ran with the old rows present, so the just-abandoned band is not re-served
+        // this turn; it becomes eligible again only on a later serve.
+        List<Rite> abandoned = await _db.Rites
+            .Where(r => r.UserId == userId && r.State == RiteState.Served)
+            .ToListAsync(ct);
+
+        if (abandoned.Count > 0)
+        {
+            _db.Rites.RemoveRange(abandoned);
+        }
+
         Rite rite = new()
         {
             Id = Guid.NewGuid(),

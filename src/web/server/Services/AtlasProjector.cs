@@ -15,7 +15,10 @@ public sealed class AtlasProjector
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private AtlasProjection.Basis? _basis;
-    private bool _loaded;
+    // Volatile so the lock-free fast path in GetBasisAsync is safe under weak memory models (e.g.
+    // ARM64): the release write of _loaded (after _basis is set) publishes _basis, and the acquire
+    // read here sees it — no reader can observe _loaded == true with _basis still null.
+    private volatile bool _loaded;
 
     public AtlasProjector(IServiceScopeFactory scopeFactory)
     {
