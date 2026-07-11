@@ -19,6 +19,13 @@ public sealed class RiteEngineOptions
     /// Fraction of the corpus nearest the repulsion centroid to push out of the pool (DECISIONS D4).
     /// </summary>
     public double RepulsionNearPct { get; set; } = 0.20;
+
+    /// <summary>
+    /// Weight of the rarity term in the within-ring ordering (SPEC §6, superseding D31's "no rarity
+    /// term while listeners is null"). Higher biases harder toward rare bands; 0 disables it and the
+    /// pick is uniform-within-ring. See <see cref="RaritySelector"/>.
+    /// </summary>
+    public double RarityWeight { get; set; } = RaritySelector.DefaultRarityWeight;
 }
 
 /// <summary>Hard filters for the pool (feature C13): decade and country only.</summary>
@@ -61,11 +68,20 @@ public sealed class RiteEngine
 
     private readonly GrimoireDbContext _db;
     private readonly RiteEngineOptions _options;
+    private readonly Func<double> _nextUnit;
 
     public RiteEngine(GrimoireDbContext db, RiteEngineOptions options)
     {
         _db = db;
         _options = options;
+        _nextUnit = DefaultNextUnit;
+    }
+
+    /// <summary>A uniform draw strictly inside (0, 1), safe for the Gumbel transform in the pick.</summary>
+    private static double DefaultNextUnit()
+    {
+        double u = Random.Shared.NextDouble();
+        return u <= 0.0 ? double.Epsilon : u;
     }
 
     /// <summary>
@@ -150,6 +166,7 @@ public sealed class RiteEngine
             .Select(a => new
             {
                 a.Id,
+                a.Listeners,
                 Distance = a.Embedding!.CosineDistance(taste),
                 RepulsionDistance = repulsion == null ? (double?)null : a.Embedding!.CosineDistance(repulsion),
             })
@@ -160,14 +177,27 @@ public sealed class RiteEngine
             inRing = inRing.Where(x => x.RepulsionDistance != null && x.RepulsionDistance > safe);
         }
 
-        var chosen = await inRing
-            .OrderBy(_ => EF.Functions.Random())
-            .FirstOrDefaultAsync(ct);
+        // 4. Pull the ring's survivors and pick ONE, weighted toward rarer bands (SPEC §6 rarity
+        //    term, superseding D31's "no rarity term while listeners is null"). The ring already
+        //    fixed the distance band (D26/D31); the rarity term only reorders inside it, as a
+        //    weighted-random draw — it biases toward rarity while keeping the exploration, and it
+        //    never collapses to "always the single rarest band". Null listeners get a NEUTRAL term,
+        //    so the dark tail without Last.fm data never dominates (see RaritySelector).
+        var candidates = await inRing
+            .Select(x => new { x.Id, x.Distance, x.Listeners })
+            .ToListAsync(ct);
 
-        if (chosen is null)
+        if (candidates.Count == 0)
         {
             return null;
         }
+
+        double[] rarityTerms = candidates
+            .Select(c => RaritySelector.RarityTerm(c.Listeners, _options.RarityWeight))
+            .ToArray();
+
+        int index = RaritySelector.SelectIndex(rarityTerms, _nextUnit);
+        var chosen = candidates[index];
 
         return new RiteCandidate(chosen.Id, chosen.Distance, riskPercentile);
     }

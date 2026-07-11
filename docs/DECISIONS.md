@@ -546,6 +546,45 @@ De las dos vías de D15, se construye la de **elegir 5 bandas**: `GET /api/rite/
 
 ---
 
+## D35 — El término de rareza se enciende como sorteo ponderado, con null neutro
+`2026-07-11` · vigente · **supersede la cláusula «sin rareza mientras listeners sea null» de D31** · ver `docs/progress/engine-rarity.md`
+
+Con `listeners` ya poblado (D37), el término de rareza de SPEC §6 entra en el motor: `rarity = ln(1e6 / GREATEST(listeners,1)) * w_rare` (peso `w_rare` constante nombrada, default 0.15).
+
+- **Reordena DENTRO del anillo, no lo sustituye.** Se aplica como **sorteo ponderado (Gumbel-max)**: `argmax_i(rarity_i + g_i)`, selección ∝ `exp(rarity)`. Sesga hacia lo raro sin colapsar a «siempre la banda más rara» — preserva la exploración aleatoria-dentro-del-anillo de D26/D31. Con `w_rare = 0` recupera el uniforme previo.
+- **Null neutro (la salvaguarda):** `listeners IS NULL` → término **0**, nunca enorme. Un null es «desconocido», no «rarísimo»; pesa como una banda de 1e6 oyentes y **nunca domina** el sorteo. Sin esto, la cola oscura sin dato de Last.fm ganaría siempre — justo lo contrario de lo que se quiere. Orden: rara (positivo) > desconocida (0) > mega-popular (negativo).
+
+`tag_novelty` (`w_novel`) de §6 sigue sin implementar: este pase encendió solo la rareza.
+
+---
+
+## D36 — Depth Score: cuán lejos, no cuánto
+`2026-07-11` · vigente · ver `docs/progress/engine-rarity.md`
+
+`user_taste.depth_score = Σ Points(rank)` sobre las bandas invocadas (`rites.state='summoned'`), con `Nameless=5, Forgotten=4, Hidden=3, Obscure=2, Known=1`, y **`rank null → 0`** (no se inventa). Premia haber llegado lejos, no haber escuchado mucho (SPEC §6). Función pura testeada en fronteras y con null. Se **recalcula en cada `summon`** dentro del mismo `SaveChanges` del `resolve`, y se expone en `GET /api/rite/taste` y en el reveal (campos aditivos, compatibles con el front). Verificado en vivo: Hidden(3) → Nameless(5) → Forgotten(4) acumula 3 → 8 → 12.
+
+---
+
+## D37 — `listeners` se resuelve por MBID, no por nombre; Last.fm queda encendido
+`2026-07-11` · vigente · ver `docs/progress/listeners.md`
+
+Verbo nuevo `listeners` (`ListenersJob` + `LastFmEnrichmentSource` tras `IEnrichmentSource` + flag). Puebla `artists.listeners` desde Last.fm `artist.getInfo` y deriva `rank` con `RankCalculator` (ya existente). Rate limit ~5 req/s.
+
+- **Emparejado por `mbid`, no por nombre.** `getInfo?mbid=` devuelve exactamente nuestra entidad — cero ambigüedad. Una pasada por nombre daba más matches pero colaba la banda-equivocada (Avenger/Castle/Stillborn resolvían a la entidad popular). Cuesta ~6 famosas (KISS, LOUDNESS) cuyo mbid en Last.fm difiere del nuestro, pero es el trade correcto bajo D25 para una app del underground.
+- **Resultado**: 290/307 con `listeners` y `rank`, 0 inconsistencias. Distribución (los cinco tiers): Known 76, Obscure 104, Hidden 67, Forgotten 28, Nameless 15. **17 quedan null** (incl. el ancla SKÁLD) donde Last.fm no indexa nuestro mbid — null honesto antes que oyentes prestados.
+- Con la key en su sitio (memoria local + user-secrets), **C1 (import Last.fm) queda encendido**: verificado en vivo, siembra el gusto desde scrobbles reales. Se supera el bloqueador de B15 en la parte de datos; `depth_score` ya es calculable (D36).
+
+---
+
+## D38 — La dirección de corrosión de Redaction: número alto = nítido
+`2026-07-11` · vigente · **corrige la nota errónea de `docs/progress/skeleton.md` §3; confirma `DESIGN.md` §3**
+
+En Redaction el número del corte es **legibilidad, no corrosión**: `redaction-100` es el corte **nítido** y `redaction-10` el **más corroído**. Verificado empíricamente en revisión visual (lo cazó Pedro: `Nameless`, que se había mapeado a 100, se leía mejor que `Forgotten` en 70) y por el peso de los woff2 (el de `10` es el más pesado, cargando el detalle de bordes rotos; el de `100`, el más ligero).
+
+`DESIGN.md` §3 («de 10 casi ilegible a 100 nítida») era **correcto**; la nota de `skeleton.md` («10 = nítido … 100 = corroído») estaba **al revés**, y `redactionCutForRank` (front) heredó la inversión: mapeaba `Known→10` (corroído) y `Nameless→100` (nítido) — lo contrario de la tesis. Corregido a **`Known→100 … Nameless→10`**, con `BASE_REDACTION_CUT = 100` (desconocido → nítido, nunca corroído, misma regla que el null neutro del motor en D35). La función seguía **sin cablear** (Q1), así que la inversión era latente: no renderizaba mal, pero el test afirmaba lo contrario de lo cierto. Test y comentarios corregidos.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

@@ -19,9 +19,13 @@ App de descubrimiento musical para metal y rock (clásica más adelante). Produc
 - **Ficha**: proxy del Cover Art Archive cacheado a disco (también los 404), discografía por tipo con la demo visible, estados vacíos diseñados es/en. Corte **base** de `Redaction` (rank null → nada de corrosión por rank).
 - **El Rito** (D30–D34): tablas `user_taste`/`rites`, motor en anillo por **percentiles** (ventana 0.20, repulsión que resta en p20, uno al azar dentro del anillo, sin término de rareza mientras `listeners` sea null), servido **a ciegas** con proxy de audio por URL de capacidad (SSRF cerrado dos veces), `Summon`/`Banish`/`Again` que escriben taste/repulsión, reveal de 600 ms sobre el corte base, explicabilidad C4, arranque en frío por 5 bandas, C3/C13. Verificado de punta a punta contra la base viva (register → seed → serve ciego → audio real → summon revela → grimorio crece → borrar fila lo baja: lee dato vivo).
 
+### Cadena de rank encendida (2026-07-11, D35–D38)
+
+`listeners`/`rank` **poblados**: 290/307 vía Last.fm por MBID (Known 76 · Obscure 104 · Hidden 67 · Forgotten 28 · Nameless 15); 17 null honestos (sin match de mbid, incl. SKÁLD) + las filas de miembro. **Término de rareza** encendido en el motor (sorteo Gumbel-max dentro del anillo, `w_rare`=0.15, **null neutro**). **Depth Score** = Σ puntos por rank de lo invocado (null→0). **C1 import Last.fm** encendido y verificado en vivo. Corte de `Redaction` corregido: **100 nítido … 10 corroído** (`Known→100 … Nameless→10`), `redactionCutForRank` arreglado pero aún sin cablear (Q1).
+
 ### Vacío a propósito, nunca inventado
 
-`labels` = 0 · `listeners` = null · `rank` = null · `depth_score` = 0 · abstract = null. La invariante de **doble-centrado** (D26/D31): `taste`/`repulsion` se promedian de embeddings ya centrados — el medio de `corpus_stats` **no** se resta otra vez; es solo para un vector de consulta externo crudo.
+`labels` = 0 · abstract = null · 17 `listeners` null (sin match) → su `rank` null. La invariante de **doble-centrado** (D26/D31): `taste`/`repulsion` se promedian de embeddings ya centrados — el medio de `corpus_stats` **no** se resta otra vez; es solo para un vector de consulta externo crudo.
 
 ### Para levantar el entorno
 
@@ -30,6 +34,7 @@ docker compose -f build/dev/docker-compose.yml up -d     # postgres+pgvector, ho
 dotnet run --project src/console/server -- seed           # corpus base (idempotente; upsert por MBID)
 dotnet run --project src/console/server -- edges          # member_of a 1 req/s (honra 429)
 dotnet run --project src/console/server -- previews        # iTunes→Deezer, perezoso por lotes
+dotnet run --project src/console/server -- listeners       # Last.fm por MBID → listeners → rank (needs DOTNET_ENVIRONMENT=Development)
 dotnet run --project src/console/server -- embeddings      # centrados (D26), Ollama
 dotnet run --project src/console/server -- stats           # p10/50/90 deben DIVERGIR
 dotnet run --project src/web/server                       # escucha en 5080, NO en ASPNETCORE_URLS
@@ -53,7 +58,7 @@ Pedro quiere llevarlo a **git y Docker Hub**. Git ya está (`main`, sin firma en
 
 ### Bloqueadores
 
-- **Falta una clave de API de Last.fm** (gratis, inmediata). Sin ella no hay `listeners`, luego no hay ranks, ni Depth Score, ni degradación tipográfica. El adaptador C1 (import de scrobbles para el arranque en frío) **ya está escrito pero apagado por flag** y devuelve 503 (D34); en cuanto haya key se enciende. **No hay sustituto**: los `nb_fan` de Deezer son una medida circular, hay que estar en Deezer para tenerla.
+- ~~**Falta una clave de API de Last.fm**~~ **Resuelto (2026-07-11).** Key obtenida (registrada a `drheavymetal`), en user-secrets de `web/server` y `console/server` (nunca commiteada; solo el `UserSecretsId`). Con ella: `listeners`/`rank` poblados (D37), rareza + Depth Score vivos (D35/D36), C1 encendido. Lo único que **sigue** dependiendo de una decisión —no de la key— es la degradación tipográfica por rank: **gateada por Q1**, no por datos.
 - **Q1 y Q2** siguen sin ratificar por Pedro (ver `DECISIONS.md`).
 - **Q8**: a Gemini le falta entregar el SVG y la marca hermana para tamaños pequeños (D27).
 

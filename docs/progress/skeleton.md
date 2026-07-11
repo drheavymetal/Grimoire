@@ -144,8 +144,8 @@ El único warning es `react-refresh/only-export-components` en `routes.tsx` (exp
 - **Producción no construida.** `build/production/docker-compose.yml` + Dockerfiles (server, worker, front/nginx) están escritos y el compose valida con `docker compose config`, pero **no se construyeron ni se corrieron las imágenes** en este pase (fuera del gate de verificación).
 - **Front sin captura E2E de navegador.** Verificado por `lint` + `build` y contra la API viva que consume (endpoints, CORS y contrato de datos comprobados). No se levantó un navegador headless para una captura de render.
 - **Redaction SÍ está en fontsource (responde Q6).** Al contrario de lo que anticipaba el brief, `@fontsource/redaction` existe en npm (versión **5.2.5**) y se usa como tipo display. Además existen los **cortes de corrosión graduados** que pide D14 para la degradación por rank, cada uno como su propio paquete a la misma versión 5.2.5:
-  - `@fontsource/redaction-10`, `@fontsource/redaction-20`, `@fontsource/redaction-35`, `@fontsource/redaction-50`, `@fontsource/redaction-70`, `@fontsource/redaction-100` (10 = nítido … 100 = más corroído).
-  - Este pase **solo cablea** `@fontsource/redaction` (base). Los seis cortes graduados **no** se cablean todavía porque el rank es null; quedan listos para wire en D14 / mov. II, mapeando `Rank` → corte (p. ej. `Known`→10 … `Nameless`→100).
+  - `@fontsource/redaction-10`, `@fontsource/redaction-20`, `@fontsource/redaction-35`, `@fontsource/redaction-50`, `@fontsource/redaction-70`, `@fontsource/redaction-100`. **⚠️ Corrección (D38)**: la dirección de esta línea estaba al revés. Lo correcto es **10 = corroído … 100 = nítido** (verificado empíricamente); el mapeo bueno es `Known→100 … Nameless→10`. Ver D38.
+  - Este pase **solo cablea** `@fontsource/redaction` (base). Los seis cortes graduados **no** se cablean todavía porque el rank es null; quedan listos para wire en D14 / mov. II (con la dirección corregida de D38).
 
 ---
 

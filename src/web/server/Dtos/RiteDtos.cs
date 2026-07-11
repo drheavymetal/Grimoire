@@ -29,7 +29,8 @@ public record LastFmImportRequest(
 public record TasteStatusDto(
     bool HasTaste,
     int SummonedCount,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    int DepthScore);
 
 // ---------------------------------------------------------------------------
 // Serving The Rite (feature B13, B14)
@@ -77,11 +78,13 @@ public record ResolveResultDto(
 /// <summary>
 /// The reveal payload after a summon: the full artist plus the explanation of why it was served
 /// (feature C4). It also carries everything feature C27 (guess the decade) scores against —
-/// formed year, country and tags.
+/// formed year, country and tags — and the user's <see cref="DepthScore"/> after this summon
+/// (feature B15), so the reveal can show how far they have travelled.
 /// </summary>
 public record RiteRevealDto(
     ArtistDetailDto Artist,
-    RiteExplanationDto Why);
+    RiteExplanationDto Why,
+    int DepthScore);
 
 /// <summary>
 /// "Why you were served this" (feature C4). Without it a strange recommender just looks broken.

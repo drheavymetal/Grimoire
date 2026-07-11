@@ -14,6 +14,13 @@ public sealed class ArtistEnrichment
     public string? PreviewUrl { get; init; }
 
     /// <summary>
+    /// Last.fm listener count for this artist, or null when the source could not resolve it
+    /// to the right band. Null is a real gap (DECISIONS D25: better a missing count than the
+    /// wrong band's), never invented — and a null listener count derives a null rank.
+    /// </summary>
+    public int? Listeners { get; init; }
+
+    /// <summary>
     /// Curated streaming links to add to <c>artists.links</c>, keyed by service. Keys are
     /// namespaced with the <c>listen:</c> prefix (see <see cref="Services.StreamingLinks"/>)
     /// so they never collide with the raw MusicBrainz url-rels already stored there.

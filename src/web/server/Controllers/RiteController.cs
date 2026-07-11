@@ -304,11 +304,13 @@ public class RiteController : ControllerBase
             return Conflict(new { message = "This rite has already been resolved." });
         }
 
-        float[]? artistEmbedding = (await _db.Artists
-                .Where(a => a.Id == rite.ArtistId)
-                .Select(a => a.Embedding)
-                .FirstOrDefaultAsync(ct))?
-            .ToArray();
+        var artistRow = await _db.Artists
+            .Where(a => a.Id == rite.ArtistId)
+            .Select(a => new { a.Embedding, a.Rank })
+            .FirstOrDefaultAsync(ct);
+
+        float[]? artistEmbedding = artistRow?.Embedding?.ToArray();
+        Rank? artistRank = artistRow?.Rank;
 
         UserTaste taste = await UpsertTasteAsync(userId, ct);
 
@@ -337,13 +339,28 @@ public class RiteController : ControllerBase
         rite.State = target;
         rite.ResolvedAt = DateTimeOffset.UtcNow;
 
+        // Depth Score (feature B15): recompute on every summon over everything the user has summoned,
+        // this band included, awarding more for rarer finds. The current rite is still Served in the
+        // DB (its state change is not yet saved), so we sum the other summoned bands' ranks and add
+        // this band's rank. A null rank scores nothing — no rank is invented (DECISIONS D33).
+        if (target == RiteState.Summoned)
+        {
+            List<Rank?> summonedRanks = await _db.Rites
+                .Where(r => r.UserId == userId && r.State == RiteState.Summoned && r.ArtistId != rite.ArtistId)
+                .Join(_db.Artists, r => r.ArtistId, a => a.Id, (r, a) => a.Rank)
+                .ToListAsync(ct);
+
+            summonedRanks.Add(artistRank);
+            taste.DepthScore = DepthScore.Compute(summonedRanks);
+        }
+
         await _db.SaveChangesAsync(ct);
 
         // Reveal only on summon: the reward. Banish and again stay blind on purpose (C3/C20).
         RiteRevealDto? reveal = null;
         if (target == RiteState.Summoned)
         {
-            reveal = await BuildRevealAsync(userId, rite.ArtistId, taste.Embedding?.ToArray(), artistEmbedding, ct);
+            reveal = await BuildRevealAsync(userId, rite.ArtistId, taste.Embedding?.ToArray(), artistEmbedding, taste.DepthScore, ct);
         }
 
         return Ok(new ResolveResultDto(target, reveal));
@@ -383,6 +400,7 @@ public class RiteController : ControllerBase
         Guid artistId,
         float[]? taste,
         float[]? artistEmbedding,
+        int depthScore,
         CancellationToken ct)
     {
         ArtistDetailDto? artist = await _details.BuildAsync(artistId, ct);
@@ -439,7 +457,7 @@ public class RiteController : ControllerBase
             }
         }
 
-        return new RiteRevealDto(artist, new RiteExplanationDto(distance, sharedTags, sharedMembers));
+        return new RiteRevealDto(artist, new RiteExplanationDto(distance, sharedTags, sharedMembers), depthScore);
     }
 
     private async Task<UserTaste> UpsertTasteAsync(Guid userId, CancellationToken ct)
@@ -462,7 +480,7 @@ public class RiteController : ControllerBase
         int summoned = await _db.Rites
             .CountAsync(r => r.UserId == userId && r.State == RiteState.Summoned, ct);
 
-        return new TasteStatusDto(taste?.Embedding is not null, summoned, taste?.UpdatedAt);
+        return new TasteStatusDto(taste?.Embedding is not null, summoned, taste?.UpdatedAt, taste?.DepthScore ?? 0);
     }
 
     private static bool TryParseAction(string action, out RiteState state)

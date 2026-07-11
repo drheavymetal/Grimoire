@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,6 +8,7 @@
     <RootNamespace>Grimoire.Worker</RootNamespace>
     <AssemblyName>Grimoire.Worker</AssemblyName>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <UserSecretsId>fa2a31bf-d165-404e-8d3d-a71eb2314b96</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

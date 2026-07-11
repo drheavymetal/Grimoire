@@ -3,6 +3,7 @@ using Grimoire.Library.Data;
 using Grimoire.Library.Enrichment;
 using Grimoire.Worker;
 using Grimoire.Worker.Embedding;
+using Grimoire.Worker.Listeners;
 using Grimoire.Worker.MusicBrainz;
 using Grimoire.Worker.Preview;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "embeddings", "stats"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -29,6 +30,7 @@ if (verb is null)
     Console.WriteLine("  seed        Fetch artists + release-groups from MusicBrainz (movement I).");
     Console.WriteLine("  edges       Import member_of relations (dates + instruments) from MusicBrainz.");
     Console.WriteLine("  previews    Resolve audio previews (iTunes first, Deezer complement) + streaming links.");
+    Console.WriteLine("  listeners   Populate Last.fm listeners and derive rank (needs LastFm:ApiKey).");
     Console.WriteLine("  embeddings  Build centred nomic-embed-text embeddings and persist the corpus mean.");
     Console.WriteLine("  stats       Report neighbour-distance percentiles p10/p50/p90 (D26 sanity check).");
     return;
@@ -61,6 +63,9 @@ switch (verb)
         break;
     case "previews":
         ConfigurePreviews(builder);
+        break;
+    case "listeners":
+        ConfigureListeners(builder);
         break;
     case "embeddings":
         ConfigureEmbeddings(builder);
@@ -147,6 +152,33 @@ static void ConfigurePreviews(HostApplicationBuilder builder)
         sp.GetRequiredService<ILogger<DeezerEnrichmentSource>>()));
 
     builder.Services.AddHostedService<PreviewJob>();
+}
+
+static void ConfigureListeners(HostApplicationBuilder builder)
+{
+    int limit = builder.Configuration.GetValue("Listeners:Limit", 500);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_LISTENERS_LIMIT"), out int envLimit) && envLimit > 0)
+    {
+        limit = envLimit;
+    }
+
+    builder.Services.AddSingleton(new ListenersOptions { Limit = limit });
+
+    // Key from user-secrets (LastFm:ApiKey) with an env fallback, matching the codebase's other
+    // secrets. Never logged, never committed. No key means the source is disabled and the job
+    // does nothing (Invariant 5 / D9 / blocker Q5).
+    string? apiKey = builder.Configuration["LastFm:ApiKey"]
+        ?? Environment.GetEnvironmentVariable("GRIMOIRE_LASTFM_APIKEY");
+
+    AddPoliteHttpClient(builder, "lastfm", "https://ws.audioscrobbler.com/");
+
+    builder.Services.AddSingleton<IEnrichmentSource>(sp => new LastFmEnrichmentSource(
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient("lastfm"),
+        apiKey,
+        sp.GetRequiredService<ILogger<LastFmEnrichmentSource>>()));
+
+    builder.Services.AddHostedService<ListenersJob>();
 }
 
 static void ConfigureEmbeddings(HostApplicationBuilder builder)
