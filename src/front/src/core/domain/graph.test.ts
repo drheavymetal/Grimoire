@@ -56,6 +56,26 @@ describe('fitToViewport (auto-fit)', () => {
   });
 });
 
+describe('layoutGraph — dangling edges', () => {
+  it('drops an edge to a missing node instead of throwing (invariant 5)', () => {
+    const graph: Graph = {
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+      ],
+      // 'c' is not in the node set — d3 forceLink would throw "node not found" on this.
+      edges: [
+        { source: 'a', target: 'b' },
+        { source: 'a', target: 'c' },
+      ],
+    };
+
+    const layout = layoutGraph(graph, 5);
+    expect(layout.nodes).toHaveLength(2);
+    expect(layout.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y))).toBe(true);
+  });
+});
+
 describe('shouldShowLabel', () => {
   it('shows when focused, regardless of zoom', () => {
     expect(shouldShowLabel({ focused: true, matched: false, zoom: 0.5 })).toBe(true);

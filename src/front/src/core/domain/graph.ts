@@ -88,10 +88,17 @@ export function layoutGraph(graph: Graph, iterations: number = DEFAULT_ITERATION
     };
   });
 
-  const simLinks: SimulationLinkDatum<SimNode>[] = graph.edges.map((edge) => ({
-    source: edge.source,
-    target: edge.target,
-  }));
+  // Drop dangling edges — an edge whose source or target is not in the node set. At catalogue
+  // scale the splits/bloodline endpoints can return an edge to a node they didn't include, and
+  // d3's forceLink throws "node not found" on it, which would take down the whole route. We degrade
+  // by rendering the graph without that edge (invariant 5) rather than crashing.
+  const nodeIds = new Set(graph.nodes.map((node) => node.id));
+  const simLinks: SimulationLinkDatum<SimNode>[] = graph.edges
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .map((edge) => ({
+      source: edge.source,
+      target: edge.target,
+    }));
 
   const simulation = forceSimulation(simNodes)
     .randomSource(seededRandom(0x9e3779b9))
