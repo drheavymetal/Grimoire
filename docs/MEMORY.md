@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-11**.
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-12**.
 
 ---
 
@@ -23,7 +23,7 @@ La tesis: no dejamos de escuchar lo mismo por falta de recomendaciones, sino por
 - **Escucha a ciegas online**: previews resueltos **just-in-time** al servir (iTunes→Deezer), stream por proxy anti-leak, **cero audio local** (D40).
 - **Rediseño visual v2** implementado en toda la app (identidad metal atmosférica: logo, corrosión por rareza, el Rito como ritual — ver §5).
 - **Feature-complete**: los 7 movimientos, B1–B26 y C1–C27 (solo **C19** queda como hueco declarado por falta de toolchain de audio — §7). Incluye tracklists/duración/temas/versiones/paleta sobre **8 925 364 grabaciones** importadas de MB.
-- **Enriquecimiento perezoso** corriendo: `listeners`/`rank` (Last.fm, ~horas), `credits` (casi completo).
+- **Enriquecimiento nocturno completado (2026-07-12, ~03:00, finisher autónomo + auto-redespliegue)**: `rank` **2 639 → 14 330** (plateau; la cola restante no está en Last.fm ni por nombre), `credits` **5 153 → 32 929** grupos (casi entero), `influence` **80** (Wikidata bulk lo tumba con 502/429 — facet menor, no core; reintento con throttle daría bajos miles, ROI bajo). Prod re-restaurado y verificado: `front=200`, rank=14 330, 23 otros contenedores intactos.
 
 Los 40+ commits viven en `origin/main` (github.com:drheavymetal/Grimoire), sin firma GPG.
 
