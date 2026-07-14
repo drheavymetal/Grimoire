@@ -744,6 +744,15 @@ Se le contesta explicando esto, no en silencio (`outreach/metal-archives.md` §3
 
 ## Riesgos vivos
 
+**R9 — Los términos de Apple chocan con la mecánica central del Rito.** `2026-07-14` · verificado en la doc oficial de la iTunes Search API · **Pedro decidió ignorarlo por ahora** (app privada, cuatro amigos, riesgo real bajo) — se anota para que **no se olvide el día que se abra al público**, que es cuando muerde.
+Apple exige, para usar los previews: (a) que vayan **junto a un badge «Download on iTunes»** enlazando a la compra, (b) la atribución **«provided courtesy of iTunes»**, (c) que estén **solo en páginas que promocionen ese contenido concreto**, (d) **solo streaming — nada de cachear ni guardar**, y (e) que **no** se usen «por su valor de entretenimiento independiente».
+El Rito sirve **45 s sin nombre, sin portada, sin badge, sin atribución, por un proxy que oculta el origen (D32), y precisamente por su valor de entretenimiento**. El choque es frontal y **existe hoy, sin monetizar nada**.
+Mitigación barata cuando toque, sin romper el ciego: **atribución + enlace a la tienda en el momento del reveal** (donde la banda ya se muestra), y verificar que `PreviewAudioProxy` no persiste el audio en disco (la URL sí se cachea — eso es otra cosa).
+
+**R10 — La puerta de cobrar ya está cerrada, y no la cerró Metal Archives.** `2026-07-14` · verificado en los ToS de la API de Last.fm
+Literal: *«You are permitted to use the Last.fm Data **solely for non-commercial purposes**»*, y el uso comercial exige **un acuerdo negociado** en el que Last.fm **se reserva participar de los ingresos**. Last.fm alimenta `listeners` → `rank` → **el pilar entero de Ranks**.
+Consecuencia para D42/D45: **aceptar los datos de MA no cuesta ninguna libertad nueva** — la restricción no comercial ya la imponía Last.fm, y encima Apple exigiría el programa de afiliados. Monetizar Grimoire no sería negociar con MA: sería negociar con **Last.fm, Apple y MA**, en ese orden de dificultad. La única fuente sin ataduras es **MusicBrainz**.
+
 **R1 — Puede que no podamos sonar lo raro.** The Rite depende de previews de iTunes/Deezer. El spike v1 no lo resolvió (D22): su única lectura sobre bandas realmente oscuras (n = 4, 0 % cobertura) es direccionalmente alarmante pero estadísticamente inútil. Si las bandas de menos de 500 oyentes resultan tener cobertura muy baja, el tier `Nameless` es insonorizable y el Depth Score se cae. **Se mide con el spike v2, con un muestreo no sesgado, antes de escribir código de producto.** Ver `docs/spikes/` (pendiente de crear).
 
 **R2 — La ficha está más vacía justo donde la app te lleva.** Los créditos son excelentes para Iron Maiden y pésimos para el sludge finlandés de 300 oyentes. El motor de descubrimiento conduce exactamente a donde el dato no está. La ficha **debe degradar con dignidad**: estados vacíos diseñados, no huecos rotos.
