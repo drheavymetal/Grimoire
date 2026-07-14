@@ -21,6 +21,22 @@ public class LastFmListenersTests
         };
     }
 
+    private static LastFmArtistInfoResponse WithTags(params string?[] tagNames)
+    {
+        return new LastFmArtistInfoResponse
+        {
+            Artist = new LastFmArtist
+            {
+                Name = "Any Band",
+                Stats = new LastFmStats { Listeners = "1000" },
+                Tags = new LastFmTagList
+                {
+                    Tag = [.. tagNames.Select(name => new LastFmTag { Name = name })],
+                },
+            },
+        };
+    }
+
     // --- ParseListeners: the by-mbid path, where identity is guaranteed by the query ---
 
     [Fact]
@@ -164,5 +180,45 @@ public class LastFmListenersTests
     {
         Assert.Null(LastFmListeners.ResolveByName(null, "Darkthrone"));
         Assert.Null(LastFmListeners.ResolveByName(new LastFmArtistInfoResponse { Error = 6 }, "Darkthrone"));
+    }
+
+    // --- ParseTags: genre tags ride along in the same getInfo body (MEMORY §6b) ---
+
+    [Fact]
+    public void ParseTags_ReturnsNames_InOrder_TopFive()
+    {
+        LastFmArtistInfoResponse response = WithTags(
+            "black metal", "atmospheric black metal", "norwegian", "ambient", "lo-fi", "sixth tag");
+
+        string[] tags = LastFmListeners.ParseTags(response);
+
+        Assert.Equal(
+            ["black metal", "atmospheric black metal", "norwegian", "ambient", "lo-fi"],
+            tags);
+    }
+
+    [Fact]
+    public void ParseTags_DropsJunkFolksonomy()
+    {
+        // "seen live" / "favorites" carry no genre signal and would pull unrelated bands together.
+        LastFmArtistInfoResponse response = WithTags("seen live", "death metal", "favorites", "Favourites");
+
+        Assert.Equal(["death metal"], LastFmListeners.ParseTags(response));
+    }
+
+    [Fact]
+    public void ParseTags_TrimsBlanksAndDeduplicatesCaseInsensitively()
+    {
+        LastFmArtistInfoResponse response = WithTags("  Doom Metal ", null, "", "doom metal", "DOOM METAL");
+
+        Assert.Equal(["Doom Metal"], LastFmListeners.ParseTags(response));
+    }
+
+    [Fact]
+    public void ParseTags_ErrorOrMissing_ReturnsEmpty()
+    {
+        Assert.Empty(LastFmListeners.ParseTags(null));
+        Assert.Empty(LastFmListeners.ParseTags(new LastFmArtistInfoResponse { Error = 6 }));
+        Assert.Empty(LastFmListeners.ParseTags(Info("Band", "mbid", "5")));  // no tags object at all
     }
 }

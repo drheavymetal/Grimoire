@@ -125,7 +125,11 @@ Sesión larga con Pedro. Cuatro bugs de producción, dos decisiones estructurale
 
 **Autorizan el scrape** (no comercial + sin martillear) y sugieren filtros de género. Ver `outreach/metal-archives.md` §1b y §3 (**enviado el 2026-07-14**), y **D42/D43/D44**. Se les ofrecen tres puertas (export / API / que scrapeemos) y se les pregunta por las imágenes (**jamás hotlinkear** — D44). Los filtros de género **se declinan** (D43: son el reflejo que la app combate).
 
-**Esperar respuesta.** Si dicen que sí a un export, entra por `IEnrichmentSource` como todo lo demás.
+**RESPONDIERON el 2026-07-15** (`outreach/` §4, **D48/D49**). Las tres puertas contestadas:
+- **Que scrapeemos** — es lo que menos les cuesta; **no tienen API** (quizá futuro, sin promesa). El scrape entra por `IEnrichmentSource`, en el server en Docker `restart: unless-stopped`, **en paralelo con Last.fm** (hosts y claves de match distintos). **D48**, Q9 cerrada.
+- **No tienen MBIDs** → emparejado por **nombre+país+año**, ambiguos sin match, miembros aún más estrictos. **R3 confirmado**, es el trabajo duro.
+- **Imágenes**: no son suyas para autorizarlas («I can't tell you to use them or not»). Pedro decide **cachear+servir con retirada a petición** (nunca hotlink). **D49**.
+- **No comercial ratificado.** Siguen prefiriendo filtros de género (chiste del «shitty black metal») — no cambia D43, `Banish` ya lo cubre.
 
 ### La decisión que lo simplifica todo: D47 — **nunca de pago**
 

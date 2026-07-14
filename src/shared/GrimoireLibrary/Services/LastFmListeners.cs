@@ -115,6 +115,52 @@ public static class LastFmListeners
 
         return ParseListeners(response);
     }
+
+    /// <summary>
+    /// Non-genre folksonomy tags that Last.fm users attach in bulk. They carry no descriptive
+    /// signal for the embedding text (D26) and would only pull unrelated bands together on the
+    /// map, so they are dropped. Compared case-insensitively against the lower-cased tag.
+    /// </summary>
+    private static readonly HashSet<string> JunkTags = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "seen live", "favorites", "favourites", "favorite", "favourite",
+        "albums i own", "vinyl", "spotify", "under 2000 listeners",
+        "beautiful", "awesome", "amazing", "cool", "good", "love", "loved",
+        "male vocalists", "female vocalists", "female fronted metal",
+        "check out", "to check out", "want to see live",
+    };
+
+    /// <summary>
+    /// Extracts up to five genre tags from a getInfo response, most-voted first (Last.fm returns
+    /// its top tags in descending order). Junk folksonomy (<see cref="JunkTags"/>) and blanks are
+    /// dropped, duplicates collapsed case-insensitively. Returns an empty array — never null —
+    /// when the response is missing, an error, or carries no usable tags. Parses tags from
+    /// <b>whichever</b> getInfo body resolved the artist, so listeners and tags come from the one
+    /// same call (MEMORY §6b: <c>artist.getInfo</c> returns both at once).
+    /// </summary>
+    public static string[] ParseTags(LastFmArtistInfoResponse? response)
+    {
+        if (response is null || response.Error is not null)
+        {
+            return [];
+        }
+
+        List<LastFmTag>? tags = response.Artist?.Tags?.Tag;
+
+        if (tags is null || tags.Count == 0)
+        {
+            return [];
+        }
+
+        return tags
+            .Select(t => t.Name?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Where(name => !JunkTags.Contains(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToArray();
+    }
 }
 
 /// <summary>Envelope of Last.fm <c>artist.getInfo</c>. On failure Last.fm returns an
@@ -138,6 +184,10 @@ public sealed class LastFmArtist
 
     [JsonPropertyName("stats")]
     public LastFmStats? Stats { get; set; }
+
+    /// <summary>Top genre tags, in descending vote order. Parsed by <see cref="LastFmListeners.ParseTags"/>.</summary>
+    [JsonPropertyName("tags")]
+    public LastFmTagList? Tags { get; set; }
 }
 
 public sealed class LastFmStats
@@ -145,4 +195,17 @@ public sealed class LastFmStats
     /// <summary>Last.fm serialises the listener count as a string; parsing lives in <see cref="LastFmListeners.Resolve"/>.</summary>
     [JsonPropertyName("listeners")]
     public string? Listeners { get; set; }
+}
+
+/// <summary>The <c>tags</c> object of a getInfo response: <c>{ "tag": [ { "name": ... } ] }</c>.</summary>
+public sealed class LastFmTagList
+{
+    [JsonPropertyName("tag")]
+    public List<LastFmTag>? Tag { get; set; }
+}
+
+public sealed class LastFmTag
+{
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 }

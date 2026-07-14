@@ -60,9 +60,16 @@ public sealed class ListenersJob : WorkerJob
 
         // Seeded bands only: tags or releases. Bare member rows (people) carry neither and would
         // not resolve against Last.fm's band lookup, so they are skipped clean (D25).
+        //
+        // Ordered by discography size, largest first. A complete sweep attempts every candidate so
+        // the order does not change coverage — but real bands (many releases) resolve on Last.fm far
+        // more often than the alphabetical junk drawer (single-release keyboard-mash names), so this
+        // front-loads the value and, if the run is ever interrupted, the bands the Rite most needs a
+        // rank for are already done. Ties broken by name for a stable, resumable sequence.
         List<Artist> candidates = await db.Artists
             .Where(a => a.Tags.Length > 0 || a.Releases.Any())
-            .OrderBy(a => a.Name)
+            .OrderByDescending(a => a.Releases.Count())
+            .ThenBy(a => a.Name)
             .ToListAsync(ct);
 
         // Resume marker: a still-null listener count is "not yet resolved". Batching by limit
@@ -76,6 +83,7 @@ public sealed class ListenersJob : WorkerJob
             pending.Count, candidates.Count);
 
         int resolved = 0;
+        int tagged = 0;
         int attempted = 0;
 
         foreach (Artist artist in pending)
@@ -89,24 +97,42 @@ public sealed class ListenersJob : WorkerJob
 
             attempted++;
 
+            bool changed = false;
+
             if (enrichment?.Listeners is int listeners)
             {
                 artist.Listeners = listeners;
                 artist.Rank = RankCalculator.FromListeners(listeners);
                 resolved++;
+                changed = true;
+            }
 
+            // Backfill genre tags only where the artist has none, so Last.fm never overwrites the
+            // cleaner MusicBrainz tags and only newly-tagged bands need re-embedding afterwards
+            // (MEMORY §6b). Note: an artist already carrying a listener count is not in this pass's
+            // pending set, so a tags-only backfill for the earlier A/B batch is a separate concern.
+            if (artist.Tags.Length == 0 && enrichment is { Tags.Count: > 0 })
+            {
+                artist.Tags = [.. enrichment.Tags];
+                tagged++;
+                changed = true;
+            }
+
+            if (changed)
+            {
                 await db.SaveChangesAsync(ct);
             }
 
             if (attempted % 25 == 0)
             {
-                _logger.LogInformation("Attempted {Attempted}/{Total}, {Resolved} with a listener count.",
-                    attempted, pending.Count, resolved);
+                _logger.LogInformation(
+                    "Attempted {Attempted}/{Total}, {Resolved} with a listener count, {Tagged} newly tagged.",
+                    attempted, pending.Count, resolved, tagged);
             }
         }
 
         _logger.LogInformation(
-            "Listeners batch complete: {Resolved}/{Attempted} resolved a listener count. Re-run to continue.",
-            resolved, attempted);
+            "Listeners batch complete: {Resolved}/{Attempted} resolved a listener count, {Tagged} gained tags. Re-run to continue.",
+            resolved, attempted, tagged);
     }
 }

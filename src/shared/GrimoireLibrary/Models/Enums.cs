@@ -20,8 +20,6 @@ public enum EdgeKind
     MemberOf,
     SideProject,
     Collaboration,
-    Teacher,
-    Student,
     InfluencedBy,
 }
 

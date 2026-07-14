@@ -37,8 +37,6 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Credit> Credits => Set<Credit>();
 
-    public DbSet<Work> Works => Set<Work>();
-
     public DbSet<Recording> Recordings => Set<Recording>();
 
     public DbSet<CoverVersion> CoverVersions => Set<CoverVersion>();
@@ -205,23 +203,6 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             // The credits ETL looks credits up by the artist and by the release they are on.
             entity.HasIndex(c => c.ArtistId);
             entity.HasIndex(c => c.ReleaseId);
-        });
-
-        builder.Entity<Work>(entity =>
-        {
-            entity.ToTable("works");
-            entity.HasKey(w => w.Id);
-            entity.HasIndex(w => w.Mbid).IsUnique();
-
-            // Work↔composer (movement VII, D11). A nullable FK to artists: a composer is an
-            // Artist (Person). Set-null on delete keeps the work if the composer row goes.
-            // Indexed so a composer's page can list their works cheaply.
-            entity.HasOne(w => w.Composer)
-                .WithMany()
-                .HasForeignKey(w => w.ComposerId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasIndex(w => w.ComposerId);
         });
 
         builder.Entity<Recording>(entity =>

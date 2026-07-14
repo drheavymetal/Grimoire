@@ -11,16 +11,18 @@ import type { Rank } from './types';
 const knownToNameless: Rank[] = ['Known', 'Obscure', 'Hidden', 'Forgotten', 'Nameless'];
 
 describe('redactionCutForRank', () => {
-  it('corrodes monotonically as bands get rarer (the cut number drops)', () => {
+  it('corrodes monotonically as bands get rarer (the cut number rises)', () => {
     const cuts = knownToNameless.map(redactionCutForRank);
     for (let i = 1; i < cuts.length; i += 1) {
-      expect(cuts[i]).toBeLessThan(cuts[i - 1]);
+      expect(cuts[i]).toBeGreaterThan(cuts[i - 1]);
     }
   });
 
-  it('gives Known the crispest cut (100) and Nameless the most corroded (10)', () => {
-    expect(redactionCutForRank('Known')).toBe(Math.max(...redactionCuts));
-    expect(redactionCutForRank('Nameless')).toBe(Math.min(...redactionCuts));
+  it('gives Known the cleanest cut (10) and Nameless the most corroded static cut', () => {
+    expect(redactionCutForRank('Known')).toBe(Math.min(...redactionCuts));
+    // Nameless is the most eroded a static name gets, but capped below the illegible cut 100.
+    expect(redactionCutForRank('Nameless')).toBe(70);
+    expect(redactionCutForRank('Nameless')).toBeLessThan(Math.max(...redactionCuts));
   });
 
   it('returns a real graded cut for every rank', () => {
@@ -29,29 +31,29 @@ describe('redactionCutForRank', () => {
     }
   });
 
-  it('renders an unknown rank at the crisp base, never corroded (unknown is not rare)', () => {
+  it('renders an unknown rank at the clean base, never corroded (unknown is not rare)', () => {
     expect(redactionCutForRank(null)).toBe(BASE_REDACTION_CUT);
-    expect(redactionCutForRank(null)).toBe(Math.max(...redactionCuts));
+    expect(redactionCutForRank(null)).toBe(Math.min(...redactionCuts));
   });
 });
 
 describe('revealCutSequence', () => {
-  it('walks the whole ladder up to a crisp Known (100)', () => {
-    expect(revealCutSequence(redactionCutForRank('Known'))).toEqual([10, 20, 35, 50, 70, 100]);
+  it('emerges most-corroded and resolves down to a clean Known (10)', () => {
+    expect(revealCutSequence(redactionCutForRank('Known'))).toEqual([100, 70, 50, 35, 20, 10]);
   });
 
-  it('never resolves a Nameless: a single most-corroded frame', () => {
-    expect(revealCutSequence(redactionCutForRank('Nameless'))).toEqual([10]);
+  it('a Nameless resolves only to its capped eroded cut, never clearing', () => {
+    expect(revealCutSequence(redactionCutForRank('Nameless'))).toEqual([100, 70]);
   });
 
-  it('starts corroded and ends on the target for every rank', () => {
+  it('starts most-corroded and ends on the target for every rank', () => {
     for (const rank of knownToNameless) {
       const target = redactionCutForRank(rank);
       const seq = revealCutSequence(target);
-      expect(seq[0]).toBe(Math.min(...redactionCuts));
+      expect(seq[0]).toBe(Math.max(...redactionCuts));
       expect(seq[seq.length - 1]).toBe(target);
       for (let i = 1; i < seq.length; i += 1) {
-        expect(seq[i]).toBeGreaterThan(seq[i - 1]);
+        expect(seq[i]).toBeLessThan(seq[i - 1]);
       }
     }
   });

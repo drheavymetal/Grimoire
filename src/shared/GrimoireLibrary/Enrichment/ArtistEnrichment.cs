@@ -27,4 +27,12 @@ public sealed class ArtistEnrichment
     /// </summary>
     public IReadOnlyDictionary<string, string> Links { get; init; }
         = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Genre tags the source resolved for this artist, most-relevant first, or empty when it has
+    /// none. Filled by Last.fm alongside <see cref="Listeners"/> in the one <c>artist.getInfo</c>
+    /// call. The job backfills them only where the artist has no tags yet, so the cleaner
+    /// MusicBrainz tags are never overwritten (MEMORY §6b).
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
 }

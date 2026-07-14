@@ -1,24 +1,30 @@
 import type { Rank } from './types';
 
-// Redaction ships graded corrosion cuts as separate @fontsource packages. The
-// number is legibility, not corrosion: redaction-100 is the crispest cut and
-// redaction-10 is the most corroded (verified empirically — the 100 face renders
-// clean, the 10 face is eroded; the woff2 for 10 is also by far the heaviest,
-// carrying the broken-edge detail). This matches DESIGN.md §3 ("10 casi ilegible
-// … 100 nítida"); the earlier note in skeleton.md had the direction backwards.
+// Redaction ships graded "generational loss" cuts as separate @fontsource packages. The number is
+// how DEGRADED the face is, NOT how crisp: redaction-10 is the cleanest, elegant serif and
+// redaction-100 is the most eroded — a blocky, near-illegible photocopy-of-a-photocopy. This was
+// verified by rendering all six faces (scratchpad/redaction-preview.png): cut 10 reads clean, cut
+// 100 is a pixelated mess. The earlier code AND DESIGN.md §3 had this backwards ("100 nítida"),
+// which made common bands render as the ugly blocky face and rare ones render clean — corrosion
+// running with popularity instead of against it. Corrected here to what the fonts actually do.
 export const redactionCuts = [10, 20, 35, 50, 70, 100] as const;
 export type RedactionCut = (typeof redactionCuts)[number];
 
-// The default face for a name whose rank is unknown. Unknown is not rare, so it
-// renders crisp, never corroded — the same rule the engine uses for null listeners.
-export const BASE_REDACTION_CUT: RedactionCut = 100;
+// The cleanest face, used for a name whose rank is unknown. Unknown is not rare, so it renders
+// crisp, never corroded — the same rule the engine uses for null listeners (D35). Most of the
+// corpus is unranked until the Last.fm pass fills in, so this is what the app mostly shows: clean.
+export const BASE_REDACTION_CUT: RedactionCut = 10;
 
-// Pure mapping from rarity to corrosion, the signature of Q1 (D14/D38, ratified by Pedro for the
-// autonomous build). The typography IS the datum: rarer bands corrode more — the crisp end (100)
-// is Known, the eroded end (10) is Nameless. A band whose rank is unknown renders at the crisp
-// base (100), never corroded — unknown is not rare (the same rule the engine uses for null
-// listeners, D35). This is now WIRED: rank is populated across most of the corpus, so a cut chosen
-// by rank renders the truth, not a lie.
+// The most corroded face a static name is ever shown in. Rarer than this the glyphs stop being
+// legible (cut 100 is reserved for the transient first frame of the reveal only), so the rarity
+// gradient is capped here — corroded, but still readable, which is the whole of Pedro's note.
+const MAX_STATIC_CORROSION: RedactionCut = 70;
+
+// Pure mapping from rarity to corrosion, the signature of Q1 (D14/D38). The typography IS the datum:
+// rarer bands corrode MORE, so the cut number RISES with rarity — Known is the clean cut 10, Nameless
+// the heavily-eroded (but still legible) cut 70. A band whose rank is unknown renders at the clean
+// base, never corroded — unknown is not rare (D35). Wired: rank is populated across the corpus, so a
+// cut chosen by rank renders the truth.
 export function redactionCutForRank(rank: Rank | null): RedactionCut {
   if (rank === null) {
     return BASE_REDACTION_CUT;
@@ -26,15 +32,15 @@ export function redactionCutForRank(rank: Rank | null): RedactionCut {
 
   switch (rank) {
     case 'Known':
-      return 100;
-    case 'Obscure':
-      return 70;
-    case 'Hidden':
-      return 50;
-    case 'Forgotten':
-      return 35;
-    case 'Nameless':
       return 10;
+    case 'Obscure':
+      return 20;
+    case 'Hidden':
+      return 35;
+    case 'Forgotten':
+      return 50;
+    case 'Nameless':
+      return MAX_STATIC_CORROSION;
   }
 }
 
@@ -46,11 +52,11 @@ export function redactionFontFamily(cut: RedactionCut): string {
   return `'Redaction ${cut}', 'Redaction', Georgia, serif`;
 }
 
-// The reveal of The Rite (DESIGN §3.1): the name emerges corroded and resolves toward the cut its
-// rank earns. This is the ordered sequence of cuts the develop steps through — from the most
-// corroded face (10) up to and including the target. A Known (target 100) walks the whole ladder to
-// crisp; a Nameless (target 10) is a single-frame [10] that never resolves. Pure and ordered so the
-// animation is a state-driven walk (D12), testable without a browser.
+// The reveal of The Rite (DESIGN §3.1): the name develops like a photograph — it emerges in the most
+// corroded face (cut 100) and resolves, cut by cut, DOWN to the face its rank earns. A Known walks all
+// the way to clean (10); a Nameless resolves only to its capped, still-eroded cut (70) and no further —
+// it never fully clears, because it never fully leaves the dark. Pure and ordered so the animation is a
+// state-driven walk (D12), testable without a browser. Descending: index 0 is the most corroded frame.
 export function revealCutSequence(targetCut: RedactionCut): RedactionCut[] {
-  return redactionCuts.filter((cut) => cut <= targetCut);
+  return redactionCuts.filter((cut) => cut >= targetCut).reverse();
 }

@@ -63,9 +63,6 @@ export interface ArtistDetail {
   links: Record<string, string> | null;
   releases: Release[];
   edges: ArtistEdge[];
-  // True when this artist composed at least one work (movement VII, D11). The artist page uses it
-  // to render the composer body (works + master–apprentice lineage) instead of the band ficha.
-  hasWorks: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,52 +118,6 @@ export interface CoverEdge {
 export interface VersionGraph {
   graph: Graph;
   versions: CoverEdge[];
-}
-
-// ---------------------------------------------------------------------------
-// Movement VII — the composer body (D11). A composer is not a band: no Gantt, no
-// members, no rank (classical listeners lie). The hero is the grouped list of works
-// plus two lineages (teacher/student and influence).
-// ---------------------------------------------------------------------------
-
-// One musical work (a composition). `kind` is MusicBrainz's work type (symphony, opera, song…)
-// and is null when MusicBrainz gave none — never invented.
-export interface Work {
-  id: string;
-  mbid: string;
-  title: string;
-  kind: string | null;
-}
-
-// A group of works sharing one kind. `kind` is null for the "unclassified" group (works with no
-// MusicBrainz type), which the front shows under its own heading, never hidden.
-export interface WorkGroup {
-  kind: string | null;
-  works: Work[];
-}
-
-// A composer linked from another in the master–apprentice or influence lineage.
-export interface ComposerLink {
-  id: string;
-  name: string;
-}
-
-// A composer's lineage: who they studied with, who they taught, and whom they influenced (P737),
-// plus the same relations as a graph for the shared GraphCanvas. Every list can be empty — sparse
-// lineage is real, so the front renders a designed empty state, never a stub.
-export interface ComposerLineage {
-  teachers: ComposerLink[];
-  students: ComposerLink[];
-  influences: ComposerLink[];
-  graph: Graph;
-}
-
-// The composer body payload: the work count, the works grouped by kind, and the lineage. Identity
-// (name, country, bio) comes from the ArtistDetail the page already holds.
-export interface ComposerDetail {
-  workCount: number;
-  workGroups: WorkGroup[];
-  lineage: ComposerLineage;
 }
 
 // ---------------------------------------------------------------------------

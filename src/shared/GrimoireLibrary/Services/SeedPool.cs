@@ -9,7 +9,6 @@ public enum SeedFamily
     Metal,
     Rock,
     Punk,
-    Classical,
     Folk,
     Electronic,
 
@@ -29,10 +28,11 @@ public enum SeedFamily
 /// </list>
 ///
 /// <para>
-/// Why this exists: ordering the grid by how prolific a band is buries the metal. Bach has 5 804
-/// releases and Metallica 1 035, so a "most releases first" grid is a wall of classical and a
-/// metal listener finds nothing to click. The grid is instead drawn from the most-listened bands
-/// of each family in turn, so every family a user might arrive with is on screen from the start.
+/// Why this exists: ordering the grid by how prolific a band is buries the underground. A handful
+/// of canonical acts have thousands of releases, so a "most releases first" grid is a wall of the
+/// famous and an underground listener finds nothing to click. The grid is instead drawn from the
+/// most-listened bands of each family in turn, so every family a user might arrive with is on
+/// screen from the start.
 /// </para>
 /// </summary>
 public static class SeedPool
@@ -43,21 +43,16 @@ public static class SeedPool
         SeedFamily.Metal,
         SeedFamily.Rock,
         SeedFamily.Punk,
-        SeedFamily.Classical,
         SeedFamily.Folk,
         SeedFamily.Electronic,
     ];
 
     // Within ONE tag, matched in this order, so a compound lands where a listener would put it:
     // "folk metal" and "industrial metal" are metal, "punk rock" is punk, "folk rock" is folk.
-    //
-    // No "baroque" under Classical on purpose: it would drag "baroque pop" (the Bee Gees) into the
-    // canon, and every real composer in the catalogue carries the plain "classical" tag anyway.
     private static readonly (SeedFamily Family, string[] Needles)[] Rules =
     [
         (SeedFamily.Metal, ["metal", "nwobhm", "thrash", "doom", "sludge", "grindcore", "grind", "djent"]),
         (SeedFamily.Punk, ["punk", "hardcore", "crust", "streetpunk", "oi!"]),
-        (SeedFamily.Classical, ["classical", "opera", "composer", "chamber music", "renaissance", "romantic period", "early music"]),
         (SeedFamily.Folk, ["folk", "traditional", "celtic", "nordic", "medieval", "singer-songwriter"]),
         (SeedFamily.Electronic, ["electronic", "ambient", "industrial", "synth", "techno", "house", "drone", "noise", "darkwave", "ebm"]),
         (SeedFamily.Rock, ["rock", "grunge", "psychedelic", "progressive", "blues", "shoegaze"]),

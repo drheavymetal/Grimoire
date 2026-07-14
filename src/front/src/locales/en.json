@@ -108,22 +108,6 @@
     "creditsGuests": "Guests",
     "creditsProduction": "Production"
   },
-  "composer": {
-    "loading": "Reading the manuscript…",
-    "error": "The composer's works would not load. Try again.",
-    "worksTitle": "Works",
-    "worksHint": "The compositions attributed to this composer, grouped by kind.",
-    "workCount_one": "{{count}} work",
-    "workCount_other": "{{count}} works",
-    "unclassified": "Unclassified",
-    "noWorks": "No works gathered yet. MusicBrainz has none attributed to this composer.",
-    "lineageTitle": "Lineage",
-    "lineageHint": "Who this composer studied with, whom they taught, and whom they drew from. The pedagogical chain is a real relation (Fauré → Boulanger → Glass), not a genre tag.",
-    "studiedWith": "Studied with",
-    "taught": "Taught",
-    "influencedBy": "Influenced by",
-    "noLineage": "No lineage recorded. Teacher and student ties are sparse — only a handful run through the whole corpus."
-  },
   "creditRole": {
     "producer": "producer",
     "engineer": "engineer",

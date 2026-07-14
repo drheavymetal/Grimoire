@@ -75,5 +75,28 @@ public class Artist
 
     public string? ImageUrl { get; set; }
 
+    /// <summary>
+    /// Metal Archives band id, when this band was matched on Metallum (D48). Drives the Metallum
+    /// link every band page owes them (Invariant 3) and marks the row as matched. Null = not on
+    /// MA, or matched ambiguously and left alone (name+country+year, never guessed — D48/R3).
+    /// </summary>
+    public int? MetalArchivesId { get; set; }
+
+    /// <summary>Metal Archives' own genre string (e.g. "Black Metal (early); Ambient (later)"). Null until matched.</summary>
+    public string? MetalArchivesGenre { get; set; }
+
+    /// <summary>
+    /// Lyrical themes from Metal Archives — the one field that exists nowhere else (D48/Q4). Empty
+    /// until the MA pass matches the band; empty is a real gap, never invented (Invariant 5).
+    /// </summary>
+    public string[] LyricalThemes { get; set; } = [];
+
+    /// <summary>
+    /// When the Metal Archives pass last looked this band up, matched or not. The resume marker: a
+    /// non-null value means "already checked, do not fetch again" so a re-run never re-crawls a band
+    /// MA has no entry for (honours the one-pass, don't-hammer terms of D42/D48).
+    /// </summary>
+    public DateTime? MetalArchivesCheckedAt { get; set; }
+
     public List<Release> Releases { get; set; } = [];
 }

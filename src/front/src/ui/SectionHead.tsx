@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-// A section kicker for the hub pages (Explore, Mirror, Lineage, the composer body…). A short sulphur
+// A section kicker for the hub pages (Explore, Mirror, Lineage…). A short sulphur
 // tick rule sets each section off as an authored chapter instead of a stack of identical headings —
 // the single-accent editorial device of the reference. It renders as a fragment on purpose: the h2
 // stays a DIRECT child of its section container, so the e2e suite's heading-scoped queries

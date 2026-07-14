@@ -738,13 +738,69 @@ Se le contesta explicando esto, no en silencio (`outreach/metal-archives.md` §3
 
 ---
 
+## D48 — MA elige que scrapeemos; no tienen MBIDs; ratifican no comercial
+`2026-07-15` · vigente · **cierra Q9, confirma R3** · segunda respuesta de MA
+
+MA contestó al correo §3 de `outreach/` (las tres puertas). Literal en `outreach/metal-archives.md` §4. Resuelve las tres preguntas abiertas del correo:
+
+1. **Puerta → SCRAPE.** *«if you can take care of scraping the data yourself, that's waaay less effort for me. The bandwidth is kinda meaningless.»* Export y API descartados por ellos: **no tienen API** (*«Maybe someday, but I can't promise anything»*). Se ejerce el permiso de D42 bajo sus condiciones: **≤ 1 req/s, secuencial, backoff 429/503, `User-Agent` con contacto, cacheado a disco (nunca dos veces la misma página), una sola pasada, se para el día que lo pidan.** Q9 cerrada.
+2. **Sin MBIDs — confirmado el peor caso (R3).** *«Sorry, we don't have MusicBrainz IDs.»* El emparejado MA ↔ MusicBrainz es por **nombre + país + año**; los ambiguos se quedan **sin match antes que adivinar**. Miembros aún más estrictos (dos «John Smith» batería ≠ mismo hombre → **ningún line-up antes que uno equivocado**, ya fijado en D44). Es el trabajo técnico duro del scrape.
+3. **No comercial — ratificado.** *«Fair enough concerning the non-commercial stipulation.»* Refuerza D42/D47/R10. Sin novedad, cierra el bucle.
+
+**Consecuencia operativa**: el scrape entra por `IEnrichmentSource` como todo lo demás (D9), en el server en Docker con `restart: unless-stopped` (donde el gestor de tareas no lo mata — §7 de `MEMORY.md`). Corre **en paralelo con el pase de Last.fm** sin conflicto: hosts distintos (`metal-archives.com` vs `ws.audioscrobbler.com`), el límite de 1 req/s es por sitio, y las claves de match son distintas (Last.fm por MBID, MA por nombre+país+año). Post-scrape: re-embeber las bandas que ganen `tags`/`lyrical_themes` + refrescar `corpus_stats`.
+
+---
+
+## D49 — Imágenes de MA: se cachean y se sirven, con retirada a petición — el riesgo es nuestro
+`2026-07-15` · vigente · **cierra la pregunta de imágenes de D44** · decidido por Pedro
+
+D44 preguntó a MA si podíamos cachear y servir sus logos/fotos. Su respuesta **no es un sí ni un no: es un «no es mío para darlo».** Literal:
+
+> I also can't give you any kind of official permission to use the images since we don't own them. Our usage of the logos could be covered by fair use (at least that's our reasoning) and we'll remove band photos on request, but in the end they're all just images people have randomly taken from the Internet, so I can't tell you to use them or not use them.
+
+**Lo que esto significa**: MA no tiene la licencia que regalar (lo que D44 ya anticipaba: fotógrafos y bandas tienen los derechos). Nos devuelven la decisión y el riesgo. **Pedro decide replicar el modelo de riesgo de MA**: (a) **logos** — mismo razonamiento de fair use que ellos; (b) **fotos de banda** — se cachean y se sirven, con **retirada a petición** (endpoint/flag para bajar una imagen concreta cuando alguien lo pida).
+
+**Condiciones, no negociables**:
+- **Jamás hotlink** (D44 sigue vigente): se cachea a disco y se sirve desde nosotros. El servidor de MA se toca una vez, no un millón — la condición «don't hammer» (D42) no se viola ni en cámara lenta.
+- **Crédito + enlace de vuelta** a la ficha de Metallum en cada imagen servida (invariante 3, ya vigente).
+- **Retirada a petición operativa desde el día uno**: si el modelo es «las quitamos si lo piden», tiene que existir el mecanismo para quitarlas. No se sirve una imagen que no se pueda bajar bajo demanda.
+
+**Riesgo asumido conscientemente**: la app se abre a derechos de terceros que ni MA ni nosotros controlamos. Aceptable en el marco actual (privada, cuatro amigos — mismo perímetro que R9). **Reevaluar antes de abrir al público**, junto a R9.
+
+---
+
+## D50 — Fuera toda la música clásica (movimiento VII) — **supersede D11 y D13**
+`2026-07-15` · vigente · decidido por Pedro · **supersede D11 (ficha de compositor) y el movimiento VII de D13**
+
+Pedro: *«¿podemos eliminar de grimoire todo lo de música clásica? enturbia mucho la aplicación de heavy + rock + folk.»* Y tenía razón por dos vías que ya asomaban: el arranque en frío se ahogaba con la clásica (Bach 5 804 discos), y el barrido de Last.fm ordenado por releases servía a Bach/Beethoven/Mozart como «las bandas de más discos». La clásica competía por el sitio con lo que la app es.
+
+**Qué se quita:**
+- **Datos**: 23 compositores (Persons con `works`), 2 291 works, linaje maestro-discípulo (edges Teacher/Student), y **634 orquestas + 81 coros** — **preservando las 3 que llevan un tag heavy** (Pedro: *«cuidado con no borrar nada heavy que colaborase con orquesta o coro»*). Las bandas heavy son `kind=Group` → intocables por tipo; las `tag=classical` **no se borran** (pueden ser symphonic/neoclassical metal — son bandas).
+- **Código**: el movimiento VII entero. Modelo `Work`, `ComposerController`/`ComposerDetailBuilder`/`ComposerLineage`/`ComposerResolver`/`WorkMapper`/`WorkGrouping`/`TeacherStudentResolver`, verbo `classical` + `ClassicalJob`, ficha de compositor en front (`ComposerBody`, `useComposer`, `artistView`), `EdgeKind.Teacher/Student`, `SeedFamily.Classical`, `ArtistDetail.HasWorks`. Migración `RemoveClassicalAddMetalArchives` dropea la tabla `works`.
+- **Se conserva**: `CreditResolver` (los créditos de orquesta/coro/composer son reglas MB genéricas que disparan en discos no clásicos) y `CoverVersion` (solo mencionaba works en un comentario).
+
+**Consecuencia**: `ArtistKind` mantiene `Orchestra`/`Choir` (una orquesta de metal sinfónico sigue siendo válida), pero el catálogo servible pierde el ruido clásico. El pool más honesto vale más.
+
+---
+
+## D51 — La escala de corrosión de Redaction estaba invertida — **corrige D38 y DESIGN §3**
+`2026-07-15` · vigente · **corrige la dirección de D38** · verificado renderizando las 6 caras
+
+Pedro mandó una captura de una banda («Ceremonius») en un mazacote pixelado ilegible: *«la letra elegida para las bandas se ve muy mal… me gusta la idea pero se ve mal.»* Al **renderizar las seis caras** (`scratchpad/redaction-preview.png`) se ve la verdad empírica: en los paquetes `@fontsource/redaction-*`, **`redaction-10` es la cara más LIMPIA y `redaction-100` la más CORROÍDA** (bloque de fotocopia degradada). El código *y* `DESIGN.md §3` lo tenían **al revés** («100 nítida … 10 casi ilegible»).
+
+El bug tenía tres caras: (1) las bandas **Known** (comunes) salían en el cut100 feo; (2) las **Nameless** (raras) salían limpias — la corrosión corría **con** la popularidad, no en contra; (3) `BASE=100` → **todo rank desconocido** (la mayoría del catálogo hasta que Last.fm rellene) salía en la cara ilegible.
+
+**Corrección** (`redaction.ts`): escala 10 (limpio) → 100 (corroído); `BASE=10`; mapa rareza→corrosión **Known 10 · Obscure 20 · Hidden 35 · Forgotten 50 · Nameless 70**, **capado en 70** — el cut100 se reserva solo para el primer fotograma transitorio del reveal, nunca para un nombre estático. Verificado por render (`rank-preview.png`): gradiente legible en todos los tiers, la más rara («Striborg» en cut70) erosionada pero perfectamente legible. **`DESIGN.md §3` queda pendiente de corregir su prosa** (dice «100 nítida»).
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
 |---|---|---|
 | Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? Ahora es **posible** (ver Q6), pero el icono de D27 ya encarna la pérdida de generación: serían dos firmas | `DESIGN.md` |
 | Q2 | Modo claro: ¿flyer fotocopiado, o neutro y limpio para fichas largas? | `DESIGN.md` |
-| Q9 | ¿Cómo nos dan la temática lírica: export, API o scrape? **Se les deja elegir a ellos** (`outreach/` §3, borrador pendiente de enviar). Los filtros de género ya están decididos: **no** (D43) | temática lírica (Q4 ya contestada) |
+| ~~Q9~~ | *(movida a Contestadas)* | |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
 | Q8 | A Gemini le faltan el **SVG**, la **marca hermana para tamaños pequeños** (D27), la paleta con hexes, las tipografías con paquete npm, y el tono de voz | favicon, tokens de `ui/` |
 
@@ -753,6 +809,7 @@ Se le contesta explicando esto, no en silencio (`outreach/metal-archives.md` §3
 | | Pregunta | Respuesta |
 |---|---|---|
 | ~~Q4~~ | Respuesta de Metal Archives | **Contestaron el 2026-07-14.** Autorizan el scrape si es no comercial y sin martillear; sugieren filtros de género opcionales. `D42` · `outreach/metal-archives.md` §1b |
+| ~~Q9~~ | ¿Cómo nos dan la temática lírica: export, API o scrape? | **Contestaron el 2026-07-15: que scrapeemos** (es lo que menos les cuesta; no tienen API). Sin MBIDs. `D48` · `outreach/metal-archives.md` §4 |
 | ~~Q3~~ | ¿Cobertura de previews en el underground? | **52 %** puede sonar; el 48 % es insonorizable. D25 |
 | ~~Q6~~ | ¿`Redaction` es instalable? | **Sí, está en fontsource.** Contra lo que se suponía. D29 |
 | ~~Q7~~ | ¿Agujero de texto en el underground? | **16 %**, no 60 %. El audio rescataría al 7 %. C19 degradado. D25 |
@@ -774,7 +831,7 @@ Consecuencia para D42/D45: **aceptar los datos de MA no cuesta ninguna libertad 
 
 **R2 — La ficha está más vacía justo donde la app te lleva.** Los créditos son excelentes para Iron Maiden y pésimos para el sludge finlandés de 300 oyentes. El motor de descubrimiento conduce exactamente a donde el dato no está. La ficha **debe degradar con dignidad**: estados vacíos diseñados, no huecos rotos.
 
-**R3 — Emparejado MA ↔ MusicBrainz sin MBIDs.** Por nombre + país + año. Los ambiguos se quedan fuera. Preguntar a Hellblazer si tienen MBIDs.
+**R3 — Emparejado MA ↔ MusicBrainz sin MBIDs — CONFIRMADO.** `2026-07-15` Ya no es hipótesis: MA respondió que **no tienen MBIDs** (D48). El emparejado es por **nombre + país + año**; los ambiguos se quedan fuera antes que adivinar, y los miembros con más cuidado aún (D44). Es el trabajo técnico duro del scrape y el que decide su precisión.
 
 **R4 — Sesgo de muestreo del spike.** Se muestrea MB por *tag*, y las bandas oscuras de verdad no tienen tags. La lectura honesta será «cobertura entre bandas tagueadas», no «cobertura general». Repetir muestreando por sellos underground (Nuclear War Now!, Iron Bonehead). El emparejado por nombre además cuela ruido (salió «Toto»; el «Death» con 2 457 fans de Deezer no es el de Chuck Schuldiner). **Materializado en D22**: las cifras del 85 % y del 82 % quedan inutilizables por este mismo motivo.
 

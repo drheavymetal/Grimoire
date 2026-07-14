@@ -9,11 +9,12 @@ import type { Rank } from '../../core/domain/types';
 import { prefersReducedMotion } from '../../platform/motion.web';
 
 // The reveal (DESIGN §3.1): the band name develops like a photograph — it emerges in the most
-// corroded Redaction face and resolves, cut by cut, to the face its RANK earns, over 600 ms. A
-// Known walks all the way to crisp (100); a Nameless is a single corroded frame that never
-// resolves; an unknown rank lands crisp, because unknown is not rare (D35). This wires Q1's
-// signature into the reveal with the real graded faces (D14/D38), replacing the earlier blur/
-// contrast stand-in. The corrosion is only ever the band name — the datum — never the app mark (D27).
+// corroded Redaction face (cut 100) and resolves, cut by cut, DOWN to the face its RANK earns, over
+// 600 ms. A Known walks all the way to clean (10); a Nameless resolves only to its capped, still-
+// eroded cut (70) and never fully clears; an unknown rank lands clean, because unknown is not rare
+// (D35). This wires Q1's signature into the reveal with the real graded faces (D14/D38), replacing
+// the earlier blur/contrast stand-in. The corrosion is only ever the band name — the datum — never
+// the app mark (D27).
 //
 // The develop is a state-driven walk through a pure, ordered sequence from core (D12): core owns the
 // sequence and the timing; this component only steps an index and paints. prefers-reduced-motion

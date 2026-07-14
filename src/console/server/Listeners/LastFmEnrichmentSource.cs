@@ -61,7 +61,8 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
             int? listeners = LastFmListeners.ParseListeners(byId);
             if (listeners is not null)
             {
-                return new ArtistEnrichment { Listeners = listeners };
+                // Tags ride along in the same body — one call fills both (MEMORY §6b).
+                return new ArtistEnrichment { Listeners = listeners, Tags = LastFmListeners.ParseTags(byId) };
             }
         }
 
@@ -76,7 +77,9 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
             artist.Name, ct);
 
         int? named = LastFmListeners.ResolveByName(byName, artist.Name);
-        return named is null ? null : new ArtistEnrichment { Listeners = named };
+        return named is null
+            ? null
+            : new ArtistEnrichment { Listeners = named, Tags = LastFmListeners.ParseTags(byName) };
     }
 
     private async Task<LastFmArtistInfoResponse?> GetInfoAsync(string url, string name, CancellationToken ct)

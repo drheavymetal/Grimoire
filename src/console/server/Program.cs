@@ -6,7 +6,7 @@ using Grimoire.Worker.Credits;
 using Grimoire.Worker.Embedding;
 using Grimoire.Worker.Listeners;
 using Grimoire.Worker.Atlas;
-using Grimoire.Worker.Classical;
+using Grimoire.Worker.MetalArchives;
 using Grimoire.Worker.MusicBrainz;
 using Grimoire.Worker.PersonLinks;
 using Grimoire.Worker.Preview;
@@ -21,7 +21,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks", "classical"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks", "metalarchives"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -44,7 +44,7 @@ if (verb is null)
     Console.WriteLine("  credits     Import performer/production credits from MusicBrainz (B9). Batched, resumable.");
     Console.WriteLine("  labels      Import labels + releases.label_id from MusicBrainz (B20/B21). Batched, resumable.");
     Console.WriteLine("  personlinks Fetch url-rels for member rows so they gain a Wikidata QID (unblocks 'deaths').");
-    Console.WriteLine("  classical   Seed canonical composers, their works, and teacher/student edges (movement VII).");
+    Console.WriteLine("  metalarchives  Match bands on Metal Archives and import lyrical themes + genre (D48). ≤1 req/s, cached, resumable.");
     return;
 }
 
@@ -115,10 +115,8 @@ switch (verb)
         builder.Services.AddSingleton(BuildPersonLinksOptions(builder));
         builder.Services.AddHostedService<PersonLinksJob>();
         break;
-    case "classical":
-        ConfigureMusicBrainz(builder);
-        builder.Services.AddSingleton(BuildClassicalOptions(builder));
-        builder.Services.AddHostedService<ClassicalJob>();
+    case "metalarchives":
+        ConfigureMetalArchives(builder);
         break;
 }
 
@@ -294,16 +292,51 @@ static PersonLinksOptions BuildPersonLinksOptions(HostApplicationBuilder builder
     return new PersonLinksOptions { Limit = limit };
 }
 
-static ClassicalOptions BuildClassicalOptions(HostApplicationBuilder builder)
+static void ConfigureMetalArchives(HostApplicationBuilder builder)
 {
-    int works = builder.Configuration.GetValue("Classical:WorksPerComposer", 100);
+    builder.Services.AddSingleton(BuildMetalArchivesOptions(builder));
 
-    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_CLASSICAL_WORKS"), out int envWorks) && envWorks > 0)
+    // Dedicated client with the identifiable User-Agent Grimoire committed to MA (D42/D48) and a
+    // backoff on 429/503. The ≤1 req/s pacing lives in MetalArchivesSource's rate limiter, not here.
+    builder.Services.AddHttpClient("metalarchives", client =>
+        {
+            client.BaseAddress = new Uri("https://www.metal-archives.com/");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Grimoire/1.0 (+https://grimoire.drheavymetal.com; pmanso@go2chain.es)");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .AddResilienceHandler("metalarchives", pipeline =>
+        {
+            pipeline.AddRetry(new HttpRetryStrategyOptions
+            {
+                MaxRetryAttempts = 3,
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                Delay = TimeSpan.FromSeconds(3),
+                ShouldHandle = static args => ValueTask.FromResult(
+                    args.Outcome.Exception is HttpRequestException
+                    || args.Outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests }
+                    || args.Outcome.Result is { StatusCode: HttpStatusCode.ServiceUnavailable }),
+            });
+        });
+
+    builder.Services.AddSingleton(sp => new MetalArchivesSource(
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient("metalarchives"),
+        sp.GetRequiredService<ILogger<MetalArchivesSource>>()));
+
+    builder.Services.AddHostedService<MetalArchivesJob>();
+}
+
+static MetalArchivesOptions BuildMetalArchivesOptions(HostApplicationBuilder builder)
+{
+    int limit = builder.Configuration.GetValue("MetalArchives:Limit", 500);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_METALARCHIVES_LIMIT"), out int envLimit) && envLimit > 0)
     {
-        works = envWorks;
+        limit = envLimit;
     }
 
-    return new ClassicalOptions { WorksPerComposer = works };
+    return new MetalArchivesOptions { Limit = limit };
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

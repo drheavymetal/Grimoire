@@ -13,8 +13,6 @@ public class SeedPoolTests
     [InlineData(SeedFamily.Metal, "nwobhm")]
     [InlineData(SeedFamily.Punk, "punk rock")]
     [InlineData(SeedFamily.Punk, "hardcore")]
-    [InlineData(SeedFamily.Classical, "classical", "baroque")]
-    [InlineData(SeedFamily.Classical, "composer")]
     [InlineData(SeedFamily.Folk, "folk rock", "folk")]
     [InlineData(SeedFamily.Electronic, "ambient", "drone")]
     [InlineData(SeedFamily.Rock, "rock", "blues rock")]
@@ -27,7 +25,7 @@ public class SeedPoolTests
     [Theory]
     [InlineData("hip hop", "pop rap")]
     [InlineData("pop")]
-    // The Bee Gees: "baroque pop" must not smuggle them into the classical canon.
+    // The Bee Gees: a stray "baroque pop" tag names no family, so they stay Other, not miscast.
     [InlineData("disco", "pop", "baroque pop")]
     public void FamilyOf_WhatTheCatalogueSweptIn_IsOther(params string[] tags)
     {
@@ -62,12 +60,12 @@ public class SeedPoolTests
         [
             ["metal1", "metal2", "metal3"],
             ["rock1", "rock2", "rock3"],
-            ["classical1", "classical2", "classical3"],
+            ["folk1", "folk2", "folk3"],
         ];
 
         List<string> merged = SeedPool.Interleave(lanes, 6, x => x);
 
-        Assert.Equal(["metal1", "rock1", "classical1", "metal2", "rock2", "classical2"], merged);
+        Assert.Equal(["metal1", "rock1", "folk1", "metal2", "rock2", "folk2"], merged);
     }
 
     [Fact]

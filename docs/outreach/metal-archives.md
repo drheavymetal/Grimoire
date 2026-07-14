@@ -130,6 +130,65 @@ Sustituye al borrador §2 (que se escribió cuando *no* podíamos scrapear y por
 
 ---
 
+## 4. Segunda respuesta — recibida 2026-07-15
+
+Contestaron al correo §3 (las tres puertas + MBIDs + imágenes + no-comercial + filtros). Literal (lo pegó Pedro):
+
+> To be honest, if you can take care of scraping the data yourself, that's waaay less effort for me. The bandwidth is kinda meaningless. We don't have an API at the moment. Maybe someday, but I can't promise anything.
+>
+> Sorry, we don't have MusicBrainz IDs, though.
+>
+> I also can't give you any kind of official permission to use the images since we don't own them. Our usage of the logos could be covered by fair use (at least that's our reasoning) and we'll remove band photos on request, but in the end they're all just images people have randomly taken from the Internet, so I can't tell you to use them or not use them.
+>
+> Fair enough concerning the non-commercial stipulation.
+>
+> About the filters, well, I understand your point. You can do what you want, and I guess you'll see how it goes. Just for my part, though, the fact remains that if I were to use this service, and it kept making me listen to shitty black metal, then I wouldn't use it for long, you know? :)
+
+### Qué resuelve — las tres puertas, contestadas
+
+1. **Puerta → SCRAPE.** Export y API descartados por ellos: no tienen API (quizá futuro, sin promesa), y scrapear es lo que **menos les cuesta** («waaay less effort», el ancho de banda les da igual). Se ejerce el permiso de D42 bajo sus condiciones. → **`D48`, Q9 cerrada.**
+2. **Sin MBIDs — confirmado el peor caso.** El emparejado MA↔MusicBrainz será por **nombre+país+año**, ambiguos sin match. → **`D48`, `R3` confirmado.**
+3. **Imágenes — no-permiso deliberado, ni prohibición.** No son suyas para autorizarlas: logos = fair use (su razonamiento), fotos = las quitan a petición, pero *«I can't tell you to use them or not use them»*. La pelota y el riesgo son nuestros. → **`D49`: Pedro decide cachear+servir con retirada a petición.**
+4. **No comercial — ratificado.** *«Fair enough.»* Cierra el bucle con D42/D47/R10.
+
+### Qué mantienen (filtros)
+
+Siguen prefiriendo filtros de género — con gracia: *«You can do what you want… if it kept making me listen to shitty black metal, then I wouldn't use it for long»*. **No cambia D43**: el dolor real (algo odiado que vuelve) ya lo resuelve `Banish` como memoria, no como filtro. El chiste es un buen test — verificado que Banish/repulsión basta (D33).
+
+### Qué compromete ahora (además de §3)
+
+7. **Se ejerce el scrape** bajo las condiciones de D42 (≤1 req/s, secuencial, backoff, UA con contacto, cacheado, una pasada, se para si lo piden).
+8. **Imágenes cacheadas y servidas por nosotros**, nunca hotlinkeadas (D44/D49), creditadas + enlace a Metallum, **con retirada a petición operativa desde el día uno**.
+
+---
+
+## 5. Agradecimiento y cierre del bucle — ENVIADO 2026-07-15
+
+Respuesta al §4. No pide nada: agradece, reconfirma por escrito las condiciones (scrape + imágenes), reconoce su punto sobre los filtros **sin prometer un filtro** (D43 sigue en pie: `Banish` es la respuesta), y les invita a probar la app cuando esté acabada.
+
+**Asunto:** Re: Grimoire — a free discovery tool that sends people back to Metallum
+
+> Hi,
+>
+> That settles it, then — I'll scrape, carefully, exactly the way I promised: one request per second, sequential, backing off on errors, a User-Agent with my email in it, cached so I never fetch the same page twice, and one pass only. And I'll match on name, country and year since there are no MBIDs, leaving the ambiguous ones unmatched rather than guessing. No hurry on any of it.
+>
+> On the images — understood, and thank you for being straight about it. I'll treat them the way you do: cached and served from my end (never hotlinked at your server), credited and linked back to the band's Metallum page, and taken down on request. If a photographer or a band ever objects, that's their call and I'll honour it.
+>
+> And point taken on the filters — I really did hear you. You're right that nobody sticks with a thing that keeps shoving stuff they hate at them. The way I'm handling it is memory rather than a genre picker: when you banish a band, the app learns it and stops walking you back toward that corner. We'll see how it goes, like you said — and if it turns out I'm wrong, I'll know, because I'll have stopped using it too.
+>
+> When it's finished and actually good, I'd love for you to try it — no pressure at all, only if you're curious. It'd mean a lot to have it seen by someone who knows this scene better than anyone.
+>
+> Thank you, genuinely, for all of it — the permission, the honesty, and twenty-plus years of the best music database on the internet. You've been incredibly kind.
+>
+> Cheers,
+> Pedro
+
+### Qué compromete
+
+Nada nuevo — reconfirma por escrito D48 (condiciones del scrape) y D49 (imágenes: cache+servir, no hotlink, retirada a petición). Reafirma D43 (sin filtro; `Banish` cubre el dolor real). Añade una invitación informal a que prueben la app cuando esté acabada (sin compromiso de fecha).
+
+---
+
 ## 2. Petición de subconjunto — BORRADOR, SUPERSEDIDO por §3, nunca enviado
 
 Se escribió cuando **no** podíamos scrapear, así que **pedía** un favor. Tras su permiso (§1b) el marco cambió: ahora **ofrecemos** y la elección es suya. Se conserva por el razonamiento, no para mandarlo.
