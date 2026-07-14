@@ -640,6 +640,23 @@ Metal Archives **contestó** al correo de presentación del 2026-07-10 (`docs/ou
 
 ---
 
+## D47 — Grimoire no será nunca de pago. Punto.
+`2026-07-14` · vigente · **cierra D45 y la duda abierta en D42** · decidido por Pedro
+
+D45 dejaba la puerta entornada: gratis mientras se pueda autohospedar, y si el coste apretaba, **preguntar a MA antes** de pedir dinero a nadie. Con los números encima de la mesa (R9, R10), Pedro la cierra del todo: **esto no va a ser nunca de pago.**
+
+**Lo que lo decidió no fue MA.** Fue descubrir que **la puerta ya estaba cerrada** (R10): los términos de la API de Last.fm dicen literalmente *«solely for non-commercial purposes»*, y Last.fm alimenta el pilar de Ranks. Apple, encima, exigiría el programa de afiliados y cumplir sus condiciones de preview (R9). Monetizar Grimoire nunca fue «convencer a MA»: era **renegociar con Last.fm, Apple y MA a la vez**. El precio de la libertad comercial era rehacer la mitad de las fuentes de la app.
+
+**Consecuencias, todas simplificadoras:**
+- La condición no comercial de MA (D42) **deja de ser una atadura y pasa a ser una coincidencia**: ya íbamos ahí.
+- La cláusula de D45 («si el coste aprieta, se pregunta antes») **queda sin objeto**. Si algún día el hospedaje cuesta dinero de verdad, las salidas son **pagarlo o apagarla** — no cobrar.
+- La idea de **cobrar por la IA** (D45, tabla) queda **descartada**. Si alguna vez existe una feature que queme un LLM por usuario, **solo BYO-key** — el usuario paga a su proveedor, nosotros nunca tocamos dinero.
+- El correo a MA (`outreach/` §3) se envía **sin reservas**: no cede ninguna libertad que el proyecto quisiera conservar.
+
+Esta decisión **no caduca con el tráfico**. Si Grimoire crece hasta hacerse caro, se apaga o se encoge. No se cobra.
+
+---
+
 ## D46 — Solo se descubre lo que tiene discografía (el Rito servía baterías de sesión)
 `2026-07-14` · vigente · **bug de corrección, no de estilo**
 

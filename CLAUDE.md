@@ -94,7 +94,7 @@ Tres pilares: **The Rite** (cata a ciegas), **Ranks** (rareza inversa a la popul
 
 ## Invariantes — no se rompen sin una entrada nueva en DECISIONS.md
 
-1. **Coste operativo cero.** Ninguna fuente, modelo ni servicio de pago. Embeddings en el Ollama autohospedado.
+1. **Coste operativo cero, y gratuita para siempre (D47).** Ninguna fuente, modelo ni servicio de pago. Embeddings en el Ollama autohospedado. **Grimoire no se monetiza nunca** — ni suscripción, ni anuncios, ni bote de donaciones, ni cobrar por la IA. No es solo un principio: los ToS de **Last.fm** (*«solely for non-commercial purposes»*, R10) y de **Apple** (R9) lo prohíben, y de ellos dependen el pilar de Ranks y todo el audio. Si algún día el hospedaje cuesta dinero, **se paga o se apaga**. Si alguna vez hay una feature con LLM por usuario, **solo BYO-key**.
 2. **Metal Archives se scrapea solo bajo su permiso, y con sus condiciones** (D42, contestaron el 2026-07-14): **uso no comercial** y **sin martillear el sitio** (≤ 1 req/s, secuencial, backoff, User-Agent con contacto, resumible). Lo que antes era una prohibición ahora es un contrato: **monetizar Grimoire rompería el permiso de MA**, no solo el principio de coste cero. No se ha ejercido todavía (Q9). Ver `docs/outreach/`.
 3. **Toda ficha de banda enlaza a su entrada de Metallum.** Comprometido por escrito el 2026-07-10, y sigue en pie: no era condición suya, era palabra nuestra.
 4. **Grimoire no reproduce música.** Previews de 30–45 s y enlaces a los servicios de streaming. Nada más.
