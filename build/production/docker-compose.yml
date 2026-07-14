@@ -20,6 +20,16 @@ services:
       timeout: 5s
       retries: 10
 
+  # Self-hosted embeddings (invariant 1 / D6). Only semantic search (B2) needs it live: the
+  # catalogue's 175k vectors are already computed, and serving a rite invokes no model at all.
+  # On the INTERNAL network with no host port — Ollama has no auth of its own, so nothing but the
+  # API may reach it. Without this the API embeds nothing and B2 answers 503.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - grimoire-ollama-models:/root/.ollama
+
   api:
     build:
       context: ../..
@@ -28,12 +38,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_started
     environment:
       ConnectionStrings__Grimoire: "Host=postgres;Port=5432;Database=grimoire;Username=grimoire;Password=${POSTGRES_PASSWORD}"
       Jwt__Issuer: grimoire
       Jwt__Audience: grimoire-client
       Jwt__SigningKey: ${JWT_SIGNING_KEY}
       Cors__Origins__0: "https://${GRIMOIRE_HOST}"
+      Ollama__BaseUrl: "http://ollama:11434/"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grimoire-api.rule=Host(`${GRIMOIRE_HOST}`) && PathPrefix(`/api`)"
@@ -60,3 +73,4 @@ services:
 
 volumes:
   grimoire-pgdata:
+  grimoire-ollama-models:
