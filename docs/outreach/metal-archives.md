@@ -52,9 +52,38 @@ No pide nada. Su función es abrir la puerta y dejar constancia de que no se les
 
 ---
 
+## 1b. Respuesta — recibida 2026-07-14
+
+Contestaron. Literal (lo pegó Pedro en el chat; el correo vive en su bandeja):
+
+> Hi,
+>
+> That sounds like a cool idea. I don't have much advice to offer, but maybe some genre filters would be useful? I like the idea that it gives you something completely random by default without providing any details, but optionally, some people might want to hear something new in a specific genre, or exclude a subgenre they really don't want to hear.
+>
+> If it would be helpful for you to scrape some data from MA, that's fine as long as it remains for non-commercial use and that you don't hammer the site with requests.
+>
+> Glad you've found MA useful over the years!
+
+### Qué concede
+
+**Permiso explícito de scraping**, con **dos condiciones que ahora nos obligan**:
+
+1. **Uso no comercial.** Coincide con el invariante 1 del proyecto (coste cero, gratis), pero deja de ser una elección nuestra: es la condición del permiso. Monetizar Grimoire rompería el acuerdo con MA, no solo un principio interno.
+2. **Sin martillear el sitio.** No dan una cifra. Nosotros ponemos la cifra y erramos por lo lento — ver `D42`.
+
+Deroga la promesa unilateral del correo 1 («we are not scraping you»): la retiraron ellos, no nosotros. **El compromiso 2 del correo 1 (enlazar toda ficha a Metallum) sigue en pie** y no lo toca nadie.
+
+### Qué sugieren (opinión, no petición)
+
+Filtros de género **opcionales**: mantener la cata a ciegas y aleatoria **por defecto** —les gusta tal cual— pero dejar (a) pedir un género concreto, (b) **excluir** un subgénero que no quieres oír. Es una idea de producto de quien mejor conoce esta escena. Pendiente de decidir por Pedro; no se ha implementado nada.
+
+---
+
 ## 2. Petición de subconjunto — BORRADOR, no enviado
 
-Se manda **solo cuando contesten al primero**. Pide exactamente lo que Hellblazer ha dicho públicamente que se puede pedir: un subconjunto concreto, no la base.
+**Su utilidad cayó con la respuesta**: pedía un export porque no podíamos scrapear. Ahora podemos. Sigue teniendo sentido **solo** si se prefiere un fichero limpio a un crawl de semanas — y la pregunta técnica que lleva dentro (¿guardan MBIDs?) vale su peso en oro, porque sin ellos el emparejamiento con MusicBrainz es por nombre+país+año.
+
+Pide exactamente lo que Hellblazer ha dicho públicamente que se puede pedir: un subconjunto concreto, no la base.
 
 **Asunto:** Re: Grimoire — a small, specific data request
 

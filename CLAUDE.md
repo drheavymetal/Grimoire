@@ -95,8 +95,8 @@ Tres pilares: **The Rite** (cata a ciegas), **Ranks** (rareza inversa a la popul
 ## Invariantes — no se rompen sin una entrada nueva en DECISIONS.md
 
 1. **Coste operativo cero.** Ninguna fuente, modelo ni servicio de pago. Embeddings en el Ollama autohospedado.
-2. **No se scrapea Metal Archives.** Comprometido por escrito con sus webmasters el 2026-07-10. Ver `docs/outreach/`.
-3. **Toda ficha de banda enlaza a su entrada de Metallum.** También comprometido por escrito.
+2. **Metal Archives se scrapea solo bajo su permiso, y con sus condiciones** (D42, contestaron el 2026-07-14): **uso no comercial** y **sin martillear el sitio** (≤ 1 req/s, secuencial, backoff, User-Agent con contacto, resumible). Lo que antes era una prohibición ahora es un contrato: **monetizar Grimoire rompería el permiso de MA**, no solo el principio de coste cero. No se ha ejercido todavía (Q9). Ver `docs/outreach/`.
+3. **Toda ficha de banda enlaza a su entrada de Metallum.** Comprometido por escrito el 2026-07-10, y sigue en pie: no era condición suya, era palabra nuestra.
 4. **Grimoire no reproduce música.** Previews de 30–45 s y enlaces a los servicios de streaming. Nada más.
 5. **Ninguna fuente de datos es estructural.** Todas detrás de `IEnrichmentSource`, con feature flag. Ninguna vista se rompe si una falta — y faltarán, porque la cobertura es peor justo en las bandas oscuras que son el corazón de la app.
 6. **`src/front/src/core/` no toca el DOM.** Ni `window`, ni `document`, ni librerías acopladas. Recibe adaptadores por contexto. Es lo que hará barato el port a React Native.

@@ -616,13 +616,37 @@ D37 emparejaba `listeners` **solo por MBID** (Last.fm `getInfo?mbid=`) para no c
 
 ---
 
+## D42 — Metal Archives autoriza el scrape (no comercial, sin martillear) — **supersede D7**
+`2026-07-14` · vigente · **supersede D7 y el invariante 2 de `CLAUDE.md`** · pendiente de que Pedro decida si se ejerce
+
+Metal Archives **contestó** al correo de presentación del 2026-07-10 (`docs/outreach/metal-archives.md` §1b). Literal:
+
+> If it would be helpful for you to scrape some data from MA, that's fine as long as it remains for non-commercial use and that you don't hammer the site with requests.
+
+**D7 decía «no se scrapea Metal Archives»** apoyándose en dos patas: (a) un argumento técnico —MA solo aporta un campo irremplazable, la temática lírica— y (b) **palabra dada por escrito**. La pata (b) **la han retirado ellos**. La pata (a) **sigue intacta**: MA no aporta audio (The Rite), ni rank (Last.fm), ni grafo (MB+Wikidata). Sigue aportando exactamente **un facet**.
+
+**Lo que cambia**: el scrape pasa de *prohibido por palabra dada* a **permitido bajo contrato**. Lo que no cambia: **no es gratis en esfuerzo y sigue valiendo un solo facet**. Ejercer el permiso es una decisión de producto, no un automatismo — y no se ha ejercido todavía.
+
+**Las dos condiciones son ahora obligaciones nuestras**, y una de ellas asciende de principio a contrato:
+
+1. **Uso no comercial.** Coincide con D6 (coste cero, gratuito), pero **deja de ser una preferencia interna revocable**: monetizar Grimoire rompería el permiso de MA. Cualquier futura decisión de monetizar **debe** volver aquí primero.
+2. **Sin martillear el sitio.** No dieron cifra. **Nosotros la ponemos y erramos por lo lento**: cualquier crawler contra MA irá a **≤ 1 req/s, secuencial, con backoff ante 429/503, `User-Agent` identificable con contacto, y resumible** (como el de `edges`). El permiso es de ellos y se retira solo si lo abusamos.
+
+**El invariante 3 sigue vigente y no se toca**: toda ficha de banda enlaza a su entrada de Metallum. Eso no era condición suya, era palabra nuestra.
+
+**Alcance si se ejerce**: la **temática lírica** (Q4, el único campo irremplazable) y, como mucho, el género canónico de MA. **No** un mirror de MA: eso ni lo permitieron ni hace falta (D17: no reconstruir lo que ya existe). Nada de reseñas.
+
+**Alternativa que sigue abierta**: pedirles el subconjunto por correo (borrador §2 de `outreach/`) en vez de crawlear. Un export es más limpio, más rápido y les cuesta menos ancho de banda que 180k peticiones nuestras — y de paso responde si guardan MBIDs, sin los cuales el emparejamiento con MusicBrainz es por nombre+país+año.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
 |---|---|---|
 | Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? Ahora es **posible** (ver Q6), pero el icono de D27 ya encarna la pérdida de generación: serían dos firmas | `DESIGN.md` |
 | Q2 | Modo claro: ¿flyer fotocopiado, o neutro y limpio para fichas largas? | `DESIGN.md` |
-| Q4 | Respuesta de Metal Archives | temática lírica curada (mitigado parcialmente por C21) |
+| Q9 | ¿Se ejerce el permiso de MA (D42)? ¿Crawl propio a ritmo lento, o pedirles el export? ¿Y se hacen los **filtros de género opcionales** que sugirió su webmaster —género concreto y **exclusión** de subgénero, manteniendo el ciego aleatorio por defecto? | temática lírica (Q4 ya contestada), filtros del Rito |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
 | Q8 | A Gemini le faltan el **SVG**, la **marca hermana para tamaños pequeños** (D27), la paleta con hexes, las tipografías con paquete npm, y el tono de voz | favicon, tokens de `ui/` |
 
@@ -630,6 +654,7 @@ D37 emparejaba `listeners` **solo por MBID** (Last.fm `getInfo?mbid=`) para no c
 
 | | Pregunta | Respuesta |
 |---|---|---|
+| ~~Q4~~ | Respuesta de Metal Archives | **Contestaron el 2026-07-14.** Autorizan el scrape si es no comercial y sin martillear; sugieren filtros de género opcionales. `D42` · `outreach/metal-archives.md` §1b |
 | ~~Q3~~ | ¿Cobertura de previews en el underground? | **52 %** puede sonar; el 48 % es insonorizable. D25 |
 | ~~Q6~~ | ¿`Redaction` es instalable? | **Sí, está en fontsource.** Contra lo que se suponía. D29 |
 | ~~Q7~~ | ¿Agujero de texto en el underground? | **16 %**, no 60 %. El audio rescataría al 7 %. C19 degradado. D25 |
