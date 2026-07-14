@@ -89,11 +89,15 @@ Sustituye al borrador §2 (que se escribió cuando *no* podíamos scrapear y por
 >
 > Thank you — both for the offer and for taking the time. I want to be careful with it, so let me put the ball in your court rather than just start crawling.
 >
-> There's exactly one field in Metallum that genuinely exists nowhere else: **lyrical themes**. MusicBrainz and Discogs cover line-ups, discographies and credits well enough for what I'm doing. Nobody covers themes. That's all I'd want — no reviews, no images, no line-ups:
+> What I'd want is what a band's own page already holds, and nothing more:
 >
 > ```
-> band_id, name, country, year_formed, status, genre, lyrical_themes
+> band_id, name, country, year_formed, status, genre, lyrical_themes,
+> current and past line-up, aggregate review score of each release
+> (just the number, not the reviews themselves)
 > ```
+>
+> Lyrical themes are the one field that genuinely exists nowhere else — MusicBrainz and Discogs cover discographies and credits, but nobody covers themes. The rest is on the same page anyway, so it costs you nothing extra. To be explicit about what I am NOT asking for: the review texts. Those are your users' writing, they live on their own pages, and fetching them would multiply my requests tenfold for something I don't even display. The score alone is enough.
 >
 > Whichever of these is least work for you, I'll take. In this order, because I'd rather spend my time than yours:
 >
@@ -101,9 +105,13 @@ Sustituye al borrador §2 (que se escribió cuando *no* podíamos scrapear y por
 > 2. **An API**, if you have one or would rather expose one. I'll use it and respect whatever limits you set.
 > 3. **I scrape**, since you've said that's fine. If this is genuinely the least trouble for you, say so and I'll do it properly: one request per second at most, sequential, backing off on any 429, an identifiable User-Agent with my email in it, cached so I never fetch the same page twice, run once and not repeatedly. If I ever get it wrong, tell me and I'll stop that day.
 >
-> One technical question either way: **do your records hold MusicBrainz IDs anywhere?** If they do, it saves me weeks and makes the matching far more accurate. If not, I'll match on name + country + year and simply leave the ambiguous ones unmatched rather than guess.
+> One technical question either way: **do your records hold MusicBrainz IDs anywhere?** If they do, it saves me weeks and makes the matching far more accurate. If not, I'll match bands on name + country + year and simply leave the ambiguous ones unmatched rather than guess. (For members I'll be more careful still — two drummers called John Smith are not the same man, and I'd rather show no line-up than a wrong one.)
 >
-> Non-commercial it stays — that was already the plan, and now it's your condition, so it's not mine to change. Nothing gets redistributed: no dumps, no public endpoint handing your data back out. And every band page in Grimoire links to its Metallum entry, credited.
+> Then a separate question, which is a real ask and not a formality: **band photos and logos**. They would make the app, and **I will not hotlink them** — pointing an `<img src>` at your server would mean every page view of mine costs you bandwidth forever, which is exactly the "hammering" you asked me to avoid, only in slow motion. So instead I'm asking: would you be OK with me **caching them and serving them myself**, credited and linked back to the band's Metallum page? Your servers get hit once, not a million times. And if the answer is no — or if they're not really yours to give, since photographers and bands hold those rights — that's a perfectly good answer and I'll drop it.
+>
+> Non-commercial it stays, and nothing gets redistributed: no dumps, no public endpoint handing your data back out. Every band page in Grimoire links to its Metallum entry, credited.
+>
+> One thing I'd rather say now than have you find out later. It's free because I host it myself, on a machine I already pay for, so it costs me nothing extra — and that's how I want to keep it. What I can't honestly promise you is to lose money on it. If it ever grew enough that hosting started costing real money, I'd have three options: pay for it out of pocket, ask the people using it to chip in for the bill, or shut it down. I would not take the second one without coming back to you first and asking — and if you said no, I'd take the third before I'd break my word to you. Your condition is non-commercial, and it's yours to interpret, not mine to reinterpret quietly when it gets inconvenient.
 >
 > On the genre filters — I thought about it properly, and I'm going to say no, which I owe you an explanation for. The whole reason Grimoire exists is that I think we filter by label *before* we filter by ear: you read "technical brutal death from Slovakia" and you skip it before a note has played. A genre picker is that reflex, rebuilt. So I'd be putting the disease back in the cure. You're right that people will want it — I'd want it — which is exactly why I don't trust it.
 >

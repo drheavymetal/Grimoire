@@ -640,6 +640,57 @@ Metal Archives **contestó** al correo de presentación del 2026-07-10 (`docs/ou
 
 ---
 
+## D45 — Gratis mientras podamos autohospedarla; si el coste aprieta, se les pregunta a MA ANTES
+`2026-07-14` · vigente · **matiza la condición 1 de D42** · decidido por Pedro
+
+D42 registró la condición de MA («no comercial») como una obligación nuestra, y D6 ya fijaba coste operativo cero. Pedro añade el matiz honesto: **gratis, sí — perder dinero, no**. Hoy el coste marginal es cero porque corre en una máquina que ya se paga (`drheavyserver`, §6 de `MEMORY.md`). Si el tráfico creciera hasta que hospedarla costara dinero de verdad, las salidas son tres:
+
+1. Pagarlo del bolsillo.
+2. Pedir a quien la usa que ponga para la factura (donaciones, bote).
+3. Apagarla.
+
+**La 2 no se toma sin preguntarles antes.** Su permiso está condicionado a que esto sea no comercial, y **quién interpreta «no comercial» son ellos, no nosotros** — no vale reinterpretarlo en voz baja el día que incomode. Si dijeran que no, **se toma la 3 antes que romperles la palabra**. Va dicho en el correo (`outreach/` §3), no guardado para el día del apuro.
+
+**Consecuencia operativa**: cualquier propuesta futura de monetizar Grimoire (anuncios, suscripción, incluso un bote de donaciones) **vuelve aquí primero**, y de aquí sale un correo a MA. No es una preferencia de producto: es una cláusula de un acuerdo con un tercero.
+
+### Sobre «cobrar por la IA» como plan de viabilidad
+
+Pedro propuso que cada usuario **enganche su propio modelo** o **nos pague por usar el nuestro**. Antes de construir nada encima, el hecho: **hoy no hay inferencia por usuario que revender.**
+
+- La «IA» de Grimoire son **embeddings** (`nomic-embed-text`, Ollama local), calculados **una vez y en lote** sobre el catálogo (175 230 vectores, D26). Servir un rito **no invoca ningún modelo**: el gusto es la **media de vectores ya persistidos** (D15/D33) y el anillo lo resuelve **pgvector** (D4/D26/D31). La única llamada en caliente es la búsqueda semántica (B2), que embebe la frase del usuario — local y gratis.
+- **Coste marginal por usuario ≈ 0.** No hay factura de inferencia que recuperar. Un plan de cobro exigiría **inventar antes** una feature que sí consuma un LLM por usuario (descripciones generadas, «¿por qué esta banda?», minado real de temática lírica frente a la aproximación de C21/D17).
+
+Si algún día existe esa feature, las dos ideas **no** son equivalentes:
+
+| Idea | Coste operativo | ¿Rompe el acuerdo con MA? |
+|---|---|---|
+| **BYO key** (el usuario engancha su modelo) | cero — paga a su proveedor, nosotros no tocamos dinero | **No.** Preserva D6 y la condición no comercial de D42 |
+| **Cobrarnos a nosotros** por usar el nuestro | ingreso + factura de GPU | **Sí, es ingreso** → pasa por D45 y por un correo a MA **antes** |
+
+**BYO key es la única de las dos que preserva los dos invariantes a la vez.** Queda como la vía por defecto si el asunto se retoma; la otra no se toca sin preguntar a MA.
+
+---
+
+## D44 — Qué se le pide a MA: la página de la banda entera, la nota sin el texto, y las imágenes solo si nos dejan cachearlas
+`2026-07-14` · vigente · **ensancha el alcance de D42** · decidido por Pedro
+
+D42 acotó el alcance a «temática lírica y, como mucho, el género». Pedro cuestionó el recorte y tenía razón en dos de tres.
+
+**Formaciones — entran.** El argumento para excluirlas era falso: **están en la misma página de la banda** que el género y la temática. Si se scrapea esa página, el line-up viene **gratis, cero peticiones extra**. Excluirlo no ahorraba nada.
+- **Pero no se fusionan en `member_of` sin más.** El grafo Bloodline se apoya en **MBIDs de personas** (199 971 aristas de MB). MA no tiene MBIDs → habría que casar personas **por nombre**, y dos bateristas llamados «John Smith» no son el mismo hombre. Fusionar a ciegas **corrompe un pilar**. Se guardan **aparte, sin fusionar**, hasta poder casarlas con garantías. **Antes ningún line-up que uno equivocado.**
+
+**Nota de reseñas — entra el número, no el texto.** Distinción que cambia el coste por completo:
+- El **texto** de cada reseña vive en **su propia página** → multiplica el crawl por ~10x (justo lo que prometimos evitar en D42), es **autoría de sus usuarios**, y la app **no muestra reseñas**. Fuera.
+- La **nota agregada** por disco (el «12 reviews (78%)») sale **en la tabla de discografía de la propia página de la banda** → es **un número y viene gratis**. Entra.
+- **Aviso honesto sobre su utilidad**: esa nota estará **vacía justo donde más la querríamos**. Una banda de sludge con 300 oyentes tiene **cero reseñas**; la nota existe para el canon y falta en la cola oscura, que es el corazón de la app. Misma forma que el problema de `listeners`. Sirve como **desempate** entre candidatos igual de cercanos en el anillo; como criterio fuerte empujaría hacia lo aclamado y **en contra del pilar de la rareza** (D35). Se guarda; que pese o no es decisión aparte.
+
+**Imágenes — se piden, y JAMÁS se hotlinkean.** Pedro propuso un `<img src>` apuntando directo a MA con crédito. **No**:
+- Un `src` a su servidor significa que **cada carga de página de cada usuario nuestro les gasta ancho de banda, para siempre**. Es la condición «don't hammer the site» (D42) violada **en cámara lenta**. Es también lo que muchos sitios bloquean por `Referer`, y con razón.
+- **El crédito no es una licencia.** Las fotos y logos suelen ser de fotógrafos y de las propias bandas: **MA no puede regalar un permiso que no tiene**.
+- Vía limpia, y la que se les pregunta: **¿nos dejáis cachearlas y servirlas nosotros**, con crédito y enlace de vuelta a su ficha? Su servidor se toca **una vez, no un millón**. Y que puedan decir que no — se acepta y se deja caer.
+
+---
+
 ## D43 — Sin filtros de género en el Rito, ni siquiera opcionales
 `2026-07-14` · vigente · decidido por Pedro · **declina la sugerencia del webmaster de MA** (D42)
 
