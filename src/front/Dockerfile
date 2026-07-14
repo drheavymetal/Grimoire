@@ -7,8 +7,9 @@ COPY src/front/package.json src/front/pnpm-lock.yaml src/front/pnpm-workspace.ya
 RUN pnpm install --frozen-lockfile
 
 COPY src/front/ ./
-# The API base URL is baked at build time (Vite reads VITE_* from the environment). Defaults to
-# the dev API; production passes --build-arg VITE_API_URL=https://<host>/api.
+# The API base URL is baked at build time (Vite reads VITE_* from the environment). It is an
+# ORIGIN, never a path: the client prefixes /api on every request itself. Production passes
+# --build-arg VITE_API_URL=https://<host> — appending /api here yields /api/api/... 404s.
 ARG VITE_API_URL=http://localhost:5080
 ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm build

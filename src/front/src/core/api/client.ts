@@ -222,7 +222,10 @@ export function createGrimoireClient(
   baseUrl: string,
   options: GrimoireClientOptions = {},
 ): GrimoireClient {
-  const root = baseUrl.replace(/\/$/, '');
+  // The base URL is an ORIGIN — every path below already carries the /api prefix the controllers
+  // are routed on. A base that also ends in /api (an easy mistake when the deployment routes by
+  // PathPrefix) is normalised away here, so it cannot silently produce /api/api/... 404s.
+  const root = baseUrl.replace(/\/+$/, '').replace(/\/api$/, '');
   const fetchImpl = options.fetchImpl ?? fetch;
   const getAccessToken = options.getAccessToken ?? (() => null);
 

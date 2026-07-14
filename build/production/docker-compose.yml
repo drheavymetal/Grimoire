@@ -45,6 +45,9 @@ services:
     build:
       context: ../..
       dockerfile: src/front/Dockerfile
+      args:
+        # The ORIGIN, with no /api suffix: the client already prefixes /api on every path.
+        VITE_API_URL: "https://${GRIMOIRE_HOST}"
     restart: unless-stopped
     depends_on:
       - api

@@ -6,6 +6,7 @@ using Grimoire.Library.Models;
 using Grimoire.Server.Auth;
 using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
@@ -212,6 +213,19 @@ if (app.Configuration.GetValue("Grimoire:MigrateOnStartup", true))
     GrimoireDbContext db = scope.ServiceProvider.GetRequiredService<GrimoireDbContext>();
     await db.Database.MigrateAsync();
 }
+
+// In production the API sits behind Traefik, which terminates TLS and forwards over plain http.
+// Without this, Request.Scheme is "http" and the capability audio URLs the Rite hands out (built
+// from Request.Scheme/Host) come back as http:// on an https:// page — the browser blocks them as
+// mixed content and the blind listen dies. The proxy is on the docker network, so the known
+// networks/proxies allowlist is cleared: only the edge ever reaches this port.
+ForwardedHeadersOptions forwardedHeaders = new()
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedFor,
+};
+forwardedHeaders.KnownIPNetworks.Clear();
+forwardedHeaders.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeaders);
 
 app.UseSerilogRequestLogging();
 
