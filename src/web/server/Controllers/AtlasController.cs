@@ -26,6 +26,13 @@ namespace Grimoire.Server.Controllers;
 [AllowAnonymous]
 public class AtlasController : ControllerBase
 {
+    // The whole field is ~175k projected stars. Sending and drawing all of them froze weak machines
+    // (the canvas paints a radial-gradient nebula per star — 175k gradients a frame is a hang, and the
+    // JSON payload is tens of MB). A random sample of this size keeps the nebula's shape — density
+    // still reads where clusters are — while staying smooth. Re-sampled per request, so the field
+    // shimmers slightly between loads, which for a star map is no loss.
+    private const int MaxStars = 8000;
+
     private readonly GrimoireDbContext _db;
     private readonly AtlasProjector _projector;
 
@@ -45,7 +52,8 @@ public class AtlasController : ControllerBase
         List<AtlasStarDto> stars = await _db.Artists
             .AsNoTracking()
             .Where(a => a.XyX != null && a.XyY != null)
-            .OrderBy(a => a.Name)
+            .OrderBy(a => EF.Functions.Random())
+            .Take(MaxStars)
             .Select(a => new AtlasStarDto(a.Id, a.Name, a.Kind, a.Rank, a.XyX!.Value, a.XyY!.Value))
             .ToListAsync(ct);
 

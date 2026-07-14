@@ -12,6 +12,10 @@ namespace Grimoire.Server.Services;
 /// </summary>
 public sealed class AtlasProjector
 {
+    // Enough (embedding, xy) pairs to recover the offline PCA map by least squares; far below the full
+    // ~175k, so the reconstruction stays cheap in time and memory. See GetBasisAsync.
+    private const int BasisSampleSize = 12000;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private AtlasProjection.Basis? _basis;
@@ -62,9 +66,16 @@ public sealed class AtlasProjector
             using IServiceScope scope = _scopeFactory.CreateScope();
             GrimoireDbContext db = scope.ServiceProvider.GetRequiredService<GrimoireDbContext>();
 
+            // Reconstruct the linear PCA basis from a bounded, stable sample rather than all ~175k
+            // (embedding, xy) pairs: loading every 768-float embedding was ~½ GB into the API on the
+            // first projection, enough to OOM a shared box. Least-squares recovers the same offline
+            // map from a representative sample, and OrderBy(Id) over random Guids is a deterministic
+            // sample, so the basis — and the "you are here" marker — is stable across restarts.
             var rows = await db.Artists
                 .AsNoTracking()
                 .Where(a => a.Embedding != null && a.XyX != null && a.XyY != null)
+                .OrderBy(a => a.Id)
+                .Take(BasisSampleSize)
                 .Select(a => new { a.Embedding, a.XyX, a.XyY })
                 .ToListAsync(ct);
 
