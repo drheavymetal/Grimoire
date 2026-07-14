@@ -79,7 +79,7 @@ Filtros de género **opcionales**: mantener la cata a ciegas y aleatoria **por d
 
 ---
 
-## 3. Respuesta a su permiso — BORRADOR, pendiente de que Pedro lo envíe
+## 3. Respuesta a su permiso — **ENVIADO 2026-07-14**
 
 Sustituye al borrador §2 (que se escribió cuando *no* podíamos scrapear y por tanto **pedía**; este **ofrece**). Criterio de Pedro: **la elección es suya, y lo que no queremos es darles trabajo**. Tres puertas, en orden de menos molestia para ellos, y la de scrapear la última —solo si es la que menos les cuesta.
 

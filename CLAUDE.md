@@ -2,7 +2,9 @@
 
 App de descubrimiento musical para metal y rock (clásica más adelante). Producto independiente, gratuito, sin coste operativo. No forma parte de qlaios.
 
-**Estado (2026-07-11)**: **feature-complete y DESPLEGADO** en `https://grimoire.drheavymetal.com`. Los 7 movimientos hechos, catálogo real de **207 622 artistas** (dump completo de MusicBrainz, D5), motor a escala, escucha online JIT, rediseño visual v2. Quedan 5 features bloqueadas por datos (en curso) y el enriquecimiento perezoso (`listeners`).
+**Estado (2026-07-14)**: **feature-complete y DESPLEGADO** en `https://grimoire.drheavymetal.com`. Los 7 movimientos hechos, catálogo real de **207 622 artistas** (dump completo de MusicBrainz, D5), motor a escala, escucha online JIT, rediseño visual v2.
+
+**Lo siguiente está en `docs/MEMORY.md` §6b — léelo antes de tocar nada.** En corto: el 2026-07-14 se arreglaron cuatro bugs vivos en producción (el doble `/api` que rompía **toda** la API, el audio bloqueado por contenido mixto, la búsqueda semántica en 503 sin Ollama, y **D46: el Rito servía baterías de sesión como bandas, con audio de otro artista homónimo**). **Metal Archives contestó y autoriza el scrape** (D42/D44; correo enviado el 14). **D47: la app no será nunca de pago** — y no lo decidió MA, sino que los ToS de Last.fm ya lo prohibían (R10). **El trabajo grande pendiente**: el pase de Last.fm — **88 246 artistas descubribles (87 %) siguen sin `listeners`**, o sea el pilar de Ranks está ciego, y `artist.getInfo` **rellena `listeners` y `tags` en la misma llamada**.
 
 > **📖 Lee `docs/MEMORY.md` primero** — memoria consolidada en profundidad: la construcción por olas, los datos, la arquitectura, el despliegue (server, Traefik, cómo redesplegar, secretos, SSH), y los huecos. Lo de abajo («Dónde se dejó») es histórico de cuando el proyecto iba por el movimiento II.
 

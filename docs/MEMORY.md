@@ -23,7 +23,8 @@ La tesis: no dejamos de escuchar lo mismo por falta de recomendaciones, sino por
 - **Escucha a ciegas online**: previews resueltos **just-in-time** al servir (iTunes→Deezer), stream por proxy anti-leak, **cero audio local** (D40).
 - **Rediseño visual v2** implementado en toda la app (identidad metal atmosférica: logo, corrosión por rareza, el Rito como ritual — ver §5).
 - **Feature-complete**: los 7 movimientos, B1–B26 y C1–C27 (solo **C19** queda como hueco declarado por falta de toolchain de audio — §7). Incluye tracklists/duración/temas/versiones/paleta sobre **8 925 364 grabaciones** importadas de MB.
-- **Enriquecimiento nocturno completado (2026-07-12, ~03:00, finisher autónomo + auto-redespliegue)**: `rank` **2 639 → 14 330** (plateau; la cola restante no está en Last.fm ni por nombre), `credits` **5 153 → 32 929** grupos (casi entero), `influence` **80** (Wikidata bulk lo tumba con 502/429 — facet menor, no core; reintento con throttle daría bajos miles, ROI bajo). Prod re-restaurado y verificado: `front=200`, rank=14 330, 23 otros contenedores intactos.
+- **Enriquecimiento nocturno (2026-07-12)**: `rank` **2 639 → 14 330**, `credits` **5 153 → 32 929** grupos (casi entero), `influence` **80** (Wikidata bulk lo tumba con 502/429 — facet menor, ROI bajo).
+  > ⚠️ **CORRECCIÓN (2026-07-14)**: esta entrada decía que el rank había llegado a un **«plateau»** y que «la cola restante no está en Last.fm ni por nombre». **Es falso.** El pase recorre a los artistas **por orden alfabético** (`ListenersJob.cs:65`, `.OrderBy(a => a.Name)`) y lo mataba el gestor de tareas de fondo: **nunca pasó de la letra B**. De los 14 330 con `listeners`, **13 206 empiezan por A o B**. No es un límite de la fuente, es un rastreo a medias — quedan **88 246 artistas descubribles sin `listeners`** (§6b).
 
 Los 40+ commits viven en `origin/main` (github.com:drheavymetal/Grimoire), sin firma GPG.
 
@@ -101,6 +102,56 @@ Detalle en `progress/deploy.md`. Resumen operativo:
 
 ### Exposición declarada (D28)
 Refresh tokens **no revocables** durante 16 días (sin logout server-side ni corte tras cambio de contraseña). Aceptado para amigos; revisar antes de abrir a más gente.
+
+---
+
+## 6b. Sesión 2026-07-14 — qué cambió y qué queda (LEER ANTES DE SEGUIR)
+
+Sesión larga con Pedro. Cuatro bugs de producción, dos decisiones estructurales y un correo enviado.
+
+### Arreglado y desplegado (verificado en prod, no solo en local)
+
+1. **Doble `/api` → 404 en TODAS las llamadas** (commit `0c2a2a4`). El front se horneaba con `VITE_API_URL=https://host/api` y el cliente ya prefija `/api`. No era «el registro roto»: era la API entera. El cliente ahora normaliza el sufijo y el compose pasa el **origen**.
+2. **Audio del Rito bloqueado por contenido mixto** (mismo commit). Traefik termina el TLS y reenvía por http → `Request.Scheme` = `http` → las URLs de capacidad del audio salían `http://` en página `https://`. Cableado `UseForwardedHeaders`.
+3. **Búsqueda semántica (B2) muerta desde el despliegue** (commit `cf1e53f`). 503: la API no tenía config de Ollama y el host lo tenía `disabled/dead` y sin `nomic-embed-text`. Añadido `grimoire-ollama` en la **red interna sin puerto de host** (Ollama no tiene auth). Huella: 424 MB RAM.
+4. **D46 — el Rito servía baterías de sesión como bandas** (commit `0372237`). **El peor de los cuatro.** 49 534 personas sin un solo disco estaban en el pool; **2 de cada 8 ritos** eran una persona, y el preview se emparejaba **por nombre** en iTunes → se servía el **audio de otro artista homónimo** como descubrimiento a ciegas. Filtro: `DiscoverableArtists.Discoverable()` = embedding **+ discografía**. Pool **175 230 → 100 915**.
+
+### Producto
+
+- **Arranque en frío rehecho** (commits `1c520af`, `6f9e4de`). La rejilla ya no ordena por nº de discos (eso enterraba el metal bajo el canon clásico: Bach 5 804 discos, Metallica 1 035) sino por **`listeners`, en round-robin por familias**. Y **crece hacia abajo**: al elegir una banda, sus vecinos se **insertan debajo** de ella; **nada de lo que ya leíste se mueve**. Reordenar la rejilla entera obligaba a releerla desde arriba en cada clic.
+- `SeedPool.FamilyOf` clasifica por **el primer tag que nombre una familia**, no escaneando todos: MB ordena los tags por votos, y un «funk metal» enterrado hacía que **Red Hot Chili Peppers ocupara un hueco de metal**.
+
+### Metal Archives — contestaron, y el correo ya salió
+
+**Autorizan el scrape** (no comercial + sin martillear) y sugieren filtros de género. Ver `outreach/metal-archives.md` §1b y §3 (**enviado el 2026-07-14**), y **D42/D43/D44**. Se les ofrecen tres puertas (export / API / que scrapeemos) y se les pregunta por las imágenes (**jamás hotlinkear** — D44). Los filtros de género **se declinan** (D43: son el reflejo que la app combate).
+
+**Esperar respuesta.** Si dicen que sí a un export, entra por `IEnrichmentSource` como todo lo demás.
+
+### La decisión que lo simplifica todo: D47 — **nunca de pago**
+
+Y lo que la provocó no fue MA: **la puerta ya estaba cerrada** (R10). Los ToS de la API de Last.fm dicen *«solely for non-commercial purposes»*, y Last.fm alimenta el pilar de Ranks. **R9**: los términos de Apple para los previews (badge, atribución, no cachear, nada de «valor de entretenimiento independiente») **chocan de frente con el Rito a ciegas** — riesgo vivo, Pedro decidió ignorarlo mientras sea privado.
+
+### LO SIGUIENTE: el pase de Last.fm (Pedro dijo «sí, pero luego»)
+
+**Es la palanca más grande que queda, con diferencia.** Sobre el pool descubrible (100 915):
+
+| Hueco | Cuántos |
+|---|---|
+| Sin `listeners` (→ sin rank → **pilar de Ranks ciego**) | **88 246 (87 %)** |
+| Sin tags | 34 566 |
+| Grupos sin tags | 26 758 (de los cuales solo **6 703** son plausiblemente metal → lo único que MA podría cubrir) |
+
+**La clave: `artist.getInfo` de Last.fm devuelve `listeners` Y `tags` en la MISMA llamada.** Un solo rastreo tapa los dos huecos. Hoy `LastFmArtist` solo deserializa `stats.listeners` — **hay que añadir los tags al DTO y al job**.
+
+**Por qué se quedó parado en la letra B** (y la afirmación de «plateau» en §7 es **falsa**): `ListenersJob.cs:65` recorre `.OrderBy(a => a.Name)` — **orden alfabético**. El gestor de tareas de fondo del agente mata los procesos largos cada 10-15 min, así que el pase nunca pasó de la B. Es resumible (filtra `Listeners is null`), pero **hay que lanzarlo donde no lo maten**: en el server, en un contenedor con `restart: unless-stopped`, no en el dev box.
+
+Plan acordado: (1) añadir tags al DTO/job, (2) lanzarlo en el server en Docker, ~25 h a 1 req/s, (3) **re-embeber** las bandas que ganen tags (el texto del embedding incluye los tags → cambia su sitio en el mapa; ~15 min), (4) refrescar `corpus_stats`.
+
+Alternativa gratuita y complementaria, **para el underground que no está en ninguna API**: **propagación por el grafo de miembros** (199 971 aristas ya en la base) — una banda sin tags cuyos miembros tocaron en bandas de black metal, es black metal. Debe guardarse marcado como **derivado**, nunca como afirmado.
+
+### Deuda operativa detectada
+
+- **El puerto 5173 lo ocupa el dev server de OTRO proyecto** (SkadAI). `playwright.config.ts` usa `reuseExistingServer: true`, así que **los E2E le hablaban a la app equivocada** y salían en rojo sin culpa de Grimoire. Workaround usado: levantar el front en `:5174` y un config temporal. **Pedro debe decidir** si se fija el puerto o se desactiva el reuse.
 
 ---
 
