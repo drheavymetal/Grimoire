@@ -1,43 +1,81 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSeedCandidates } from '../../core/hooks/useSeedCandidates';
+import { useRelatedSeeds, useSeedCandidates } from '../../core/hooks/useSeedCandidates';
 import { useImportLastFm, useSeed } from '../../core/hooks/useColdStart';
 import { ApiError } from '../../core/api/client';
+import { insertRelatedBelow } from '../../core/domain/seedGrid';
 import type { SeedCandidate } from '../../core/domain/types';
 import { PageHeader } from '../PageHeader';
 
 const REQUIRED_PICKS = 5;
-// The API seeds from at most twenty bands (MaxSeedArtists) and opens one neighbour lane per pick.
+// The API seeds a taste from at most twenty bands (MaxSeedArtists).
 const MAX_PICKS = 20;
 
 // Cold start (D15): a new user has no taste vector, so The Rite cannot run. They seed it by
 // choosing bands they already know, or by importing Last.fm (feature C1, currently blocked
 // with no API key -> a dignified "not available yet", not a broken error).
+//
+// The grid GROWS, it never reshuffles: picking a band unfolds its neighbours directly beneath it and
+// leaves every row above exactly where it was. Re-ranking the whole grid around the picks would mean
+// a band chosen in the seventh row rewrites the six rows above it, and the eye has to start again
+// from the top after every click. See core/domain/seedGrid.ts.
 export function ColdStart() {
   const { t } = useTranslation();
-  // Picked bands are held whole, not as bare ids: once a pick refills the grid with its neighbours
-  // the band itself may no longer be among the candidates, and it must still render as chosen.
-  const [picked, setPicked] = useState<Map<string, SeedCandidate>>(new Map());
-  const pickedIds = [...picked.keys()];
-  const { data, isLoading, isError, isFetching } = useSeedCandidates(true, pickedIds);
+  const { data, isLoading, isError } = useSeedCandidates(true);
+  const related = useRelatedSeeds();
   const seed = useSeed();
 
-  function toggle(band: SeedCandidate) {
-    setPicked((current) => {
-      const next = new Map(current);
-      if (next.has(band.id)) {
-        next.delete(band.id);
-      } else if (next.size < MAX_PICKS) {
-        next.set(band.id, band);
-      }
-      return next;
-    });
-  }
+  // The grid the user is actually looking at: the fetched one, then whatever their picks unfolded
+  // into it. Held here because it is the user's own trail through the catalogue, not server state.
+  const [grid, setGrid] = useState<SeedCandidate[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [expanding, setExpanding] = useState<string | null>(null);
+
+  // Seed the grid from the fetched candidates, once. It is never re-seeded from a later fetch: that
+  // would throw away the rows the user has already unfolded and read.
+  useEffect(() => {
+    if (data !== undefined) {
+      setGrid((current) => (current.length === 0 ? data : current));
+    }
+  }, [data]);
 
   const enough = picked.size >= REQUIRED_PICKS;
   const full = picked.size >= MAX_PICKS;
-  // The grid never repeats what is already pinned above it.
-  const suggestions = (data ?? []).filter((band) => !picked.has(band.id));
+
+  async function toggle(band: SeedCandidate, index: number) {
+    if (picked.has(band.id)) {
+      // Unpicking only unmarks the chip. The bands it unfolded stay: pulling them back out would
+      // shift the whole grid under the user's hand, which is the very thing this screen must not do.
+      setPicked((current) => {
+        const next = new Set(current);
+        next.delete(band.id);
+        return next;
+      });
+      return;
+    }
+
+    if (full) {
+      return;
+    }
+
+    setPicked((current) => new Set(current).add(band.id));
+    setExpanding(band.id);
+
+    try {
+      const neighbours = await related.mutateAsync(band.id);
+      setGrid((current) => {
+        // The band may have moved if an earlier pick unfolded above it — find it again, do not
+        // trust the index the click was made at.
+        const at = current.findIndex((row) => row.id === band.id);
+        return insertRelatedBelow(current, at === -1 ? index : at, neighbours);
+      });
+    } catch {
+      // A neighbourhood that would not load costs the user nothing: the pick still counts, the grid
+      // simply does not grow. No error state for a band they already chose.
+    } finally {
+      setExpanding(null);
+    }
+  }
 
   return (
     <section>
@@ -49,43 +87,25 @@ export function ColdStart() {
       <p className="mt-3 font-mono text-xs text-muted">
         {t('coldStart.counter', { count: picked.size, required: REQUIRED_PICKS })}
       </p>
-
-      {picked.size > 0 ? (
-        <div className="mt-5">
-          <h2 className="font-mono text-xs uppercase text-muted">{t('coldStart.pickedHeading')}</h2>
-          <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {[...picked.values()].map((band) => (
-              <SeedChip key={band.id} band={band} selected onToggle={() => toggle(band)} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <p className="mt-1 font-mono text-[0.65rem] text-muted">
+        {expanding !== null ? t('coldStart.unfolding') : t('coldStart.gridHint')}
+      </p>
 
       {isError ? <p className="mt-4 font-mono text-sm text-danger">{t('coldStart.loadError')}</p> : null}
       {isLoading ? <p className="mt-4 font-mono text-sm text-muted">{t('coldStart.loading')}</p> : null}
 
-      {data !== undefined ? (
-        <div className="mt-6">
-          <h2 className="font-mono text-xs uppercase text-muted">
-            {picked.size > 0 ? t('coldStart.moreLikeHeading') : t('coldStart.suggestionsHeading')}
-          </h2>
-          <p className="mt-1 font-mono text-[0.65rem] text-muted">
-            {isFetching ? t('coldStart.retuning') : t('coldStart.gridHint')}
-          </p>
-          <ul
-            className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 ${isFetching ? 'opacity-60' : ''}`}
-          >
-            {suggestions.map((band) => (
-              <SeedChip
-                key={band.id}
-                band={band}
-                selected={false}
-                disabled={full}
-                onToggle={() => toggle(band)}
-              />
-            ))}
-          </ul>
-        </div>
+      {grid.length > 0 ? (
+        <ul className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {grid.map((band, index) => (
+            <SeedChip
+              key={band.id}
+              band={band}
+              selected={picked.has(band.id)}
+              disabled={full && !picked.has(band.id)}
+              onToggle={() => void toggle(band, index)}
+            />
+          ))}
+        </ul>
       ) : null}
 
       {seed.isError ? <p className="mt-4 font-mono text-sm text-danger">{t('coldStart.seedError')}</p> : null}
@@ -93,7 +113,7 @@ export function ColdStart() {
       <button
         type="button"
         disabled={!enough || seed.isPending}
-        onClick={() => seed.mutate(pickedIds)}
+        onClick={() => seed.mutate([...picked])}
         className="mt-6 w-full border border-accent bg-accent px-4 py-3 font-display text-lg text-bg disabled:opacity-40"
       >
         {seed.isPending ? t('coldStart.seeding') : t('coldStart.seed')}

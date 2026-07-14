@@ -71,92 +71,77 @@ public class RiteController : ControllerBase
     /// heard cannot be recognised on a pick screen.
     ///
     /// <para>
-    /// The grid <b>answers what you have already picked</b>. With nothing picked it is a fair
-    /// round-robin across the families (metal, rock, punk, classical, folk, electronic) — ranking the
-    /// whole catalogue by how prolific a band is buries the metal under the classical canon (Bach has
-    /// 5 804 releases, Metallica 1 035). Once bands are picked, most of the grid becomes their nearest
-    /// neighbours in embedding space: pick Judas Priest and Black Sabbath, Iron Maiden and Venom
-    /// arrive; pick Bach and the classical does.
+    /// The grid is a fair round-robin across the families (metal, rock, punk, classical, folk,
+    /// electronic), drawn from the most-LISTENED bands of each. Ranking the whole catalogue by how
+    /// prolific a band is instead buries the metal under the classical canon — Bach has 5 804 releases
+    /// and Metallica 1 035, so a "most releases first" grid is a wall of composers.
     /// </para>
     ///
     /// <para>
-    /// The neighbours are drawn <b>per pick</b> and interleaved, never from the mean of the picks: the
-    /// midpoint between a heavy metal vector and a baroque one is a region that sounds like neither.
-    /// A quarter of the grid stays on the balanced starter pool so a user who picked metal first can
-    /// still reach the classical — this screen has no search box, so that slice is the only way back out.
+    /// This grid is the <b>stable</b> part of the screen: it is fetched once and never reshuffles.
+    /// Picking a band grows it in place through <see cref="RelatedSeeds"/> instead — see there for why.
     /// </para>
     /// </summary>
     [HttpGet("seed-candidates")]
     public async Task<ActionResult<IReadOnlyList<SeedCandidateDto>>> SeedCandidates(
         [FromQuery] int limit = 60,
-        [FromQuery] Guid[]? picked = null,
         CancellationToken ct = default)
     {
         int take = Math.Clamp(limit, 1, 200);
 
-        List<Guid> pickedIds = (picked ?? [])
-            .Distinct()
-            .Take(MaxSeedArtists)
-            .ToList();
-
-        if (pickedIds.Count == 0)
-        {
-            return Ok(await StarterGridAsync(take, [], ct));
-        }
-
-        // The embeddings of what is already picked. A pick without one (it can be picked from a
-        // neighbour lane only if it has one, but a stale client could send anything) simply does not
-        // open a lane — it is dropped, never faked into the middle of the grid.
-        List<SeedSeed> seeds = await _db.Artists
-            .Where(a => pickedIds.Contains(a.Id) && a.Embedding != null)
-            .Select(a => new SeedSeed(a.Id, a.Embedding!))
-            .ToListAsync(ct);
-
-        if (seeds.Count == 0)
-        {
-            return Ok(await StarterGridAsync(take, pickedIds, ct));
-        }
-
-        int neighbourSlots = Math.Max(1, take * 3 / 4);
-        int perLane = Math.Max(1, (int)Math.Ceiling((double)neighbourSlots / seeds.Count));
-
-        List<IReadOnlyList<SeedCandidateDto>> lanes = [];
-
-        foreach (SeedSeed seed in seeds)
-        {
-            // HNSW nearest neighbours of THIS pick, among the bands a user could recognise.
-            List<SeedCandidateDto> lane = await _db.Artists
-                .Where(a => a.Embedding != null
-                    && a.Listeners != null
-                    && !pickedIds.Contains(a.Id))
-                .OrderBy(a => a.Embedding!.CosineDistance(seed.Embedding))
-                .Take(perLane)
-                .Select(a => new SeedCandidateDto(a.Id, a.Name, a.Country, a.FormedYear))
-                .ToListAsync(ct);
-
-            lanes.Add(lane);
-        }
-
-        List<SeedCandidateDto> neighbours = SeedPool.Interleave(lanes, neighbourSlots, c => c.Id);
-
-        // The remaining quarter: the balanced pool again, minus what is picked or already shown.
-        List<Guid> shown = [.. pickedIds, .. neighbours.Select(c => c.Id)];
-        List<SeedCandidateDto> escape = await StarterGridAsync(take - neighbours.Count, shown, ct);
-
-        return Ok(neighbours.Concat(escape).ToList());
+        return Ok(await StarterGridAsync(take, ct));
     }
 
-    /// <summary>An already-picked band and the vector its neighbour lane is drawn around.</summary>
-    private sealed record SeedSeed(Guid Id, Vector Embedding);
-
     /// <summary>
-    /// The balanced starter grid: the most-listened bands of each family, taken in turn. Bands in
-    /// <paramref name="exclude"/> are left out (they are picked, or already on screen).
+    /// The bands nearest to one band in embedding space, for the cold-start grid to unfold underneath
+    /// it when it is picked: choose Judas Priest and Black Sabbath, Iron Maiden and the NWOBHM appear
+    /// directly below; choose Bach and the classical does.
+    ///
+    /// <para>
+    /// This is a per-band expansion, deliberately NOT a re-ranking of the whole grid around the picks.
+    /// Reshuffling the grid on every pick means a band chosen in the seventh row shifts everything
+    /// above it, and the user has to re-read the screen from the top after each click. Growing the
+    /// grid downward keeps everything already read exactly where it was.
+    /// </para>
+    ///
+    /// <para>
+    /// It is also, for the same reason, one band's neighbours and never the mean of several: the
+    /// midpoint between a heavy metal vector and a baroque one is a region that sounds like neither.
+    /// The caller drops any band it is already showing (it knows its own grid; the server does not).
+    /// </para>
     /// </summary>
-    private async Task<List<SeedCandidateDto>> StarterGridAsync(
-        int take,
-        IReadOnlyCollection<Guid> exclude,
-        CancellationToken ct)
+    [HttpGet("seed-candidates/{artistId:guid}/related")]
+    public async Task<ActionResult<IReadOnlyList<SeedCandidateDto>>> RelatedSeeds(
+        Guid artistId,
+        [FromQuery] int limit = 24,
+        CancellationToken ct = default)
+    {
+        int take = Math.Clamp(limit, 1, 60);
+
+        Vector? seed = await _db.Artists
+            .Where(a => a.Id == artistId)
+            .Select(a => a.Embedding)
+            .FirstOrDefaultAsync(ct);
+
+        // A band with no embedding has no neighbourhood. That is an empty answer, not an error and
+        // certainly not a grid of unrelated bands dressed up as related ones.
+        if (seed is null)
+        {
+            return Ok(Array.Empty<SeedCandidateDto>());
+        }
+
+        List<SeedCandidateDto> related = await _db.Artists
+            .Where(a => a.Embedding != null && a.Listeners != null && a.Id != artistId)
+            .OrderBy(a => a.Embedding!.CosineDistance(seed))
+            .Take(take)
+            .Select(a => new SeedCandidateDto(a.Id, a.Name, a.Country, a.FormedYear))
+            .ToListAsync(ct);
+
+        return Ok(related);
+    }
+
+    /// <summary>The balanced starter grid: the most-listened bands of each family, taken in turn.</summary>
+    private async Task<List<SeedCandidateDto>> StarterGridAsync(int take, CancellationToken ct)
     {
         if (take <= 0)
         {
@@ -168,7 +153,7 @@ public class RiteController : ControllerBase
         const int StarterPool = 1200;
 
         var pool = await _db.Artists
-            .Where(a => a.Embedding != null && a.Listeners != null && !exclude.Contains(a.Id))
+            .Where(a => a.Embedding != null && a.Listeners != null)
             .OrderByDescending(a => a.Listeners)
             .Take(StarterPool)
             .Select(a => new { a.Id, a.Name, a.Country, a.FormedYear, a.Tags })

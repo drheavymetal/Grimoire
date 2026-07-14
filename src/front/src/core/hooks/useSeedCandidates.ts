@@ -1,24 +1,29 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useGrimoireClient } from '../api/context';
 import type { SeedCandidate } from '../domain/types';
 
 // The bands to pick from on the cold-start "choose five" screen (D15). Not blind: these
 // are bands the user already knows, whose embeddings seed the taste vector.
 //
-// The grid answers the picks — pass them and it refills with their neighbours (pick Judas Priest,
-// Iron Maiden and Venom arrive). Previous data is kept while the next grid loads, so the chips do
-// not blink out from under a finger mid-pick.
-export function useSeedCandidates(enabled: boolean, picked: string[] = [], limit = 60) {
+// Fetched once and never refetched on a pick: the grid is stable by design, and grows through
+// useRelatedSeeds instead (see core/domain/seedGrid.ts for why).
+export function useSeedCandidates(enabled: boolean, limit = 60) {
   const client = useGrimoireClient();
 
-  // Sorted so the same set of picks is the same cache key regardless of the order they were clicked.
-  const key = [...picked].sort();
-
   return useQuery<SeedCandidate[]>({
-    queryKey: ['rite', 'seed-candidates', limit, key],
-    queryFn: ({ signal }) => client.seedCandidates(limit, key, signal),
+    queryKey: ['rite', 'seed-candidates', limit],
+    queryFn: ({ signal }) => client.seedCandidates(limit, signal),
     enabled,
     staleTime: 5 * 60_000,
-    placeholderData: keepPreviousData,
+  });
+}
+
+// The neighbours of one picked band, to unfold underneath it. Asks for more than the grid will show,
+// because the caller drops the ones it already has on screen.
+export function useRelatedSeeds(limit = 24) {
+  const client = useGrimoireClient();
+
+  return useMutation<SeedCandidate[], Error, string>({
+    mutationFn: (artistId) => client.relatedSeeds(artistId, limit),
   });
 }
