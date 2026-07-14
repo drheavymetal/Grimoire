@@ -274,16 +274,20 @@ public sealed class RiteEngine
     }
 
     /// <summary>
-    /// The ring pool: the embedded catalogue (<c>embedding IS NOT NULL</c>). Audibility is NOT filtered
-    /// here — at 207k artists a preview cannot be pre-resolved for all of them (DECISIONS D25/D19), so
-    /// the controller resolves it just-in-time at serve time and skips inaudible bands. When
-    /// <paramref name="scorableOnly"/> is set it is narrowed to bands with a formed year, a country and
-    /// at least one tag, so the decade game (feature C27) never serves a band it cannot score.
+    /// The ring pool: what may be discovered at all (<see cref="DiscoverableArtists"/> — an embedding
+    /// AND a discography; see there for the session drummers that used to be served as bands).
+    ///
+    /// <para>
+    /// Audibility is NOT filtered here — at 207k artists a preview cannot be pre-resolved for all of them
+    /// (DECISIONS D25/D19), so the controller resolves it just-in-time at serve time and skips inaudible
+    /// bands. When <paramref name="scorableOnly"/> is set the pool is narrowed further to bands with a
+    /// formed year, a country and at least one tag, so the decade game (feature C27) never serves a band
+    /// it cannot score.
+    /// </para>
     /// </summary>
     private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false)
     {
-        IQueryable<Library.Models.Artist> pool = _db.Artists
-            .Where(a => a.Embedding != null);
+        IQueryable<Library.Models.Artist> pool = _db.Artists.Discoverable();
 
         if (scorableOnly)
         {

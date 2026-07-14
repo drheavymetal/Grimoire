@@ -55,9 +55,11 @@ public class WeeklyController : ControllerBase
         string weekKey = WeeklyRiteSelector.IsoWeekKey(now);
         DateTimeOffset weekStart = WeekStart(now);
 
-        // The servable pool (DECISIONS D25): embeddable and audible. The seven come out of it.
+        // The servable pool (DECISIONS D25): discoverable (an embedding AND a discography — see
+        // DiscoverableArtists; a session drummer is not a band) and audible. The seven come out of it.
         List<Guid> pool = await _db.Artists
-            .Where(a => a.Embedding != null && a.PreviewUrl != null)
+            .Discoverable()
+            .Where(a => a.PreviewUrl != null)
             .Select(a => a.Id)
             .ToListAsync(ct);
 

@@ -266,7 +266,8 @@ public class LineageController : ControllerBase
         Vector mid = new(midpoint);
 
         List<MissingLinkNeighbourDto> between = await _db.Artists
-            .Where(a => a.Embedding != null && a.Id != from && a.Id != to)
+            .Discoverable()
+            .Where(a => a.Id != from && a.Id != to)
             .OrderBy(a => a.Embedding!.CosineDistance(mid))
             .Take(MaxNeighbours)
             .Select(a => new MissingLinkNeighbourDto(a.Id, a.Name, a.Kind, a.Rank, a.Embedding!.CosineDistance(mid)))

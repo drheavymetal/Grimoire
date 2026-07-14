@@ -131,7 +131,8 @@ public class RiteController : ControllerBase
         }
 
         List<SeedCandidateDto> related = await _db.Artists
-            .Where(a => a.Embedding != null && a.Listeners != null && a.Id != artistId)
+            .Discoverable()
+            .Where(a => a.Listeners != null && a.Id != artistId)
             .OrderBy(a => a.Embedding!.CosineDistance(seed))
             .Take(take)
             .Select(a => new SeedCandidateDto(a.Id, a.Name, a.Country, a.FormedYear))
@@ -153,7 +154,8 @@ public class RiteController : ControllerBase
         const int StarterPool = 1200;
 
         var pool = await _db.Artists
-            .Where(a => a.Embedding != null && a.Listeners != null)
+            .Discoverable()
+            .Where(a => a.Listeners != null)
             .OrderByDescending(a => a.Listeners)
             .Take(StarterPool)
             .Select(a => new { a.Id, a.Name, a.Country, a.FormedYear, a.Tags })
@@ -242,7 +244,7 @@ public class RiteController : ControllerBase
         // Map Last.fm names onto the catalogue by exact normalised name (the same matcher the ETL
         // uses — DECISIONS D25 — so a mismatch drops the band rather than seeding the wrong one).
         var catalogue = await _db.Artists
-            .Where(a => a.Embedding != null)
+            .Discoverable()
             .Select(a => new { a.Name, a.Embedding })
             .ToListAsync(ct);
 

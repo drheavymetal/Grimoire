@@ -229,6 +229,18 @@ public class RiteServeJitTests : IAsyncLifetime
             Embedding = new Vector(embedding),
             PreviewUrl = previewUrl,
             Links = probed ? new Dictionary<string, string> { ["listen:spotify"] = "https://open.spotify.com/search/x" } : null,
+            // A discography, because only an act can be discovered (DiscoverableArtists): a row with an
+            // embedding and no release of its own is a session musician, and the ring no longer serves one.
+            Releases =
+            [
+                new Release
+                {
+                    Id = Guid.NewGuid(),
+                    Mbid = Guid.NewGuid(),
+                    Title = $"{name} — I",
+                    Type = ReleaseType.Album,
+                },
+            ],
         };
 
         db.Artists.Add(artist);

@@ -640,6 +640,23 @@ Metal Archives **contestó** al correo de presentación del 2026-07-10 (`docs/ou
 
 ---
 
+## D46 — Solo se descubre lo que tiene discografía (el Rito servía baterías de sesión)
+`2026-07-14` · vigente · **bug de corrección, no de estilo**
+
+**El defecto**: el pool servible era `embedding IS NOT NULL` a secas. Pero el catálogo tiene **66 554 personas** porque el corpus se expande **por miembros** (D23): cada batería de sesión y cada bajista de gira tiene fila para que una arista `member_of` pueda apuntarle. **49 534 de ellas tienen embedding y NI UN SOLO DISCO propio.**
+
+Estaban en **todos** los pools: el anillo (D4/D26/D31), el Rito Semanal, el Gemelo Oscuro, la búsqueda semántica, el eslabón perdido, el arranque en frío. **El Rito las servía como si fueran bandas** — medido: **2 de cada 8 ritos**.
+
+**Y era peor que un nombre raro en pantalla.** El resolutor de previews empareja iTunes **por nombre** (D40/D25). Un bajista llamado *Lee Freeman* —sin discos, sin banda propia— se servía con el audio de **otro** Lee Freeman que sí está en iTunes. A ciegas. Como descubrimiento. **El Rito repartía la música de un desconocido y la llamaba hallazgo.**
+
+**El criterio NO es «fuera las personas»**: Burzum es `Person`, y todos los compositores del movimiento VII también. Filtrar por `ArtistKind` los tiraría junto a los baterías. El criterio es **tener discografía**: si no tienes ni un disco, **no eres un acto que se pueda descubrir**. Verificado en vivo: 12/12 ritos con discografía, y entre ellos una `Person` con 2 discos (un solista real, conservado).
+
+**Pool: 175 230 → 100 915** (se caen 74 315). Un pool más pequeño y **honesto** vale más que uno grande lleno de gente que nunca grabó nada.
+
+Centralizado en `DiscoverableArtists.Discoverable()` (un solo concepto, seis llamadas) para que el próximo pool que alguien escriba no repita el agujero.
+
+---
+
 ## D45 — Gratis mientras podamos autohospedarla; si el coste aprieta, se les pregunta a MA ANTES
 `2026-07-14` · vigente · **matiza la condición 1 de D42** · decidido por Pedro
 

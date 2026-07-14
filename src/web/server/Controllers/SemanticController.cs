@@ -90,7 +90,7 @@ public class SemanticController : ControllerBase
 
         List<SemanticHitDto> hits = await _db.Artists
             .AsNoTracking()
-            .Where(a => a.Embedding != null)
+            .Discoverable()
             .OrderBy(a => a.Embedding!.CosineDistance(centred))
             .Take(take)
             .Select(a => new SemanticHitDto(

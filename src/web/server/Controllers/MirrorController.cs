@@ -118,7 +118,8 @@ public class MirrorController : ControllerBase
         IQueryable<Guid> judged = _db.Rites.Where(r => r.UserId == userId).Select(r => r.ArtistId);
 
         var nearest = await _db.Artists
-            .Where(a => a.Embedding != null && !judged.Contains(a.Id))
+            .Discoverable()
+            .Where(a => !judged.Contains(a.Id))
             .OrderBy(a => a.Embedding!.CosineDistance(taste.Repulsion))
             .Select(a => new { a.Id, a.Name, a.Country, a.FormedYear, a.Rank, a.Tags, a.Embedding })
             .FirstOrDefaultAsync(ct);
