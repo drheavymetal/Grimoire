@@ -640,13 +640,26 @@ Metal Archives **contestó** al correo de presentación del 2026-07-10 (`docs/ou
 
 ---
 
+## D43 — Sin filtros de género en el Rito, ni siquiera opcionales
+`2026-07-14` · vigente · decidido por Pedro · **declina la sugerencia del webmaster de MA** (D42)
+
+El webmaster de Metal Archives sugirió filtros de género **opcionales**: el ciego aleatorio por defecto, pero dejando (a) pedir un género concreto y (b) excluir un subgénero. Viene de quien mejor conoce esta escena, y aun así **se declina**.
+
+**El porqué**: la tesis de Grimoire es que *no filtramos por oído, filtramos por etiqueta antes de oír nada* — lees «technical brutal death from Slovakia» y saltas sin haber escuchado una nota. Un selector de género **es ese reflejo, reconstruido dentro de la app**. Sería meter la enfermedad dentro de la cura. Que la gente lo quiera (y lo querría) no es un argumento a favor: es exactamente el motivo para desconfiar.
+
+**Dónde sí tiene razón**: una banda que de verdad no soportas no debería volver. Pero eso **no es un filtro, es memoria** — y ya existe: `Banish` mueve el vector de repulsión (D33) y el motor en anillo **resta** en p20. El dolor real que señala ya está resuelto por una mecánica que aprende, no por una etiqueta que excluye.
+
+Se le contesta explicando esto, no en silencio (`outreach/metal-archives.md` §3).
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
 |---|---|---|
 | Q1 | ¿La degradación tipográfica por rareza como firma, o algo más frontal? Ahora es **posible** (ver Q6), pero el icono de D27 ya encarna la pérdida de generación: serían dos firmas | `DESIGN.md` |
 | Q2 | Modo claro: ¿flyer fotocopiado, o neutro y limpio para fichas largas? | `DESIGN.md` |
-| Q9 | ¿Se ejerce el permiso de MA (D42)? ¿Crawl propio a ritmo lento, o pedirles el export? ¿Y se hacen los **filtros de género opcionales** que sugirió su webmaster —género concreto y **exclusión** de subgénero, manteniendo el ciego aleatorio por defecto? | temática lírica (Q4 ya contestada), filtros del Rito |
+| Q9 | ¿Cómo nos dan la temática lírica: export, API o scrape? **Se les deja elegir a ellos** (`outreach/` §3, borrador pendiente de enviar). Los filtros de género ya están decididos: **no** (D43) | temática lírica (Q4 ya contestada) |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
 | Q8 | A Gemini le faltan el **SVG**, la **marca hermana para tamaños pequeños** (D27), la paleta con hexes, las tipografías con paquete npm, y el tono de voz | favicon, tokens de `ui/` |
 

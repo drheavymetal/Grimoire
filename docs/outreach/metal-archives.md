@@ -79,11 +79,54 @@ Filtros de género **opcionales**: mantener la cata a ciegas y aleatoria **por d
 
 ---
 
-## 2. Petición de subconjunto — BORRADOR, no enviado
+## 3. Respuesta a su permiso — BORRADOR, pendiente de que Pedro lo envíe
 
-**Su utilidad cayó con la respuesta**: pedía un export porque no podíamos scrapear. Ahora podemos. Sigue teniendo sentido **solo** si se prefiere un fichero limpio a un crawl de semanas — y la pregunta técnica que lleva dentro (¿guardan MBIDs?) vale su peso en oro, porque sin ellos el emparejamiento con MusicBrainz es por nombre+país+año.
+Sustituye al borrador §2 (que se escribió cuando *no* podíamos scrapear y por tanto **pedía**; este **ofrece**). Criterio de Pedro: **la elección es suya, y lo que no queremos es darles trabajo**. Tres puertas, en orden de menos molestia para ellos, y la de scrapear la última —solo si es la que menos les cuesta.
 
-Pide exactamente lo que Hellblazer ha dicho públicamente que se puede pedir: un subconjunto concreto, no la base.
+**Asunto:** Re: Grimoire — a free discovery tool that sends people back to Metallum
+
+> Hi,
+>
+> Thank you — both for the offer and for taking the time. I want to be careful with it, so let me put the ball in your court rather than just start crawling.
+>
+> There's exactly one field in Metallum that genuinely exists nowhere else: **lyrical themes**. MusicBrainz and Discogs cover line-ups, discographies and credits well enough for what I'm doing. Nobody covers themes. That's all I'd want — no reviews, no images, no line-ups:
+>
+> ```
+> band_id, name, country, year_formed, status, genre, lyrical_themes
+> ```
+>
+> Whichever of these is least work for you, I'll take. In this order, because I'd rather spend my time than yours:
+>
+> 1. **A one-off export.** A file, whenever it's convenient — no rush, and no need to build anything for it. Cheaper for your bandwidth than ~180k requests from me.
+> 2. **An API**, if you have one or would rather expose one. I'll use it and respect whatever limits you set.
+> 3. **I scrape**, since you've said that's fine. If this is genuinely the least trouble for you, say so and I'll do it properly: one request per second at most, sequential, backing off on any 429, an identifiable User-Agent with my email in it, cached so I never fetch the same page twice, run once and not repeatedly. If I ever get it wrong, tell me and I'll stop that day.
+>
+> One technical question either way: **do your records hold MusicBrainz IDs anywhere?** If they do, it saves me weeks and makes the matching far more accurate. If not, I'll match on name + country + year and simply leave the ambiguous ones unmatched rather than guess.
+>
+> Non-commercial it stays — that was already the plan, and now it's your condition, so it's not mine to change. Nothing gets redistributed: no dumps, no public endpoint handing your data back out. And every band page in Grimoire links to its Metallum entry, credited.
+>
+> On the genre filters — I thought about it properly, and I'm going to say no, which I owe you an explanation for. The whole reason Grimoire exists is that I think we filter by label *before* we filter by ear: you read "technical brutal death from Slovakia" and you skip it before a note has played. A genre picker is that reflex, rebuilt. So I'd be putting the disease back in the cure. You're right that people will want it — I'd want it — which is exactly why I don't trust it.
+>
+> Where you *are* right, and where I'd rather solve it: a band you truly cannot stand shouldn't keep coming back. That's not a filter, that's memory — and the app already learns it when you banish something.
+>
+> Thanks again. Genuinely.
+>
+> Cheers,
+> Pedro
+
+### Si aceptan, esto se compromete además
+
+4. Crédito a MA en la ficha y en el repo.
+5. **Cero redistribución**: ni dumps, ni endpoint público que devuelva sus datos.
+6. Si scrapeamos: **≤ 1 req/s, secuencial, backoff ante 429, User-Agent con contacto, cacheado, una sola pasada**, y se para el día que lo pidan. Dicho por escrito → `D42`.
+
+---
+
+## 2. Petición de subconjunto — BORRADOR, SUPERSEDIDO por §3, nunca enviado
+
+Se escribió cuando **no** podíamos scrapear, así que **pedía** un favor. Tras su permiso (§1b) el marco cambió: ahora **ofrecemos** y la elección es suya. Se conserva por el razonamiento, no para mandarlo.
+
+Pedía exactamente lo que Hellblazer ha dicho públicamente que se puede pedir: un subconjunto concreto, no la base.
 
 **Asunto:** Re: Grimoire — a small, specific data request
 
