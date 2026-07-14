@@ -7,29 +7,37 @@ import type { SeedCandidate } from '../../core/domain/types';
 import { PageHeader } from '../PageHeader';
 
 const REQUIRED_PICKS = 5;
+// The API seeds from at most twenty bands (MaxSeedArtists) and opens one neighbour lane per pick.
+const MAX_PICKS = 20;
 
 // Cold start (D15): a new user has no taste vector, so The Rite cannot run. They seed it by
 // choosing bands they already know, or by importing Last.fm (feature C1, currently blocked
 // with no API key -> a dignified "not available yet", not a broken error).
 export function ColdStart() {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useSeedCandidates(true);
+  // Picked bands are held whole, not as bare ids: once a pick refills the grid with its neighbours
+  // the band itself may no longer be among the candidates, and it must still render as chosen.
+  const [picked, setPicked] = useState<Map<string, SeedCandidate>>(new Map());
+  const pickedIds = [...picked.keys()];
+  const { data, isLoading, isError, isFetching } = useSeedCandidates(true, pickedIds);
   const seed = useSeed();
-  const [picked, setPicked] = useState<Set<string>>(new Set());
 
-  function toggle(id: string) {
+  function toggle(band: SeedCandidate) {
     setPicked((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else if (next.size < 20) {
-        next.add(id);
+      const next = new Map(current);
+      if (next.has(band.id)) {
+        next.delete(band.id);
+      } else if (next.size < MAX_PICKS) {
+        next.set(band.id, band);
       }
       return next;
     });
   }
 
   const enough = picked.size >= REQUIRED_PICKS;
+  const full = picked.size >= MAX_PICKS;
+  // The grid never repeats what is already pinned above it.
+  const suggestions = (data ?? []).filter((band) => !picked.has(band.id));
 
   return (
     <section>
@@ -42,20 +50,42 @@ export function ColdStart() {
         {t('coldStart.counter', { count: picked.size, required: REQUIRED_PICKS })}
       </p>
 
+      {picked.size > 0 ? (
+        <div className="mt-5">
+          <h2 className="font-mono text-xs uppercase text-muted">{t('coldStart.pickedHeading')}</h2>
+          <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {[...picked.values()].map((band) => (
+              <SeedChip key={band.id} band={band} selected onToggle={() => toggle(band)} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {isError ? <p className="mt-4 font-mono text-sm text-danger">{t('coldStart.loadError')}</p> : null}
       {isLoading ? <p className="mt-4 font-mono text-sm text-muted">{t('coldStart.loading')}</p> : null}
 
       {data !== undefined ? (
-        <ul className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {data.map((band) => (
-            <SeedChip
-              key={band.id}
-              band={band}
-              selected={picked.has(band.id)}
-              onToggle={() => toggle(band.id)}
-            />
-          ))}
-        </ul>
+        <div className="mt-6">
+          <h2 className="font-mono text-xs uppercase text-muted">
+            {picked.size > 0 ? t('coldStart.moreLikeHeading') : t('coldStart.suggestionsHeading')}
+          </h2>
+          <p className="mt-1 font-mono text-[0.65rem] text-muted">
+            {isFetching ? t('coldStart.retuning') : t('coldStart.gridHint')}
+          </p>
+          <ul
+            className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 ${isFetching ? 'opacity-60' : ''}`}
+          >
+            {suggestions.map((band) => (
+              <SeedChip
+                key={band.id}
+                band={band}
+                selected={false}
+                disabled={full}
+                onToggle={() => toggle(band)}
+              />
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {seed.isError ? <p className="mt-4 font-mono text-sm text-danger">{t('coldStart.seedError')}</p> : null}
@@ -63,7 +93,7 @@ export function ColdStart() {
       <button
         type="button"
         disabled={!enough || seed.isPending}
-        onClick={() => seed.mutate([...picked])}
+        onClick={() => seed.mutate(pickedIds)}
         className="mt-6 w-full border border-accent bg-accent px-4 py-3 font-display text-lg text-bg disabled:opacity-40"
       >
         {seed.isPending ? t('coldStart.seeding') : t('coldStart.seed')}
@@ -77,10 +107,12 @@ export function ColdStart() {
 function SeedChip({
   band,
   selected,
+  disabled = false,
   onToggle,
 }: {
   band: SeedCandidate;
   selected: boolean;
+  disabled?: boolean;
   onToggle: () => void;
 }) {
   return (
@@ -88,8 +120,9 @@ function SeedChip({
       <button
         type="button"
         onClick={onToggle}
+        disabled={disabled}
         aria-pressed={selected}
-        className={`w-full border px-3 py-2 text-left ${
+        className={`w-full border px-3 py-2 text-left disabled:opacity-40 ${
           selected ? 'border-accent bg-accent/10 text-strong' : 'border-line text-muted hover:border-accent'
         }`}
       >

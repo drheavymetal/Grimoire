@@ -94,7 +94,12 @@ export interface GrimoireClient {
 
   // --- The Rite ---
   getTaste(signal?: AbortSignal): Promise<TasteStatus>;
-  seedCandidates(limit: number, signal?: AbortSignal): Promise<SeedCandidate[]>;
+  /**
+   * Bands to pick from on the cold-start screen. The grid answers the picks so far: pass them and
+   * most of it becomes their neighbours (pick Judas Priest, get Iron Maiden), with a slice of the
+   * balanced pool kept so another family is always reachable.
+   */
+  seedCandidates(limit: number, picked?: string[], signal?: AbortSignal): Promise<SeedCandidate[]>;
   seed(artistIds: string[]): Promise<TasteStatus>;
   importLastFm(username: string): Promise<TasteStatus>;
   /** Serves one band blind. Returns null when the ring is empty (HTTP 204). */
@@ -350,8 +355,11 @@ export function createGrimoireClient(
     getTaste(signal) {
       return request<TasteStatus>('/api/rite/taste', { auth: true, signal });
     },
-    seedCandidates(limit, signal) {
+    seedCandidates(limit, picked, signal) {
       const params = new URLSearchParams({ limit: String(limit) });
+      for (const id of picked ?? []) {
+        params.append('picked', id);
+      }
       return request<SeedCandidate[]>(`/api/rite/seed-candidates?${params.toString()}`, {
         auth: true,
         signal,
