@@ -51,13 +51,28 @@ public sealed class MetalArchivesJob : WorkerJob
 
         await db.Database.MigrateAsync(ct);
 
-        // Real bands with a discography, not yet checked. Ordered by listeners so the bands people
-        // actually meet in the Rite get their themes first, and an interrupted run has done the ones
-        // that matter most. Nulls (unranked) sort last.
+        // Real bands with a discography, not yet checked. Metal Archives is metal-only, so a band whose
+        // Last.fm tags place it firmly outside metal cannot match there — checking it just burns one of
+        // MA's 1 req/s (the whole rate we are allowed, D42). We therefore skip bands that carry tags but
+        // none reads metal-ish. An untagged band is an unknown, not a non-match, so it stays in the pool
+        // (much of the underground has no Last.fm tags yet). Within the pool, ordered by listeners so the
+        // bands people actually meet in the Rite get their themes first; nulls (unranked) sort last.
         List<Artist> pending = await db.Artists
             .Where(a => a.Kind == ArtistKind.Group
                 && a.Releases.Any()
-                && a.MetalArchivesCheckedAt == null)
+                && a.MetalArchivesCheckedAt == null
+                && (a.Tags.Length == 0
+                    || a.Tags.Any(t =>
+                        EF.Functions.ILike(t, "%metal%")
+                        || EF.Functions.ILike(t, "%thrash%")
+                        || EF.Functions.ILike(t, "%doom%")
+                        || EF.Functions.ILike(t, "%grind%")
+                        || EF.Functions.ILike(t, "%sludge%")
+                        || EF.Functions.ILike(t, "%djent%")
+                        || EF.Functions.ILike(t, "%deathcore%")
+                        || EF.Functions.ILike(t, "%mathcore%")
+                        || EF.Functions.ILike(t, "%crust%")
+                        || EF.Functions.ILike(t, "%powerviolence%"))))
             .OrderByDescending(a => a.Listeners ?? -1)
             .ThenBy(a => a.Name)
             .Take(_options.Limit)

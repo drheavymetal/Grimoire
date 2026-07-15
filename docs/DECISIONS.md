@@ -809,6 +809,19 @@ Pedro: *«el grimorio mola, pero si pudiera invocar por género (heavy clásico,
 
 ---
 
+## D53 — Scrape de MA: pool restringido a metal-ish + cadencia a 3 req/s — **supersede la cifra de D42**
+`2026-07-15` · vigente · el filtro es del agente; la subida de cadencia la decidió Pedro · **supersede el «≤ 1 req/s» de D42**, no el resto de sus términos
+
+Dos cambios sobre el crawl de Metal Archives, que corría a 1 req/s procesando por `listeners` DESC:
+
+**1. Pool restringido a metal-ish (`MetalArchivesJob`).** MA es solo-metal, así que una banda cuyos tags de Last.fm la sitúan **claramente fuera del metal** no puede casar allí — consultarla quema una req para nada. El pool ahora exclute las bandas **con tags pero ninguno metal-ish** (`ILIKE` sobre `%metal%`, `%thrash%`, `%doom%`, `%grind%`, `%sludge%`, `%djent%`, `%deathcore%`, `%mathcore%`, `%crust%`, `%powerviolence%`). Una banda **sin tags sigue en el pool** (desconocido ≠ no-match; buena parte del underground aún no tiene tags de Last.fm). Medido en prod: de **53 696** pendientes, **32 160 metal-ish** (13 386 sin tags + 18 774 con tag metal) → **se saltan 21 536 (40 %)** de mainstream no-metal. Explica el match rate del 2.7 % previo: ordenar por listeners DESC gastaba las primeras horas en pop/rock que jamás está en Metallum.
+
+**2. Cadencia 1 → 3 req/s.** A MA se les escribió **«≤ 1 req/s»** por escrito, dos veces (`outreach/` §3 y §5). Pedro sube a **3 req/s** («tampoco pasa nada y no creo que se molesten»). Sigue lejos de martillear (sitio pequeño pero no frágil), sigue secuencial, sigue con backoff ante 429/503, sigue una sola pasada. El agente **recomendó no subirla** (rompe el número exacto que dimos, y el filtro ya bajaba la pasada de semanas a ~6 h sin tocar la velocidad); Pedro decidió subirla igualmente — es suyo interpretar la condición de MA (invariante 2). **Queda anotado que nuestra conducta real (3 req/s) diverge de lo que les dijimos (≤ 1)**; si algún día importa, lo honesto sería volver a escribirles. `MetalArchivesSource.cs`: `FixedCadenceRateLimiter` 1 s → 333 ms.
+
+El grueso de la mejora de velocidad es **el filtro, no la cadencia** (~18 h → ~6 h por saltar el 40 % + triplicar el ritmo).
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

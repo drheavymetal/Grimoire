@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6c** — la sesión más grande: MA scraper + Last.fm tags corriendo, clásica eliminada, 3 fixes de producto, Rito por género, enlaces de streaming).
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6c** — MA scraper + Last.fm tags corriendo, clásica eliminada, 3 fixes de producto, Rito por género, enlaces de streaming; **tarde: optimización MA D53** — pool metal-ish + 3 req/s, sin cap).
 
 ---
 
@@ -167,7 +167,11 @@ Sesión con Pedro que empezó con la 2ª respuesta de MA y acabó en un desplieg
 - MA respondió (`outreach/` §4, **D48/D49**): **que scrapeemos** (menos esfuerzo para ellos; no tienen API), **no tienen MBIDs** (match por nombre+país+año, R3 confirmado), y **las imágenes no son suyas** para autorizarlas → Pedro decide cachear+servir con retirada a petición (D49). No comercial ratificado. Se les mandó un correo de agradecimiento (`outreach/` §5).
 - **Scraper construido y desplegado**: `MetalArchivesParser` (puro, tests), `MetalArchivesSource`, `MetalArchivesJob`, verbo `metalarchives`. Importa **temática lírica + género MA + `metal_archives_id`** (enlace a Metallum, invariante 3). Formación/reviews/imágenes = v2.
 - **BUG CLAVE resuelto**: MA está tras un WAF que **403ea HTTP/1.1 y sirve HTTP/2**. .NET usa HTTP/1.1 por defecto → todo 403. Fix: `DefaultRequestVersion=Version20` + `RequestVersionOrHigher` (commit `3c22b58`). **Verificado en vivo: casó Pantera con toda su temática lírica.**
-- **Corriendo en el server** (`grimoire-metalarchives`, `restart unless-stopped`), 1 req/s, ~83 490 bandas pendientes, resumible vía `metal_archives_checked_at`. **Ordena por listeners DESC** → procesa primero las mainstream (no metal, no casan) antes de las metal; correcto pero ineficiente — **optimización futura: filtrar a metal-o-sin-tags**.
+- **Corriendo en el server** (`grimoire-metalarchives`, `restart unless-stopped`), resumible vía `metal_archives_checked_at`.
+- **OPTIMIZADO 2026-07-15 tarde (D53)**: la deuda de «ordena por listeners DESC → gasta horas en mainstream» resuelta con **dos cambios** (rebuild `grimoire-worker`, contenedor MA relanzado):
+  1. **Pool restringido a metal-ish** (`MetalArchivesJob`): MA es solo-metal, así que se saltan las bandas con tags **claramente no-metal** (`ILIKE` sobre `%metal%`, `%thrash%`, `%doom%`, `%grind%`, `%sludge%`, `%djent%`, `%deathcore%`, `%mathcore%`, `%crust%`, `%powerviolence%`); **sin tags = se queda** (desconocido ≠ no-match). Medido: **53 696 pendientes → 31 954** (se saltan 21 536 = 40% mainstream). Explica el match rate previo del 2.7%: la cabeza por listeners era pop/rock que jamás está en Metallum.
+  2. **Cadencia 1 → 3 req/s** (`MetalArchivesSource`, `FixedCadenceRateLimiter` 1s→333ms). Decisión de Pedro (el agente recomendó no, por la palabra dada de «≤1 req/s»); **queda anotado que nuestra conducta real diverge de lo que escribimos a MA** — si importa, reescribirles. **Verificado en vivo: 1964/1964 requests = 200, cero 429/403, latencia plana ~122ms → MA no nos capa a 3 req/s.**
+  - Resultado: MA de ~semanas a **~4-6h**. El grueso de la mejora es el filtro, no la cadencia.
 
 ### Last.fm — pase relanzado con tags
 - `LastFmArtist` ahora deserializa **tags** además de listeners → un solo `artist.getInfo` rellena ambos huecos. El job hace backfill de tags solo donde la banda no tiene (no pisa los de MB).
@@ -188,7 +192,7 @@ Sesión con Pedro que empezó con la 2ª respuesta de MA y acabó en un desplieg
 - **Enlaces «Escuchar en» Spotify/Apple Music/Tidal/YouTube Music** en banda y disco: deep-links de búsqueda, coste cero (Grimoire no reproduce, invariante 4). Front puro.
 
 ### Deuda/pendiente detectado esta sesión
-- **MA ordena por listeners DESC** → gasta las primeras horas en bandas mainstream no-metal. Optimización: restringir el pool MA a `Tags vacío OR tag metal-ish`.
+- ~~**MA ordena por listeners DESC** → gasta las primeras horas en bandas mainstream no-metal~~ **RESUELTO (D53)**: pool restringido a metal-ish + cadencia a 3 req/s. Ver §6c «MA — 2ª respuesta».
 - **Imágenes de MA (D49)**: decidido cachear+servir con retirada a petición, **no implementado** aún (v2).
 - **Formación + review score de MA (D44)**: no implementado (v2).
 - El error `libgssapi_krb5.so.2` en los workers es **benigno** (Npgsql intenta GSSAPI, cae al fallback; la conexión funciona).

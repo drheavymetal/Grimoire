@@ -6,9 +6,10 @@ using Microsoft.Extensions.Logging;
 namespace Grimoire.Worker.MetalArchives;
 
 /// <summary>
-/// Fetches one band's data from Metal Archives under the terms Grimoire agreed with them (D42/D48):
-/// <b>≤ 1 request per second</b> (a <see cref="FixedCadenceRateLimiter"/> at one second, so the two
-/// calls a band needs — the search and the page — pace to ~2 s/band), sequential, backing off on
+/// Fetches one band's data from Metal Archives under the terms Grimoire agreed with them (D42/D48),
+/// with the cadence raised to <b>3 requests per second</b> by Pedro (D53, superseding the D42 figure):
+/// a <see cref="FixedCadenceRateLimiter"/> at 333 ms, so the two calls a band needs — the search and
+/// the page — pace to ~0.67 s/band, sequential, backing off on
 /// 429/503 (the resilience handler on the named client), an identifiable <c>User-Agent</c> carrying
 /// Pedro's contact, and never re-fetching a band already resolved (the DB's
 /// <see cref="Artist.MetalArchivesCheckedAt"/> marker upstream in <see cref="MetalArchivesJob"/>).
@@ -21,8 +22,11 @@ namespace Grimoire.Worker.MetalArchives;
 /// </summary>
 public sealed class MetalArchivesSource : IDisposable
 {
-    // MA's own request ceiling is unpublished; the agreed term is "don't hammer" and we err slow.
-    private readonly FixedCadenceRateLimiter _limiter = new(TimeSpan.FromSeconds(1));
+    // MA's own request ceiling is unpublished; the agreed term is "don't hammer". We wrote "≤ 1 req/s"
+    // to them, but Pedro raised the cadence to 3 req/s (D53, superseding the D42 figure) — still far
+    // from hammering, and the metal-ish pool filter (MetalArchivesJob) is what actually shortened the
+    // pass, not the speed-up. Kept sequential; still backs off on 429/503.
+    private readonly FixedCadenceRateLimiter _limiter = new(TimeSpan.FromMilliseconds(333));
 
     private readonly HttpClient _http;
     private readonly ILogger<MetalArchivesSource> _logger;
