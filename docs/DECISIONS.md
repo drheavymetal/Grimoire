@@ -922,7 +922,13 @@ Buzón in-app **sondeado** (no WebPush; el infra VAPID de movimiento VI no se us
 
 **Dos subagentes en paralelo, contrato bloqueado.** Audit `--strict` verde. **Verificado end-to-end en prod**: A pide→B unread 1, B acepta→A recibe FriendAccepted, A regala→B recibe GiftReceived con token, mark-all-read→unread 0.
 
-**Extensión en construcción (Pedro: «eso que queda fuera, mételo también»)**: **rarity-surpassed** (hook en el summon: al pasar a un amigo en Depth Score, se le avisa) y **duelo ligero cara a cara** (Pedro eligió la versión ligera sobre la asíncrona ciega y la de tiempo real: `GET /api/friends/{id}/duel` compara Depth Score + grimorios cruzados + % de alineación de gusto; `POST .../duel/challenge` deja notificación). Sin migración (tipos nuevos = strings). Se documentará al desplegar.
+**Extensión desplegada (Pedro: «eso que queda fuera, mételo también»)** — sin migración (dos `NotificationType` nuevos = strings):
+- **Rarity-surpassed**: un summon que sube tu Depth Score por encima del de un amigo aceptado le deja un `RaritySurpassed` («@handle cavó más hondo que tú»). Hook en `RiteController.Resolve` **tras** el commit del summon (best-effort, try/catch, una query sobre los amigos; no lanza ni frena el summon; no dispara nada sin amigos o sin cruce).
+- **Duelo ligero cara a cara** (Pedro eligió la versión ligera sobre la asíncrona-ciega y la de tiempo real): `GET /api/friends/{id}/duel` → `{myDepth, theirDepth, winner, shared, mineOnly, theirsOnly, alignment}` (Depth Score head-to-head, el más raro gana; cuentas de grimorios cruzados C23; **alineación = coseno de los dos vectores de gusto centrados**, null si falta alguno). `POST .../duel/challenge` → notificación `DuelChallenge`. Nombres C# `DuelFaceOffDto`/`FriendDuel` para no chocar con el duelo ciego C2; wire idéntico.
+
+**Verificado en prod**: `GET duel` de dos users nuevos → `{winner:"tie", alignment:null}` (estado vacío correcto); `challenge` → 204 + el amigo recibe `DuelChallenge`.
+
+**El bloque social queda COMPLETO** (D56 perfil · D57 amigos+D28 · D58 sidebar · D59 re-seed · D60 notificaciones+rareza+duelo).
 
 ---
 
