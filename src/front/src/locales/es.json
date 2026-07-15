@@ -26,7 +26,14 @@
     "mirror": "Espejo",
     "memoriam": "In Memoriam",
     "profile": "Perfil",
-    "friends": "Amigos"
+    "friends": "Amigos",
+    "groupRite": "El Rito",
+    "groupExplore": "Explorar",
+    "groupYours": "Tuyo",
+    "signIn": "Entrar",
+    "setHandle": "Definir un alias",
+    "menu": "Menú",
+    "closeMenu": "Cerrar menú"
   },
   "auth": {
     "email": "Correo",

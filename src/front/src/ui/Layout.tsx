@@ -1,19 +1,20 @@
-import { useState } from 'react';
-import { Link, Outlet, type LinkProps } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { applyTheme, readTheme, type Theme } from '../platform/theme.web';
 import { persistLanguage } from '../i18n';
-import { useAuth } from './auth/AuthProvider';
 import { BrandLockup } from './Logo';
+import { Sidebar } from './Sidebar';
 
-// The shell (DESIGN, D14/D27). A sticky bar over the void: the brand lockup on the left (mark +
-// wordmark, the sulphur I the time axis), the routes as Courier small-caps with a sulphur underline
-// marking where you are, and the utilities — sign out, language, artifact toggle — on the right.
-// Nothing generic: the nav labels are the vernacular of a J-card, uppercase and tracked.
+// The shell (DESIGN, D14/D27). The routes no longer sit in a bar over the void — they run down a
+// LEFT SIDEBAR, the spine of the grimoire (see Sidebar). On desktop the spine is a sticky rail and
+// the reading column sits to its right; below md the rail folds away behind a hamburger and opens as
+// a drawer over a scrim. Theme and language live in the sidebar's user area, but their state is held
+// here so the rail and the drawer (both mounted at once) never disagree.
 export function Layout() {
   const { t, i18n } = useTranslation();
-  const { isAuthenticated, logout } = useAuth();
   const [theme, setTheme] = useState<Theme>(() => readTheme());
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   function toggleTheme() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -27,87 +28,96 @@ export function Layout() {
     persistLanguage(next);
   }
 
+  // Escape closes the drawer (accessibility floor, DESIGN §7). Only listens while it is open.
+  useEffect(() => {
+    if (!drawerOpen) {
+      return;
+    }
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDrawerOpen(false);
+      }
+    }
+
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [drawerOpen]);
+
+  const sidebarProps = {
+    theme,
+    onToggleTheme: toggleTheme,
+    language: i18n.language,
+    onToggleLanguage: toggleLanguage,
+  };
+
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
-          {/* Brand sits OUTSIDE the nav landmark: the mark is the way home, not a route. */}
+    <div className="flex min-h-full">
+      {/* Desktop rail — the spine, sticky and full height so the main column scrolls beside it. */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-line md:block">
+        <Sidebar {...sidebarProps} />
+      </aside>
+
+      {/* Mobile drawer — the same spine, folded away behind a scrim until summoned. Kept mounted so
+          it can slide; `inert` and pointer-events keep it out of reach when closed. Reduced motion
+          drops the slide (motion-reduce:transition-none). */}
+      <div
+        className={`fixed inset-0 z-40 md:hidden ${drawerOpen ? '' : 'pointer-events-none'}`}
+        aria-hidden={!drawerOpen}
+      >
+        <button
+          type="button"
+          aria-label={t('nav.closeMenu')}
+          tabIndex={drawerOpen ? 0 : -1}
+          onClick={() => setDrawerOpen(false)}
+          className={`absolute inset-0 h-full w-full cursor-default bg-black/60 transition-opacity duration-200 motion-reduce:transition-none ${
+            drawerOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+        <aside
+          inert={!drawerOpen}
+          className={`absolute left-0 top-0 h-full w-72 max-w-[85%] border-r border-line shadow-xl transition-transform duration-200 motion-reduce:transition-none ${
+            drawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <Sidebar {...sidebarProps} onNavigate={() => setDrawerOpen(false)} />
+        </aside>
+      </div>
+
+      {/* The reading column, offset from the rail on desktop, full width on mobile. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile identity bar: the hamburger and the brand, only below md. */}
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-sm md:hidden">
+          <button
+            type="button"
+            aria-label={t('nav.menu')}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            className="cursor-pointer text-muted hover:text-strong"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <line x1="3" y1="6" x2="17" y2="6" />
+              <line x1="3" y1="10" x2="17" y2="10" />
+              <line x1="3" y1="14" x2="17" y2="14" />
+            </svg>
+          </button>
           <Link to="/" aria-label={t('app.title')} className="no-underline">
             <BrandLockup />
           </Link>
-
-          <nav className="flex flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1">
-            <NavLink to="/rite" label={t('nav.rite')} />
-            <NavLink to="/duel" label={t('nav.duel')} />
-            <NavLink to="/decade" label={t('nav.decade')} />
-            <NavLink to="/weekly" label={t('nav.weekly')} />
-            <NavLink to="/scenes" label={t('nav.scenes')} />
-            <NavLink to="/labels" label={t('nav.labels')} />
-            <NavLink to="/lineage" label={t('nav.lineage')} />
-            <NavLink to="/explore" label={t('nav.explore')} />
-            <NavLink to="/atlas" label={t('nav.atlas')} />
-            <NavLink to="/grimoire" label={t('nav.grimoire')} />
-            <NavLink to="/mirror" label={t('nav.mirror')} />
-            <NavLink to="/memoriam" label={t('nav.memoriam')} />
-
-            <span aria-hidden="true" className="mx-1 h-3 w-px bg-line" />
-
-            {isAuthenticated ? <NavLink to="/friends" label={t('nav.friends')} /> : null}
-            {isAuthenticated ? <NavLink to="/profile" label={t('nav.profile')} /> : null}
-            {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={logout}
-                className="cursor-pointer font-mono text-xs uppercase tracking-[0.18em] text-muted hover:text-strong"
-              >
-                {t('nav.logout')}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={toggleLanguage}
-              className="cursor-pointer font-mono text-xs uppercase tracking-[0.18em] text-muted hover:text-strong"
-            >
-              {i18n.language === 'es' ? 'EN' : 'ES'}
-            </button>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={t('nav.toggleTheme')}
-              className="cursor-pointer font-mono text-sm text-muted hover:text-accent"
-            >
-              {theme === 'dark' ? '☾' : '☀'}
-            </button>
-          </nav>
         </div>
-      </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
-        <Outlet />
-      </main>
+        <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
+          <Outlet />
+        </main>
 
-      <footer className="mt-8 border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-8 text-center font-mono text-[0.68rem] uppercase tracking-[0.14em] text-faint">
-          {t('app.title')} — {t('app.tagline')}
-        </div>
-      </footer>
+        <footer className="mt-8 border-t border-line">
+          <div className="px-5 py-8 text-center font-mono text-[0.68rem] uppercase tracking-[0.14em] text-faint">
+            {t('app.title')} — {t('app.tagline')}
+          </div>
+        </footer>
+      </div>
     </div>
-  );
-}
-
-// One nav entry: Courier small-caps, muted until hovered, with a sulphur underline when it is the
-// active route (DESIGN — sulphur marks where you are). The underline is the only accent in the bar.
-function NavLink({ to, label }: { to: LinkProps['to']; label: string }) {
-  return (
-    <Link
-      to={to}
-      className="relative py-0.5 font-mono text-xs uppercase tracking-[0.18em] text-muted no-underline hover:text-strong"
-      activeProps={{
-        className:
-          'relative py-0.5 font-mono text-xs uppercase tracking-[0.18em] text-strong no-underline after:absolute after:-bottom-1 after:left-0 after:right-0 after:h-px after:bg-accent',
-      }}
-    >
-      {label}
-    </Link>
   );
 }

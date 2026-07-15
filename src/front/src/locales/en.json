@@ -26,7 +26,14 @@
     "mirror": "Mirror",
     "memoriam": "In Memoriam",
     "profile": "Profile",
-    "friends": "Friends"
+    "friends": "Friends",
+    "groupRite": "The Rite",
+    "groupExplore": "Explore",
+    "groupYours": "Yours",
+    "signIn": "Sign in",
+    "setHandle": "Set a handle",
+    "menu": "Menu",
+    "closeMenu": "Close menu"
   },
   "auth": {
     "email": "Email",
