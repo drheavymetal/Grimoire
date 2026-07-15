@@ -794,6 +794,21 @@ El bug tenía tres caras: (1) las bandas **Known** (comunes) salían en el cut10
 
 ---
 
+## D52 — El Rito puede invocarse por género, **opcional** — **supersede D43**
+`2026-07-15` · vigente · decidido por Pedro · **supersede D43 (sin filtros de género)**
+
+Pedro: *«el grimorio mola, pero si pudiera invocar por género (heavy clásico, folk, viking metal, thrash…) ya sería la hostia»*, y matizó: *«tiene que poder invocarse sin género como ahora, lo otro es opcional»* y *«en el rito»* (no el semanal — el semanal es comunal, los mismos siete para todos).
+
+**D43 lo había declinado** (el selector de género = el reflejo de etiqueta que la app combate). Se supera con un matiz que preserva la tesis: **el género no revela nada**. Eliges «viking metal» pero **sigues catando a ciegas** — sin nombre, portada ni país hasta que te gusta. Se estrecha el océano, no se pre-juzga el oído. Es exactamente lo que ya hacían los filtros de país/década (C13), que narran el pool sin romper el ciego. Y MA dio permiso explícito: *«you can do what you want»* (D48/§4).
+
+**Implementación:**
+- `RiteGenres` (shared): catálogo key→needle, un substring por familia (`black metal`, `thrash`, `folk`, `viking`…) que con ILIKE captura los compuestos («atmospheric **black metal**»). Una sola fuente de verdad; endpoint `GET /api/rite/genres`.
+- Motor: `RiteFilters.GenreNeedle` aplicado en `ServablePool`, que alimenta **el sample Y la query** → el anillo se calibra a la distribución del propio género. `Array.Any(ILIKE)` traduce vía unnest en Npgsql.
+- Solo el **Rito principal** (`POST /api/rite/serve`); el duelo y el semanal quedan sin género (v1). Default sin género = idéntico a hoy.
+- Cobertura por género crece con el pase de Last.fm (tags rellenándose). Hoy: black metal 8 524, thrash 2 536, folk 2 766, viking 143 bandas descubribles.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

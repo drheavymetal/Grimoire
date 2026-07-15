@@ -46,7 +46,13 @@ public record ServeRequest(
     double Comfort = 0.5,
     string? Country = null,
     int? DecadeFrom = null,
-    int? DecadeTo = null);
+    int? DecadeTo = null,
+    // Optional genre lane (a RiteGenres key, e.g. "black-metal"). Null = fully open, the default.
+    // The tasting stays blind; the genre only narrows which bands the ring may draw from.
+    string? Genre = null);
+
+/// <summary>One genre lane offered in The Rite: its key (sent back on a serve) and display label.</summary>
+public record RiteGenreDto(string Key, string Label);
 
 /// <summary>
 /// A rite served blind (SPEC §5.3). It carries NO name, genre, country or cover — only the

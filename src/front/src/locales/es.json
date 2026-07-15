@@ -143,6 +143,8 @@
     "sliderLabel": "De Confort a Abismo: cuán lejos de tu gusto alcanzar",
     "percentileWindow": "Alcanzando el percentil {{low}}–{{high}} de distancia a tu gusto.",
     "filters": "Filtros",
+    "genre": "Género (opcional)",
+    "genreAny": "Cualquiera — sorpréndeme",
     "country": "País",
     "countryPlaceholder": "NO",
     "decadeFrom": "Desde año",

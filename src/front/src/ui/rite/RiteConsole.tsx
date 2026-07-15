@@ -9,6 +9,32 @@ import { RevealCard } from './RevealCard';
 
 type Phase = 'idle' | 'listening' | 'revealed' | 'blindResolved' | 'empty';
 
+// The optional genre lanes (feature added 2026-07-15). Keys mirror the backend RiteGenres catalogue;
+// an unknown key just falls back to a fully open rite server-side, so drift degrades safely. Labels
+// are the genres' universal English names (metal subgenres are not translated).
+const RITE_GENRES: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'black-metal', label: 'Black Metal' },
+  { key: 'death-metal', label: 'Death Metal' },
+  { key: 'doom-metal', label: 'Doom Metal' },
+  { key: 'thrash-metal', label: 'Thrash Metal' },
+  { key: 'heavy-metal', label: 'Heavy Metal' },
+  { key: 'power-metal', label: 'Power Metal' },
+  { key: 'speed-metal', label: 'Speed Metal' },
+  { key: 'sludge', label: 'Sludge' },
+  { key: 'grindcore', label: 'Grindcore' },
+  { key: 'viking-metal', label: 'Viking Metal' },
+  { key: 'folk-metal', label: 'Folk Metal' },
+  { key: 'symphonic-metal', label: 'Symphonic Metal' },
+  { key: 'gothic-metal', label: 'Gothic Metal' },
+  { key: 'progressive', label: 'Progressive' },
+  { key: 'stoner', label: 'Stoner' },
+  { key: 'metalcore', label: 'Metalcore' },
+  { key: 'folk', label: 'Folk' },
+  { key: 'punk', label: 'Punk' },
+  { key: 'hardcore', label: 'Hardcore' },
+  { key: 'rock', label: 'Rock' },
+];
+
 // The Rite console (features B13, B14, C4, C13). The slider sets the ring percentiles, the
 // player serves a band blind, and Summon/Banish/Again resolve it. Only a summon reveals the
 // band; banish and again stay blind on purpose (C3/C20).
@@ -18,6 +44,7 @@ export function RiteConsole() {
   const resolve = useResolve();
 
   const [comfort, setComfort] = useState(0.5);
+  const [genre, setGenre] = useState('');
   const [country, setCountry] = useState('');
   const [decadeFrom, setDecadeFrom] = useState('');
   const [decadeTo, setDecadeTo] = useState('');
@@ -35,6 +62,7 @@ export function RiteConsole() {
     serve.mutate(
       {
         comfort,
+        genre: genre === '' ? null : genre,
         country: country.trim() === '' ? null : country.trim().toUpperCase(),
         decadeFrom: decadeFrom.trim() === '' ? null : Number(decadeFrom),
         decadeTo: decadeTo.trim() === '' ? null : Number(decadeTo),
@@ -124,6 +152,23 @@ export function RiteConsole() {
           className="mt-2 w-full accent-[var(--accent)]"
         />
         <p className="mt-2 font-mono text-xs text-muted">{percentLabel}</p>
+
+        {/* Optional genre lane: narrows the pool but keeps the tasting blind. Default is fully open. */}
+        <label className="mt-4 block">
+          <span className="font-mono text-[0.65rem] uppercase text-muted">{t('rite.genre')}</span>
+          <select
+            value={genre}
+            onChange={(event) => setGenre(event.target.value)}
+            className="mt-1 w-full border border-line bg-bg px-2 py-2 font-mono text-sm text-strong outline-none focus:border-accent"
+          >
+            <option value="">{t('rite.genreAny')}</option>
+            {RITE_GENRES.map((g) => (
+              <option key={g.key} value={g.key}>
+                {g.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <details className="mt-4">
           <summary className="cursor-pointer font-mono text-xs uppercase text-muted hover:text-accent">

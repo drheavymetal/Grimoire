@@ -286,6 +286,18 @@ public class RiteController : ControllerBase
     // -----------------------------------------------------------------------
 
     /// <summary>
+    /// The optional genre lanes a rite can be narrowed to (feature added 2026-07-15). Public and
+    /// static — the front renders them as an optional picker; choosing none keeps the rite fully
+    /// blind and open, the default. Still blind either way (supersedes D43, see DECISIONS).
+    /// </summary>
+    [HttpGet("genres")]
+    [AllowAnonymous]
+    public ActionResult<IReadOnlyList<RiteGenreDto>> Genres()
+    {
+        return Ok(RiteGenres.All.Select(g => new RiteGenreDto(g.Key, g.Label)).ToList());
+    }
+
+    /// <summary>
     /// Serves one band blind (SPEC §5.3). The response carries no name, genre, country or cover —
     /// only the capability token, the risk, and the proxied audio URL. Returns 409 if the caller
     /// has no taste yet (run cold start first) and 204 when the ring is empty (a designed empty
@@ -303,7 +315,11 @@ public class RiteController : ControllerBase
             return Conflict(new { message = "No taste yet. Seed it by choosing bands or importing Last.fm before starting a rite." });
         }
 
-        RiteFilters filters = new(request.Country, request.DecadeFrom, request.DecadeTo);
+        RiteFilters filters = new(
+            request.Country,
+            request.DecadeFrom,
+            request.DecadeTo,
+            RiteGenres.NeedleFor(request.Genre));
 
         // Draw several ring candidates, not one: the ring is now the embedded catalogue (audibility is
         // no longer pre-filtered — DECISIONS D25/D19), so we resolve the preview just-in-time and skip

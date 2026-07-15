@@ -143,6 +143,8 @@
     "sliderLabel": "Comfort to Abyss: how far from your taste to reach",
     "percentileWindow": "Reaching the {{low}}th–{{high}}th percentile of distance from your taste.",
     "filters": "Filters",
+    "genre": "Genre (optional)",
+    "genreAny": "Any — surprise me",
     "country": "Country",
     "countryPlaceholder": "NO",
     "decadeFrom": "From year",

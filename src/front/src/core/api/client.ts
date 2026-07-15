@@ -383,6 +383,7 @@ export function createGrimoireClient(
           country: filters.country ?? null,
           decadeFrom: filters.decadeFrom ?? null,
           decadeTo: filters.decadeTo ?? null,
+          genre: filters.genre ?? null,
         },
       });
     },

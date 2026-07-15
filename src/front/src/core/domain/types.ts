@@ -192,6 +192,8 @@ export interface ServeFilters {
   country?: string | null;
   decadeFrom?: number | null;
   decadeTo?: number | null;
+  // Optional genre lane (a RiteGenres key, e.g. "black-metal"). Null/absent = fully open, blind.
+  genre?: string | null;
 }
 
 // An entry in the user's grimoire: a summoned band and when it was summoned.

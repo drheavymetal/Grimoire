@@ -28,8 +28,13 @@ public sealed class RiteEngineOptions
     public double RarityWeight { get; set; } = RaritySelector.DefaultRarityWeight;
 }
 
-/// <summary>Hard filters for the pool (feature C13): decade and country only.</summary>
-public sealed record RiteFilters(string? Country, int? DecadeFrom, int? DecadeTo);
+/// <summary>
+/// Hard filters for the pool (feature C13): decade, country, and an optional genre lane. GenreNeedle
+/// is a lower-case tag substring (resolved from a <see cref="RiteGenres"/> key by the controller);
+/// null leaves the rite fully open, the default. The tasting stays blind either way — the genre only
+/// narrows which bands the ring may draw from.
+/// </summary>
+public sealed record RiteFilters(string? Country, int? DecadeFrom, int? DecadeTo, string? GenreNeedle = null);
 
 /// <summary>A candidate the engine chose from the ring, with its distance and slider risk.</summary>
 public sealed record RiteCandidate(Guid ArtistId, double Distance, double RiskPercentile);
@@ -185,7 +190,7 @@ public sealed class RiteEngine
         //    two ring radii at the slider's percentiles. The sample defines the ring; the query
         //    below applies it. The sample is drawn from the SAME pool the query uses, so scorable
         //    duels/decade games get percentiles calibrated to the scorable pool.
-        List<double> sample = await ServablePool(scorableOnly)
+        List<double> sample = await ServablePool(scorableOnly, filters.GenreNeedle)
             .OrderBy(_ => EF.Functions.Random())
             .Take(_options.SampleSize)
             .Select(a => a.Embedding!.CosineDistance(taste))
@@ -205,7 +210,7 @@ public sealed class RiteEngine
         double? safeRadius = null;
         if (repulsion is not null)
         {
-            List<double> repulsionSample = await ServablePool(scorableOnly)
+            List<double> repulsionSample = await ServablePool(scorableOnly, filters.GenreNeedle)
                 .OrderBy(_ => EF.Functions.Random())
                 .Take(_options.SampleSize)
                 .Select(a => a.Embedding!.CosineDistance(repulsion))
@@ -227,7 +232,7 @@ public sealed class RiteEngine
                           && r.ResolvedAt < secondChanceCutoff))
             .Select(r => r.ArtistId);
 
-        var ranked = ServablePool(scorableOnly)
+        var ranked = ServablePool(scorableOnly, filters.GenreNeedle)
             .Where(a => !excluded.Contains(a.Id));
 
         if (!string.IsNullOrWhiteSpace(filters.Country))
@@ -285,13 +290,23 @@ public sealed class RiteEngine
     /// it cannot score.
     /// </para>
     /// </summary>
-    private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false)
+    private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false, string? genreNeedle = null)
     {
         IQueryable<Library.Models.Artist> pool = _db.Artists.Discoverable();
 
         if (scorableOnly)
         {
             pool = pool.Where(a => a.FormedYear != null && a.Country != null && a.Tags.Length > 0);
+        }
+
+        if (!string.IsNullOrWhiteSpace(genreNeedle))
+        {
+            // ILIKE substring over the band's tags so a family catches its compounds ("black metal"
+            // also matches "atmospheric black metal"). Applied to BOTH the distance sample and the
+            // ring query, so the ring radii are calibrated to the genre's own distribution, not the
+            // whole corpus. Npgsql translates Array.Any(ILike) via unnest.
+            string pattern = $"%{genreNeedle.Trim()}%";
+            pool = pool.Where(a => a.Tags.Any(t => EF.Functions.ILike(t, pattern)));
         }
 
         return pool;
