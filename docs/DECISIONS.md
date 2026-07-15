@@ -853,6 +853,22 @@ La ficha gana la **temática lírica REAL de Metal Archives** (`LyricalThemes`, 
 
 ---
 
+## D56 — Perfil de usuario, con gestión de gusto **híbrida (EMA + anclas)** — extiende D33
+`2026-07-15` · vigente · pedido por Pedro (*«perfil… volver a seleccionar o añadir cuentas que me gustan, ver descubrimientos»*) · **modelo de gusto elegido por Pedro: híbrido**
+
+Primera ola del bloque social (perfil → amigos → notificaciones). Página `/profile` autenticada + su backend.
+
+**Decisión de fondo — el gusto es un EMA (D33), no recalculable.** `TasteMath.Blend` (decay 0.25) es media móvil acumulativa: no se puede «quitar» una banda limpio. Ante «volver a seleccionar/añadir/quitar», Pedro eligió **híbrido** (sobre otras dos opciones: set-editable-media, y EMA-solo-añadir):
+- **El rito sigue aprendiendo solo con EMA — D33 intacto.**
+- Se añade un **set de bandas ancla editable** (`taste_anchors`, PK compuesta user+artist, migración `AddTasteAnchors`): ver / añadir (vía la búsqueda trigram existente) / quitar.
+- Botón **«reconstruir mi gusto desde estas anclas»** → re-siembra `user_taste.Embedding = TasteMath.Seed(media de los embeddings centrados de las anclas)` + escribe un `taste_snapshots`. **`Repulsion` intacta.** Las anclas sin embedding se saltan; cero anclas usables → 400 sin escribir. Dos conceptos de gusto conviven a propósito: el EMA que deriva del rito, y las anclas que puedes re-sembrar cuando quieras.
+
+**Lo demás del perfil = aflorar lo ya construido**: Depth Score como identidad + rank breakdown, **corte más profundo** (banda más rara invocada — `ProfileAggregates.DeepestCut`, null=menos raro, nunca inventado), stats por década/país/género, y enlaces a `/grimoire`, `/mirror` (trayectoria/dark-twin/huecos/anti-rec), `/atlas` (sin duplicar). Ajustes: tema/idioma, **exportar el grimorio** (descarga JSON autenticada), nota honesta de D28 (sesiones no revocables), logout.
+
+Backend: `ProfileController` (`/api/profile` agregado, `/anchors` CRUD, `/rebuild-taste`, `/export`), `ProfileAggregates` (puro, 11 tests). Front: `ProfilePage`, `useProfile`, helper de descarga autenticada en `platform/`. **Dos subagentes en paralelo, contrato bloqueado.** Audit `--strict` verde. **Verificado end-to-end en prod**: register→perfil vacío→añadir ancla→`{anchorsUsed:1,tasteSet:true}`→cascade-delete al borrar el usuario.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
