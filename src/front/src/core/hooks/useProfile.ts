@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGrimoireClient } from '../api/context';
-import type { BandCard, Profile, RebuildResult } from '../domain/types';
+import type { BandCard, Profile, RebuildResult, ReseedMode, ReseedResult } from '../domain/types';
 
 // The signed-in listener's profile (2026-07-15): depth score, counts, deepest cut, and the shape
 // of their grimoire. `enabled` gates it on being signed in.
@@ -67,6 +67,20 @@ export function useRebuildTaste() {
 
   return useMutation<RebuildResult, unknown, void>({
     mutationFn: () => client.rebuildTaste(),
+    onSuccess: invalidate,
+  });
+}
+
+// Reselects the taste from a fresh pick of bands (the sign-up cold-start picker, re-run from the
+// profile). `"fresh"` overwrites the taste with the picks; `"add"` unions them into the anchors and
+// rebuilds from all. A 400 (no usable band) surfaces as an ApiError the caller reads. Invalidates
+// the profile, anchors and rite-taste queries so the page and the Rite both refresh.
+export function useReseed() {
+  const client = useGrimoireClient();
+  const invalidate = useProfileInvalidation();
+
+  return useMutation<ReseedResult, unknown, { artistIds: string[]; mode: ReseedMode }>({
+    mutationFn: ({ artistIds, mode }) => client.reseed(artistIds, mode),
     onSuccess: invalidate,
   });
 }

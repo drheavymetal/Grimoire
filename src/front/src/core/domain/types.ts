@@ -773,6 +773,20 @@ export interface RebuildResult {
   depthScore: number;
 }
 
+// Reselecting your bands (2026-07-15): the profile can re-run the sign-up cold-start picker to
+// re-seed the taste. `"fresh"` replaces the anchors and overwrites the taste with the picks' mean
+// (like a brand-new account); `"add"` unions the picks into the anchors and rebuilds the taste from
+// all of them. Last.fm import is always a fresh cold start.
+export type ReseedMode = 'fresh' | 'add';
+
+// The outcome of a reseed: how many bands were usable (had a sound vector), whether a taste vector
+// was set, and the resulting depth score. A 400 means none of the picked bands was usable.
+export interface ReseedResult {
+  anchorsUsed: number;
+  tasteSet: boolean;
+  depthScore: number;
+}
+
 // ---------------------------------------------------------------------------
 // Sessions (D28): the FRIENDS wave surfaces the refresh tokens as revocable
 // sessions. Each is one sign-in; `current` marks the device the caller is on.

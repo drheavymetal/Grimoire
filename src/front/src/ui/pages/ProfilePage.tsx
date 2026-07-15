@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../core/api/client';
 import { useGrimoireClient } from '../../core/api/context';
@@ -11,6 +12,7 @@ import {
   useProfile,
   useRebuildTaste,
   useRemoveAnchor,
+  useReseed,
   useUpdateHandle,
 } from '../../core/hooks/useProfile';
 import { useLogoutAll, useSessions } from '../../core/hooks/useSessions';
@@ -23,6 +25,8 @@ import type {
   Profile,
   Rank,
   RankBreakdownEntry,
+  ReseedMode,
+  ReseedResult,
   Session,
 } from '../../core/domain/types';
 import { applyTheme, readTheme, type Theme } from '../../platform/theme.web';
@@ -31,6 +35,8 @@ import { downloadAuthenticated } from '../../platform/download.web';
 import { persistLanguage } from '../../i18n';
 import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
+import { useSeedGrid } from '../../core/hooks/useSeedGrid';
+import { LastFmImport, SeedGrid } from '../rite/SeedPicker';
 import { PageHeader } from '../PageHeader';
 import { SectionHead } from '../SectionHead';
 import { RankedName } from '../RankedName';
@@ -200,9 +206,143 @@ function TasteManagement({ anchorCount }: { anchorCount: number }) {
 
           <AnchorSearch existing={anchors.data ?? []} />
           <RebuildTaste anchorCount={anchorCount} />
+          <ReselectBands />
         </>
       )}
     </section>
+  );
+}
+
+// "Reselect your bands": re-runs the sign-up cold-start picker from the profile, reusing the exact
+// same grid (SeedPicker). An expanding in-page panel, consistent with the handle/session editors.
+// Two clearly-labelled outcomes once at least one band is chosen — "Start fresh" (mode "fresh":
+// replaces the taste, like a new account) and "Add these" (mode "add": unions into the anchors and
+// rebuilds from all). The Last.fm import is a fresh cold start, labelled as such. The 400 "no usable
+// band" case surfaces as friendly copy; success collapses the panel and the invalidated queries
+// refresh the anchors and depth score above.
+function ReselectBands() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState<{ mode: ReseedMode | 'lastfm'; used: number; depth: number } | null>(
+    null,
+  );
+  const grid = useSeedGrid(open);
+  const reseed = useReseed();
+
+  const chosen = grid.picked.size;
+  const noUsable = reseed.isError && reseed.error instanceof ApiError && reseed.error.status === 400;
+
+  function toggleOpen() {
+    setDone(null);
+    reseed.reset();
+    setOpen((value) => !value);
+  }
+
+  function run(mode: ReseedMode) {
+    setDone(null);
+    reseed.mutate(
+      { artistIds: [...grid.picked], mode },
+      {
+        onSuccess: (result: ReseedResult) => {
+          setDone({ mode, used: result.anchorsUsed, depth: result.depthScore });
+          grid.reset();
+          setOpen(false);
+        },
+      },
+    );
+  }
+
+  // The Last.fm mutation already invalidates the rite taste; refresh the profile + anchors too so the
+  // depth score and anchor set on this page update, then collapse and confirm. Import = fresh.
+  function onLastFmImported() {
+    void queryClient.invalidateQueries({ queryKey: ['profile'] });
+    void queryClient.invalidateQueries({ queryKey: ['profile', 'anchors'] });
+    setDone({ mode: 'lastfm', used: 0, depth: 0 });
+    setOpen(false);
+  }
+
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">
+            {t('profile.reselect.title')}
+          </p>
+          <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('profile.reselect.hint')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleOpen}
+          className="shrink-0 border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong"
+        >
+          {open ? t('profile.reselect.close') : t('profile.reselect.open')}
+        </button>
+      </div>
+
+      {done !== null ? (
+        <p className="mt-3 font-mono text-sm text-strong">
+          {done.mode === 'lastfm'
+            ? t('profile.reselect.doneLastFm')
+            : done.mode === 'fresh'
+              ? t('profile.reselect.doneFresh', { used: done.used, depth: done.depth })
+              : t('profile.reselect.doneAdd', { used: done.used, depth: done.depth })}
+        </p>
+      ) : null}
+
+      {open ? (
+        <div className="mt-5">
+          <p className="font-mono text-xs text-muted">
+            {t('profile.reselect.chosen', { count: chosen })}
+          </p>
+
+          <SeedGrid
+            grid={grid.grid}
+            picked={grid.picked}
+            full={grid.full}
+            expanding={grid.expanding}
+            isLoading={grid.isLoading}
+            isError={grid.isError}
+            onToggle={grid.toggle}
+          />
+
+          {chosen > 0 ? (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="border border-line p-4">
+                <button
+                  type="button"
+                  disabled={reseed.isPending}
+                  onClick={() => run('fresh')}
+                  className="w-full border border-accent px-4 py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-accent hover:bg-accent hover:text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {reseed.isPending ? t('profile.reselect.working') : t('profile.reselect.startFresh')}
+                </button>
+                <p className="mt-2 font-mono text-xs text-muted">{t('profile.reselect.startFreshNote')}</p>
+              </div>
+              <div className="border border-line p-4">
+                <button
+                  type="button"
+                  disabled={reseed.isPending}
+                  onClick={() => run('add')}
+                  className="w-full border border-line px-4 py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-strong hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {reseed.isPending ? t('profile.reselect.working') : t('profile.reselect.add')}
+                </button>
+                <p className="mt-2 font-mono text-xs text-muted">{t('profile.reselect.addNote')}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {noUsable ? (
+            <p className="mt-3 font-mono text-sm text-danger">{t('profile.reselect.noUsable')}</p>
+          ) : reseed.isError ? (
+            <p className="mt-3 font-mono text-sm text-danger">{t('profile.reselect.error')}</p>
+          ) : null}
+
+          <LastFmImport onImported={onLastFmImported} freshNote />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -45,6 +45,8 @@ import type {
   RebuildResult,
   Reflection,
   ReleaseCredits,
+  ReseedMode,
+  ReseedResult,
   ResolveResult,
   RiteAction,
   Scene,
@@ -232,6 +234,13 @@ export interface GrimoireClient {
   removeAnchor(artistId: string): Promise<void>;
   /** Re-seeds the taste vector from the pinned anchors' mean. 400 when no anchor is usable. */
   rebuildTaste(): Promise<RebuildResult>;
+  /**
+   * Reselects the taste from a fresh pick of bands (the sign-up cold-start picker, re-run from the
+   * profile). `"fresh"` replaces the anchors and overwrites the taste with the picks' mean; `"add"`
+   * unions the picks into the anchors and rebuilds the taste from all of them. 400 when no picked
+   * band is usable.
+   */
+  reseed(artistIds: string[], mode: ReseedMode): Promise<ReseedResult>;
   /** Sets the caller's public handle. 204 on success, 409 taken, 400 bad format (3–30 [a-z0-9_]). */
   updateHandle(handle: string): Promise<void>;
   /**
@@ -678,6 +687,13 @@ export function createGrimoireClient(
     },
     rebuildTaste() {
       return request<RebuildResult>('/api/profile/rebuild-taste', { method: 'POST', auth: true });
+    },
+    reseed(artistIds, mode) {
+      return request<ReseedResult>('/api/profile/reseed', {
+        method: 'POST',
+        auth: true,
+        body: { artistIds, mode },
+      });
     },
     async updateHandle(handle) {
       // 204 on success; 409 (taken) and 400 (bad format) surface as ApiError for the caller to read.

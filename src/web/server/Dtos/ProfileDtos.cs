@@ -49,6 +49,15 @@ public record AddAnchorRequest(
     Guid ArtistId);
 
 /// <summary>
+/// The body of "re-seed my taste" (the profile re-pick, like the sign-up cold start). <see cref="ArtistIds"/>
+/// are the bands the user just picked; <see cref="Mode"/> is <c>"fresh"</c> (replace the anchor set and start
+/// over) or <c>"add"</c> (union the picks into the existing anchors), case-insensitive — anything else is a 400.
+/// </summary>
+public record ReseedRequest(
+    IReadOnlyList<Guid> ArtistIds,
+    string Mode);
+
+/// <summary>
 /// The outcome of rebuilding the taste vector from the anchor set. <see cref="AnchorsUsed"/> counts
 /// only anchors that HAD an embedding (null-embedding anchors are skipped); <see cref="TasteSet"/> is
 /// false when there were no usable anchors and nothing was written. <see cref="DepthScore"/> is the
