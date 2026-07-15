@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRelatedSeeds, useSeedCandidates } from './useSeedCandidates';
 import { insertRelatedBelow } from '../domain/seedGrid';
-import type { SeedCandidate } from '../domain/types';
+import type { ArtistSummary, SeedCandidate } from '../domain/types';
 
 // The API seeds a taste from at most twenty bands (MaxSeedArtists).
 export const MAX_PICKS = 20;
@@ -13,7 +13,11 @@ export const MAX_PICKS = 20;
 //
 // The grid GROWS, it never reshuffles: picking a band unfolds its neighbours directly beneath it and
 // leaves every row above exactly where it was. See core/domain/seedGrid.ts for why.
-export function useSeedGrid(enabled: boolean) {
+//
+// `maxPicks` caps how many bands can be picked. Sign-up passes MAX_PICKS (the /api/rite/seed cap);
+// the profile reseed (POST /api/profile/reseed, uncapped) passes Number.POSITIVE_INFINITY so the
+// user can re-seed from as many bands as they like — `full` then never trips.
+export function useSeedGrid(enabled: boolean, maxPicks: number = MAX_PICKS) {
   const { data, isLoading, isError } = useSeedCandidates(enabled);
   const related = useRelatedSeeds();
 
@@ -31,24 +35,13 @@ export function useSeedGrid(enabled: boolean) {
     }
   }, [data]);
 
-  const full = picked.size >= MAX_PICKS;
+  const full = picked.size >= maxPicks;
 
-  async function toggle(band: SeedCandidate, index: number) {
-    if (picked.has(band.id)) {
-      // Unpicking only unmarks the chip. The bands it unfolded stay: pulling them back out would
-      // shift the whole grid under the user's hand, which is the very thing this screen must not do.
-      setPicked((current) => {
-        const next = new Set(current);
-        next.delete(band.id);
-        return next;
-      });
-      return;
-    }
-
-    if (full) {
-      return;
-    }
-
+  // The shared pick-and-unfold path: mark the band picked, unfold its neighbours directly beneath it,
+  // and swallow a failed neighbourhood (the pick still counts, the grid simply does not grow). Both
+  // `toggle` (a grid chip) and `pickFromSearch` (a searched-for band) run exactly this — the guards
+  // (already picked, full) are the caller's, the growth is shared so it can never drift apart.
+  async function pickAndUnfold(band: SeedCandidate, index: number) {
     setPicked((current) => new Set(current).add(band.id));
     setExpanding(band.id);
 
@@ -68,10 +61,57 @@ export function useSeedGrid(enabled: boolean) {
     }
   }
 
+  async function toggle(band: SeedCandidate, index: number) {
+    if (picked.has(band.id)) {
+      // Unpicking only unmarks the chip. The bands it unfolded stay: pulling them back out would
+      // shift the whole grid under the user's hand, which is the very thing this screen must not do.
+      setPicked((current) => {
+        const next = new Set(current);
+        next.delete(band.id);
+        return next;
+      });
+      return;
+    }
+
+    if (full) {
+      return;
+    }
+
+    await pickAndUnfold(band, index);
+  }
+
+  // Add a band the grid never surfaced (found via the search box, so an ArtistSummary), then unfold
+  // its kin exactly as a grid pick would. No-op if it is already picked or the cap is reached. If it
+  // is not yet in the grid it is spliced in at the TOP — a visible spot — and then run through the
+  // same pick-and-unfold path, so its neighbours appear right below it and nothing already read is
+  // re-ranked (the grid grows, it never reshuffles).
+  async function pickFromSearch(summary: ArtistSummary) {
+    if (picked.has(summary.id) || full) {
+      return;
+    }
+
+    // ArtistSummary carries a rank that SeedCandidate has no field for; the shared id/name/country/
+    // formedYear map straight across, which is everything the grid chip renders.
+    const candidate: SeedCandidate = {
+      id: summary.id,
+      name: summary.name,
+      country: summary.country,
+      formedYear: summary.formedYear,
+    };
+
+    if (!grid.some((row) => row.id === candidate.id)) {
+      setGrid((current) =>
+        current.some((row) => row.id === candidate.id) ? current : [candidate, ...current],
+      );
+    }
+
+    await pickAndUnfold(candidate, 0);
+  }
+
   // Clear the picks (used after a successful reseed so the panel starts clean if reopened).
   function reset() {
     setPicked(new Set());
   }
 
-  return { grid, picked, toggle, reset, expanding, isLoading, isError, full };
+  return { grid, picked, toggle, pickFromSearch, reset, expanding, isLoading, isError, full };
 }

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportLastFm } from '../../core/hooks/useColdStart';
+import { useArtistSearch } from '../../core/hooks/useArtistSearch';
+import { useDebouncedValue } from '../../core/hooks/useDebouncedValue';
 import { ApiError } from '../../core/api/client';
-import type { SeedCandidate, TasteStatus } from '../../core/domain/types';
+import type { ArtistSummary, SeedCandidate, TasteStatus } from '../../core/domain/types';
 
-// Renders the picker grid itself: the hint line, the loading/error states, and the chip grid. The
-// caller owns the surrounding chrome (heading, counter, action buttons).
+// Renders the picker grid itself: the search box, the hint line, the loading/error states, and the
+// chip grid. The caller owns the surrounding chrome (heading, counter, action buttons).
 export function SeedGrid({
   grid,
   picked,
@@ -14,6 +16,7 @@ export function SeedGrid({
   isLoading,
   isError,
   onToggle,
+  onPickFromSearch,
 }: {
   grid: SeedCandidate[];
   picked: Set<string>;
@@ -22,11 +25,15 @@ export function SeedGrid({
   isLoading: boolean;
   isError: boolean;
   onToggle: (band: SeedCandidate, index: number) => void;
+  onPickFromSearch: (summary: ArtistSummary) => void;
 }) {
   const { t } = useTranslation();
+  const gridIds = new Set(grid.map((band) => band.id));
 
   return (
     <>
+      <SeedSearch full={full} picked={picked} gridIds={gridIds} onPick={onPickFromSearch} />
+
       <p className="mt-1 font-mono text-[0.65rem] text-muted">
         {expanding !== null ? t('coldStart.unfolding') : t('coldStart.gridHint')}
       </p>
@@ -48,6 +55,91 @@ export function SeedGrid({
         </ul>
       ) : null}
     </>
+  );
+}
+
+// The band search inside the picker: a debounced typeahead so the user can find a band the grid
+// never surfaced, add it, and have its kin unfold from it exactly like a grid pick. It is NOT blind
+// — this is a deliberate known-band chooser, so results show name and origin. Bands already picked
+// or already in the grid are shown as "already added" (disabled), never offered twice. When the pick
+// cap is reached the results cannot add and say so; with an infinite cap (the profile reseed) `full`
+// is never true, so that hint simply never shows.
+function SeedSearch({
+  full,
+  picked,
+  gridIds,
+  onPick,
+}: {
+  full: boolean;
+  picked: Set<string>;
+  gridIds: Set<string>;
+  onPick: (summary: ArtistSummary) => void;
+}) {
+  const { t } = useTranslation();
+  const [term, setTerm] = useState('');
+  const debounced = useDebouncedValue(term, 300);
+  const search = useArtistSearch(debounced);
+
+  const showResults = debounced.trim().length >= 2;
+  const results = search.data ?? [];
+
+  function pick(summary: ArtistSummary) {
+    if (full || picked.has(summary.id) || gridIds.has(summary.id)) {
+      return;
+    }
+    onPick(summary);
+    setTerm('');
+  }
+
+  return (
+    <div className="mb-5">
+      <label className="block">
+        <span className="font-mono text-xs uppercase text-muted">{t('coldStart.searchLabel')}</span>
+        <input
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder={t('coldStart.searchPlaceholder')}
+          autoComplete="off"
+          className="mt-1 w-full border border-line bg-panel px-4 py-3 font-body text-strong outline-none focus:border-accent"
+        />
+      </label>
+
+      {full ? <p className="mt-2 font-mono text-xs text-muted">{t('coldStart.searchFull')}</p> : null}
+
+      {showResults && search.isFetching ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('coldStart.searchSearching')}</p>
+      ) : null}
+
+      {showResults && !search.isFetching && results.length === 0 ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('coldStart.searchEmpty')}</p>
+      ) : null}
+
+      {results.length > 0 ? (
+        <ul className="mt-2 divide-y divide-line border-y border-line">
+          {results.map((artist) => {
+            const already = picked.has(artist.id) || gridIds.has(artist.id);
+            return (
+              <li key={artist.id}>
+                <button
+                  type="button"
+                  onClick={() => pick(artist)}
+                  disabled={already || full}
+                  className="flex w-full items-baseline justify-between gap-4 py-2.5 text-left disabled:opacity-50"
+                >
+                  <span className="min-w-0 truncate font-body text-strong">{artist.name}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted">
+                    {already
+                      ? t('coldStart.searchAdded')
+                      : (artist.country ?? '—')}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

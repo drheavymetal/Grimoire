@@ -38,6 +38,7 @@ export function ColdStart() {
         isLoading={grid.isLoading}
         isError={grid.isError}
         onToggle={grid.toggle}
+        onPickFromSearch={grid.pickFromSearch}
       />
 
       {seed.isError ? <p className="mt-4 font-mono text-sm text-danger">{t('coldStart.seedError')}</p> : null}

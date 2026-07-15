@@ -227,7 +227,9 @@ function ReselectBands() {
   const [done, setDone] = useState<{ mode: ReseedMode | 'lastfm'; used: number; depth: number } | null>(
     null,
   );
-  const grid = useSeedGrid(open);
+  // The reseed backend (POST /api/profile/reseed) has no cap, so re-selecting is UNLIMITED — unlike
+  // sign-up, which the /api/rite/seed cap holds to MAX_PICKS.
+  const grid = useSeedGrid(open, Number.POSITIVE_INFINITY);
   const reseed = useReseed();
 
   const chosen = grid.picked.size;
@@ -304,6 +306,7 @@ function ReselectBands() {
             isLoading={grid.isLoading}
             isError={grid.isError}
             onToggle={grid.toggle}
+            onPickFromSearch={grid.pickFromSearch}
           />
 
           {chosen > 0 ? (
