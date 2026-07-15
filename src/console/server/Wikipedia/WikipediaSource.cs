@@ -1,4 +1,6 @@
+using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Grimoire.Library.Models;
 using Grimoire.Library.Services;
@@ -9,18 +11,24 @@ using Microsoft.Extensions.Logging;
 namespace Grimoire.Worker.Wikipedia;
 
 /// <summary>
-/// Resolves one artist's English-Wikipedia biography, matched <b>only</b> by MusicBrainz id so a
-/// homonym can never be mistaken for our band (the "Death"/"Toto" trap of D22): a Wikidata SPARQL
-/// query finds the item whose <c>wdt:P434</c> (MusicBrainz artist id) equals our
-/// <see cref="Artist.Mbid"/> and returns its English Wikipedia article; the Wikipedia REST summary
-/// API then yields the plain-text extract and the canonical URL (kept for CC BY-SA attribution).
-/// An artist with no usable Mbid, no enwiki sitelink, or no extract resolves to <c>null</c> — a
-/// gap, never a guess (Invariant 5). Parsing lives in the pure, tested
-/// <see cref="WikipediaSummary"/>; this class is only the HTTP shell.
+/// Resolves artists' English-Wikipedia biographies, matched <b>only</b> by MusicBrainz id so a
+/// homonym can never be mistaken for our band (the "Death"/"Toto" trap of D22): a single Wikidata
+/// SPARQL query finds, for a whole <b>batch</b> of MBIDs at once (a <c>VALUES</c> clause), the items
+/// whose <c>wdt:P434</c> equals ours and returns their English Wikipedia articles; the Wikipedia REST
+/// summary API then yields the plain-text extract and canonical URL (kept for CC BY-SA attribution)
+/// for each hit. Batching is the point: WDQS is a shared, throttled public service, so one query per
+/// artist buries the pass under timeouts and 429s — one query per ~50 artists does not.
 /// <para>
-/// Polite to two free public services: a <see cref="FixedCadenceRateLimiter"/> at 250 ms paces the
-/// (at most two) requests a lookup needs, and both clients carry an identifiable User-Agent with
-/// Pedro's contact. Any transport or parse error becomes <c>null</c>.
+/// Every lookup is classified into three outcomes (<see cref="BiographyOutcome"/>) so the caller can
+/// tell a genuine "no article" (safe to stamp as checked) apart from a transient WDQS/Wikipedia
+/// failure (must <b>not</b> be stamped, or a timeout would be recorded forever as "this band has no
+/// biography"). An artist with no usable Mbid, no enwiki sitelink, or no extract is a gap, never a
+/// guess (Invariant 5). Parsing lives in the pure, tested <see cref="WikipediaSummary"/>.
+/// </para>
+/// <para>
+/// Polite to two free public services: a <see cref="FixedCadenceRateLimiter"/> at 250 ms paces every
+/// request (the one batched SPARQL call plus one summary call per hit), and both clients carry an
+/// identifiable User-Agent with Pedro's contact.
 /// </para>
 /// </summary>
 public sealed class WikipediaSource : IDisposable
@@ -30,7 +38,8 @@ public sealed class WikipediaSource : IDisposable
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    // Two calls per artist against two free public endpoints; ~250 ms keeps a whole batch gentle.
+    // One batched SPARQL call, then one summary call per hit, against two free public endpoints;
+    // ~250 ms keeps a whole batch gentle.
     private readonly FixedCadenceRateLimiter _limiter = new(TimeSpan.FromMilliseconds(250));
 
     private readonly HttpClient _wikidata;
@@ -45,52 +54,107 @@ public sealed class WikipediaSource : IDisposable
     }
 
     /// <summary>
-    /// Resolves the artist's biography, or <c>null</c> when there is no accurate match. At most two
-    /// requests: the Wikidata SPARQL lookup by MusicBrainz id, then — only on an enwiki hit — the
-    /// Wikipedia summary. Any transport error yields <c>null</c>: a gap, never a guess.
+    /// Resolves biographies for a whole batch of artists in one WDQS query, then one Wikipedia summary
+    /// call per enwiki hit. Returns one <see cref="BiographyResult"/> per artist, keyed by MBID:
+    /// <list type="bullet">
+    /// <item><see cref="BiographyOutcome.Matched"/> — an article and extract were found.</item>
+    /// <item><see cref="BiographyOutcome.NoArticle"/> — WDQS/Wikipedia answered definitively that
+    /// there is no article or no extract: a real gap, safe to stamp as checked.</item>
+    /// <item><see cref="BiographyOutcome.Unavailable"/> — a transient failure (timeout, 429, 5xx):
+    /// the caller must leave the artist unstamped so a later run retries it.</item>
+    /// </list>
+    /// When the batch SPARQL call fails transiently, <b>every</b> artist in the batch comes back
+    /// <see cref="BiographyOutcome.Unavailable"/> — nothing is stamped on a bad WDQS moment.
     /// </summary>
-    public async Task<WikipediaBiography?> ResolveAsync(Artist artist, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<Guid, BiographyResult>> ResolveBatchAsync(
+        IReadOnlyList<Artist> artists, CancellationToken ct)
     {
-        if (artist.Mbid == Guid.Empty)
+        Dictionary<Guid, BiographyResult> results = new(artists.Count);
+
+        List<Artist> usable = artists.Where(a => a.Mbid != Guid.Empty).ToList();
+
+        foreach (Artist artist in artists.Where(a => a.Mbid == Guid.Empty))
         {
-            return null;
+            // No MBID can never match by our accurate rule; a definitive gap, safe to stamp.
+            results[artist.Mbid] = new BiographyResult(BiographyOutcome.NoArticle, null);
         }
 
-        SparqlResponse? sparql = await QueryWikidataAsync(EnwikiArticleQuery(artist.Mbid), ct);
-        string? title = WikipediaSummary.ParseArticleTitle(sparql);
-
-        if (title is null)
+        if (usable.Count == 0)
         {
-            return null;
+            return results;
         }
 
-        string? summaryJson = await GetWikipediaAsync($"api/rest_v1/page/summary/{title}", ct);
+        WikidataFetch fetch = await QueryWikidataAsync(EnwikiArticlesQuery(usable), ct);
 
-        return WikipediaSummary.ParseSummary(summaryJson, title);
+        if (fetch.Outcome == FetchOutcome.Transient)
+        {
+            // A bad WDQS moment must not be recorded as "these bands have no biography".
+            foreach (Artist artist in usable)
+            {
+                results[artist.Mbid] = new BiographyResult(BiographyOutcome.Unavailable, null);
+            }
+
+            return results;
+        }
+
+        Dictionary<string, string> titles = WikipediaSummary.ParseArticleTitles(fetch.Response);
+
+        foreach (Artist artist in usable)
+        {
+            if (!titles.TryGetValue(artist.Mbid.ToString(), out string? title))
+            {
+                // WDQS answered and this item has no enwiki article: a definitive gap.
+                results[artist.Mbid] = new BiographyResult(BiographyOutcome.NoArticle, null);
+                continue;
+            }
+
+            WikipediaFetch summary = await GetWikipediaAsync($"api/rest_v1/page/summary/{title}", ct);
+
+            if (summary.Outcome == FetchOutcome.Transient)
+            {
+                results[artist.Mbid] = new BiographyResult(BiographyOutcome.Unavailable, null);
+                continue;
+            }
+
+            WikipediaBiography? biography = WikipediaSummary.ParseSummary(summary.Json, title);
+
+            results[artist.Mbid] = biography is not null
+                ? new BiographyResult(BiographyOutcome.Matched, biography)
+                : new BiographyResult(BiographyOutcome.NoArticle, null);
+        }
+
+        return results;
     }
 
     /// <summary>
-    /// The SPARQL that finds the English-Wikipedia article for the Wikidata item carrying this
-    /// MusicBrainz artist id (<c>wdt:P434</c>). The id is pinned as a literal, so Wikidata computes
-    /// over a single item, never the whole graph.
+    /// The SPARQL that finds the English-Wikipedia articles for the Wikidata items carrying any of
+    /// these MusicBrainz artist ids (<c>wdt:P434</c>). The ids are pinned as literals in a
+    /// <c>VALUES</c> block, so Wikidata computes over that handful of items via the P434 index, never
+    /// the whole graph — one round trip for the whole batch. Both <c>?mbid</c> and <c>?article</c> are
+    /// projected so each article maps back to the artist that asked for it.
     /// </summary>
-    private static string EnwikiArticleQuery(Guid mbid)
+    private static string EnwikiArticlesQuery(IReadOnlyList<Artist> artists)
     {
-        // The MBID is a canonical lower-case GUID; SPARQL string literals only need quote escaping,
-        // and a GUID contains none — but escape defensively all the same.
-        string literal = mbid.ToString().Replace("\"", "\\\"", StringComparison.Ordinal);
+        StringBuilder values = new();
+
+        foreach (Artist artist in artists)
+        {
+            // A canonical lower-case GUID contains no quote to escape, but escape defensively anyway.
+            string literal = artist.Mbid.ToString().Replace("\"", "\\\"", StringComparison.Ordinal);
+            values.Append('"').Append(literal).Append("\" ");
+        }
 
         return $$"""
-            SELECT ?article WHERE {
-              ?item wdt:P434 "{{literal}}" .
+            SELECT ?mbid ?article WHERE {
+              VALUES ?mbid { {{values.ToString().TrimEnd()}} }
+              ?item wdt:P434 ?mbid .
               ?article schema:about ?item ;
                        schema:isPartOf <https://en.wikipedia.org/> .
             }
-            LIMIT 1
             """;
     }
 
-    private async Task<SparqlResponse?> QueryWikidataAsync(string sparql, CancellationToken ct)
+    private async Task<WikidataFetch> QueryWikidataAsync(string sparql, CancellationToken ct)
     {
         string url = $"sparql?query={Uri.EscapeDataString(sparql)}&format=json";
 
@@ -105,30 +169,33 @@ public sealed class WikipediaSource : IDisposable
 
             if (!response.IsSuccessStatusCode)
             {
+                // 429/5xx (and, defensively, any other non-success) are transient: never stamp on them.
                 _logger.LogWarning("Wikidata SPARQL query returned {Status}.", (int)response.StatusCode);
-                return null;
+                return new WikidataFetch(FetchOutcome.Transient, null);
             }
 
-            return await response.Content.ReadFromJsonAsync<SparqlResponse>(JsonOptions, ct);
+            SparqlResponse? parsed = await response.Content.ReadFromJsonAsync<SparqlResponse>(JsonOptions, ct);
+            return new WikidataFetch(FetchOutcome.Ok, parsed);
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Wikidata SPARQL query failed.");
-            return null;
+            return new WikidataFetch(FetchOutcome.Transient, null);
         }
         catch (JsonException ex)
         {
+            // A truncated/garbled body is a WDQS hiccup, not proof the bands lack articles: transient.
             _logger.LogWarning(ex, "Wikidata SPARQL query returned unparseable JSON.");
-            return null;
+            return new WikidataFetch(FetchOutcome.Transient, null);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning("Wikidata SPARQL query timed out.");
-            return null;
+            return new WikidataFetch(FetchOutcome.Transient, null);
         }
     }
 
-    private async Task<string?> GetWikipediaAsync(string url, CancellationToken ct)
+    private async Task<WikipediaFetch> GetWikipediaAsync(string url, CancellationToken ct)
     {
         await _limiter.WaitTurnAsync(ct);
 
@@ -136,29 +203,31 @@ public sealed class WikipediaSource : IDisposable
         {
             using HttpResponseMessage response = await _wikipedia.GetAsync(url, ct);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                // No summary for that title: a legitimate gap, not an error worth shouting about.
-                return null;
+                // No summary for that title: a legitimate gap, safe to stamp as checked.
+                return new WikipediaFetch(FetchOutcome.Ok, null);
             }
 
             if (!response.IsSuccessStatusCode)
             {
+                // 429/5xx (and any other non-success) are transient: never stamp on them.
                 _logger.LogWarning("Wikipedia summary GET {Url} returned {Status}.", url, (int)response.StatusCode);
-                return null;
+                return new WikipediaFetch(FetchOutcome.Transient, null);
             }
 
-            return await response.Content.ReadAsStringAsync(ct);
+            string json = await response.Content.ReadAsStringAsync(ct);
+            return new WikipediaFetch(FetchOutcome.Ok, json);
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Wikipedia summary GET {Url} failed.", url);
-            return null;
+            return new WikipediaFetch(FetchOutcome.Transient, null);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning("Wikipedia summary GET {Url} timed out.", url);
-            return null;
+            return new WikipediaFetch(FetchOutcome.Transient, null);
         }
     }
 
@@ -166,4 +235,30 @@ public sealed class WikipediaSource : IDisposable
     {
         _limiter.Dispose();
     }
+
+    private enum FetchOutcome
+    {
+        Ok,
+        Transient,
+    }
+
+    private readonly record struct WikidataFetch(FetchOutcome Outcome, SparqlResponse? Response);
+
+    private readonly record struct WikipediaFetch(FetchOutcome Outcome, string? Json);
 }
+
+/// <summary>How one artist's biography lookup resolved. See <see cref="WikipediaSource"/>.</summary>
+public enum BiographyOutcome
+{
+    /// <summary>An article and a usable extract were found.</summary>
+    Matched,
+
+    /// <summary>A definitive answer that there is no article or no extract — safe to stamp as checked.</summary>
+    NoArticle,
+
+    /// <summary>A transient failure (timeout, 429, 5xx) — leave unstamped so a later run retries.</summary>
+    Unavailable,
+}
+
+/// <summary>One artist's biography lookup outcome, with the biography when <see cref="BiographyOutcome.Matched"/>.</summary>
+public readonly record struct BiographyResult(BiographyOutcome Outcome, WikipediaBiography? Biography);

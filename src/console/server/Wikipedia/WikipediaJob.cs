@@ -72,40 +72,59 @@ public sealed class WikipediaJob : WorkerJob
 
         int matched = 0;
         int attempted = 0;
+        int unavailable = 0;
 
-        foreach (Artist artist in pending)
+        // Chunk into one WDQS query per BatchSize MBIDs — the throughput win over one query per artist.
+        foreach (Artist[] batch in pending.Chunk(_options.BatchSize))
         {
             if (ct.IsCancellationRequested)
             {
                 break;
             }
 
-            WikipediaBiography? biography = await _source.ResolveAsync(artist, ct);
+            IReadOnlyDictionary<Guid, BiographyResult> results = await _source.ResolveBatchAsync(batch, ct);
 
-            attempted++;
-
-            // Mark checked either way (matched or a genuine miss) so a re-run never fetches it again.
-            artist.AbstractCheckedAt = DateTime.UtcNow;
-
-            if (biography is not null)
+            foreach (Artist artist in batch)
             {
-                artist.Abstract = biography.Abstract;
-                artist.AbstractUrl = biography.Url;
-                matched++;
+                if (!results.TryGetValue(artist.Mbid, out BiographyResult result))
+                {
+                    continue;
+                }
+
+                switch (result.Outcome)
+                {
+                    case BiographyOutcome.Matched:
+                        // A definitive hit: store the biography and stamp it checked.
+                        artist.Abstract = result.Biography!.Abstract;
+                        artist.AbstractUrl = result.Biography.Url;
+                        artist.AbstractCheckedAt = DateTime.UtcNow;
+                        matched++;
+                        attempted++;
+                        break;
+
+                    case BiographyOutcome.NoArticle:
+                        // A definitive miss: stamp so a re-run never fetches it again.
+                        artist.AbstractCheckedAt = DateTime.UtcNow;
+                        attempted++;
+                        break;
+
+                    case BiographyOutcome.Unavailable:
+                        // A transient WDQS/Wikipedia failure: leave UNSTAMPED so a later run retries.
+                        // Stamping here would record a timeout forever as "this band has no biography".
+                        unavailable++;
+                        break;
+                }
             }
 
             await db.SaveChangesAsync(ct);
 
-            if (attempted % 25 == 0)
-            {
-                _logger.LogInformation(
-                    "Attempted {Attempted}/{Total}, {Matched} biographies matched.",
-                    attempted, pending.Count, matched);
-            }
+            _logger.LogInformation(
+                "Attempted {Attempted}/{Total}, {Matched} matched, {Unavailable} left for retry.",
+                attempted, pending.Count, matched, unavailable);
         }
 
         _logger.LogInformation(
-            "Wikipedia batch complete: {Matched}/{Attempted} matched. Re-run to continue.",
-            matched, attempted);
+            "Wikipedia batch complete: {Matched}/{Attempted} matched, {Unavailable} deferred (transient). Re-run to continue.",
+            matched, attempted, unavailable);
     }
 }

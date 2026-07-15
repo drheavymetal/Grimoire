@@ -376,7 +376,14 @@ static WikipediaOptions BuildWikipediaOptions(HostApplicationBuilder builder)
         limit = envLimit;
     }
 
-    return new WikipediaOptions { Limit = limit };
+    int batchSize = builder.Configuration.GetValue("Wikipedia:BatchSize", 50);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_WIKIPEDIA_BATCH"), out int envBatch) && envBatch > 0)
+    {
+        batchSize = envBatch;
+    }
+
+    return new WikipediaOptions { Limit = limit, BatchSize = batchSize };
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

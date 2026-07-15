@@ -60,6 +60,55 @@ public static class WikipediaSummary
     }
 
     /// <summary>
+    /// Batch counterpart of <see cref="ParseArticleTitle"/>: reads a SPARQL result that binds both
+    /// <c>?mbid</c> (the MusicBrainz id literal it was asked about) and <c>?article</c> (the enwiki
+    /// article URL) into a map from lower-case MBID to article title. One WDQS round trip resolves a
+    /// whole batch this way instead of one query per artist. Rows without a usable MBID or article
+    /// binding are skipped; a duplicate MBID keeps the first title seen. Returns an empty map when the
+    /// response has no bindings (a definitive "none of these have an article", never an error).
+    /// </summary>
+    public static Dictionary<string, string> ParseArticleTitles(
+        SparqlResponse? response, string mbidVar = "mbid", string articleVar = "article")
+    {
+        Dictionary<string, string> titles = new(StringComparer.OrdinalIgnoreCase);
+
+        if (response?.Results?.Bindings is null)
+        {
+            return titles;
+        }
+
+        foreach (Dictionary<string, SparqlValue> row in response.Results.Bindings)
+        {
+            if (!row.TryGetValue(mbidVar, out SparqlValue? mbid) || string.IsNullOrWhiteSpace(mbid.Value))
+            {
+                continue;
+            }
+
+            if (!row.TryGetValue(articleVar, out SparqlValue? article) || string.IsNullOrWhiteSpace(article.Value))
+            {
+                continue;
+            }
+
+            const string Marker = "/wiki/";
+            int at = article.Value.IndexOf(Marker, StringComparison.Ordinal);
+
+            if (at < 0)
+            {
+                continue;
+            }
+
+            string title = article.Value[(at + Marker.Length)..];
+
+            if (title.Length > 0)
+            {
+                titles.TryAdd(mbid.Value, title);
+            }
+        }
+
+        return titles;
+    }
+
+    /// <summary>
     /// Reads the extract and canonical desktop URL out of a Wikipedia REST summary response
     /// (<c>api/rest_v1/page/summary/{title}</c>). Returns <c>null</c> when the JSON is malformed, or
     /// the <c>extract</c> is missing or blank — a missing biography is a gap, not an error. The URL

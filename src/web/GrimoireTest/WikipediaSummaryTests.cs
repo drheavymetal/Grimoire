@@ -54,6 +54,90 @@ public class WikipediaSummaryTests
         Assert.Null(WikipediaSummary.ParseArticleTitle(null));
     }
 
+    // --- ParseArticleTitles (batch) ---
+
+    // A batched SPARQL result: each binding pairs the MBID it was asked about with its enwiki article.
+    private const string BatchSparqlJson = """
+    {
+      "head": { "vars": ["mbid", "article"] },
+      "results": {
+        "bindings": [
+          {
+            "mbid": { "type": "literal", "value": "aaaaaaaa-0000-0000-0000-000000000001" },
+            "article": { "type": "uri", "value": "https://en.wikipedia.org/wiki/Darkthrone" }
+          },
+          {
+            "mbid": { "type": "literal", "value": "bbbbbbbb-0000-0000-0000-000000000002" },
+            "article": { "type": "uri", "value": "https://en.wikipedia.org/wiki/Mayhem_(band)" }
+          }
+        ]
+      }
+    }
+    """;
+
+    [Fact]
+    public void ParseArticleTitles_MapsEachMbidToItsTitle()
+    {
+        SparqlResponse? response = JsonSerializer.Deserialize<SparqlResponse>(
+            BatchSparqlJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Dictionary<string, string> titles = WikipediaSummary.ParseArticleTitles(response);
+
+        Assert.Equal(2, titles.Count);
+        Assert.Equal("Darkthrone", titles["aaaaaaaa-0000-0000-0000-000000000001"]);
+        Assert.Equal("Mayhem_(band)", titles["bbbbbbbb-0000-0000-0000-000000000002"]);
+    }
+
+    [Fact]
+    public void ParseArticleTitles_IsCaseInsensitiveOnMbid()
+    {
+        SparqlResponse? response = JsonSerializer.Deserialize<SparqlResponse>(
+            BatchSparqlJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Dictionary<string, string> titles = WikipediaSummary.ParseArticleTitles(response);
+
+        // A GUID stringified upper-case must still find the binding (SPARQL echoes lower-case).
+        Assert.Equal("Darkthrone", titles["AAAAAAAA-0000-0000-0000-000000000001"]);
+    }
+
+    [Fact]
+    public void ParseArticleTitles_NoBindings_ReturnsEmptyMap()
+    {
+        SparqlResponse? empty = JsonSerializer.Deserialize<SparqlResponse>(
+            """{ "results": { "bindings": [] } }""",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Empty(WikipediaSummary.ParseArticleTitles(empty));
+        Assert.Empty(WikipediaSummary.ParseArticleTitles(null));
+    }
+
+    [Fact]
+    public void ParseArticleTitles_SkipsRowsMissingAnMbidOrArticle()
+    {
+        const string mixed = """
+        {
+          "results": {
+            "bindings": [
+              { "article": { "type": "uri", "value": "https://en.wikipedia.org/wiki/Orphan" } },
+              { "mbid": { "type": "literal", "value": "cccccccc-0000-0000-0000-000000000003" } },
+              {
+                "mbid": { "type": "literal", "value": "dddddddd-0000-0000-0000-000000000004" },
+                "article": { "type": "uri", "value": "https://en.wikipedia.org/wiki/Emperor_(band)" }
+              }
+            ]
+          }
+        }
+        """;
+
+        SparqlResponse? response = JsonSerializer.Deserialize<SparqlResponse>(
+            mixed, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Dictionary<string, string> titles = WikipediaSummary.ParseArticleTitles(response);
+
+        Assert.Single(titles);
+        Assert.Equal("Emperor_(band)", titles["dddddddd-0000-0000-0000-000000000004"]);
+    }
+
     // --- ParseSummary ---
 
     [Fact]
