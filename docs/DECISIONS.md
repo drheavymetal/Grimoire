@@ -869,6 +869,27 @@ Backend: `ProfileController` (`/api/profile` agregado, `/anchors` CRUD, `/rebuil
 
 ---
 
+## D57 — Amigos + revocación de sesiones (D28 saldado) — 2ª ola del bloque social
+`2026-07-15` · vigente · pedido por Pedro (*«añadir amigos, gestión de amigos, ver cosas de mis amigos»*, *«vamos con todo»*) · **salda la deuda D28** · el diff de auth se revisó a mano
+
+Grafo de amigos + las vistas que reusan lo ya construido, y —porque compartir sube el listón— **por fin sesiones revocables**.
+
+**D28 (auth) saldado.** Los refresh tokens ahora **rotan y son revocables**:
+- Cada uno se persiste **solo como SHA-256** en `refresh_tokens` (nunca el crudo; una fuga de la tabla no acuña sesiones). `POST /refresh` lo busca por hash, rechaza revocado/expirado, y **rota** (revoca el viejo + lo encadena a su sucesor con `ReplacedByTokenHash`).
+- Nuevos: `POST /logout` (revoca esta sesión), `POST /logout-all` (todas), `GET /sessions` (activas). El front hace logout server-side antes de limpiar local; en cada refresh guarda el token rotado (`authStore.setTokens` persiste ambos).
+- **Reuse-detection matizada** (edición a mano sobre el agente): re-presentar un token revocado **con sucesor** = carrera benigna (una 2ª pestaña / reload a mitad de refresh) → solo 401, **no** se barren las demás sesiones; **sin sucesor** (revocado por logout) = replay sospechoso → se barren todas. Evita el footgun de tumbar todos los dispositivos en una carrera de refresh normal.
+- Ventana de revocación práctica = vida del access token (15 min, stateless por diseño).
+
+**Amigos.** Un **handle** (se pone en el perfil, `[a-z0-9_]` 3–30) es cómo te añaden. Tabla `friendships` (Pending/Accepted/Blocked, FKs Restrict para evitar caminos de cascada múltiples) con request/accept/decline/remove/block. Vistas que **reusan lo hecho**: tabla de rareza por Depth Score, grimorio de un amigo, **grimorios cruzados** (C23, extraído a `GrimoireCrossService`), y el gusto de un amigo **superpuesto en el Atlas** (rombo distinto del círculo tuyo).
+
+**Gift-a-rite / duelo-con-amigo / feed** NO entran aquí: se entregan **a través del buzón** → caen en la ola de Notificaciones (siguiente). Las solicitudes sí se ven ya (pestaña en `/friends`).
+
+Backend: `FriendsController`, `HandleValidator`, migración única `AddFriendsAndSessions` (refresh_tokens + handle + friendships). Front: página `/friends`, perfil con handle + gestión de sesiones. **Dos subagentes en paralelo, contrato bloqueado; el diff de auth revisado a mano.** Audit `--strict` verde. **Verificado end-to-end en prod**: rotación (AR1→AR2, reuse 401 benigno, AR2 sigue vivo), logout→reuse 401, handles, request→accept, friends list, leaderboard.
+
+**Caveat conocido**: multi-pestaña con `authStore` en localStorage compartido — una carrera de refresh puede requerir re-login en esa pestaña (el clear de localStorage es compartido). Single-tab va perfecto. Fix propio = coordinación cross-tab (BroadcastChannel/single-flight), follow-up.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
