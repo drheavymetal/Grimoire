@@ -909,6 +909,23 @@ Front: el picker de `ColdStart` se **extrajo** a piezas compartidas (`useSeedGri
 
 ---
 
+## D60 — Notificaciones in-app (buzón sondeado, no push) — última ola del bloque social
+`2026-07-15` · vigente · pedido por Pedro (*«vamos con notificaciones in app»*, *«no necesito push, no hace falta que sea instantáneo»*)
+
+Buzón in-app **sondeado** (no WebPush; el infra VAPID de movimiento VI no se usa aquí) + las interacciones de amigos que se entregan por él.
+
+- Tabla `notifications` (`user_id` recipient CASCADE, `type` string, `actor_id` nullable Restrict, `payload_json` jsonb, `created_at`, `read_at`; índices `(user_id, created_at desc)` y filtrado `(user_id) where read_at is null`). Migración `AddNotifications`. `NotificationType` = FriendRequest·FriendAccepted·GiftReceived.
+- `NotificationsController`: `GET /api/notifications`, `GET /unread-count`, `POST /{id}/read`, `POST /read-all`. `NotificationService.CreateAsync` los escribe; payload aplanado al DTO por tipo (handle del actor resuelto en un lookup batcheado).
+- **Eventos de amigos cableados**: solicitud recibida → `FriendRequest` al destinatario; aceptada → `FriendAccepted` al solicitante.
+- **Regalar un rito a un amigo**: `POST /api/friends/{id}/gift {artistId}` envuelve la banda en el MISMO `GiftToken` stateless de C22 y deja un `GiftReceived` con el token → el amigo abre `/gift/{token}` **a ciegas** (el nombre nunca se muestra en el buzón).
+- Front: **campana + badge azufre** de no-leídas en el área de usuario del sidebar (sondea ~60s + al refocar la pestaña, solo autenticado); página `/notifications` que pinta cada tipo con su acción; **regalar** por-amigo con búsqueda de banda. `useNotifications` invalida el prefijo `['notifications']` → badge y lista se refrescan juntos.
+
+**Dos subagentes en paralelo, contrato bloqueado.** Audit `--strict` verde. **Verificado end-to-end en prod**: A pide→B unread 1, B acepta→A recibe FriendAccepted, A regala→B recibe GiftReceived con token, mark-all-read→unread 0.
+
+**Extensión en construcción (Pedro: «eso que queda fuera, mételo también»)**: **rarity-surpassed** (hook en el summon: al pasar a un amigo en Depth Score, se le avisa) y **duelo ligero cara a cara** (Pedro eligió la versión ligera sobre la asíncrona ciega y la de tiempo real: `GET /api/friends/{id}/duel` compara Depth Score + grimorios cruzados + % de alineación de gusto; `POST .../duel/challenge` deja notificación). Sin migración (tipos nuevos = strings). Se documentará al desplegar.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
