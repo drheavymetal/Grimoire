@@ -50,6 +50,7 @@ public record ArtistDetailDto(
     Rank? Rank,
     string[] Tags,
     string? Abstract,
+    string? AbstractUrl,
     string? ImageUrl,
     Dictionary<string, string>? Links,
     IReadOnlyList<ReleaseDto> Releases,

@@ -11,6 +11,7 @@ using Grimoire.Worker.MusicBrainz;
 using Grimoire.Worker.PersonLinks;
 using Grimoire.Worker.Preview;
 using Grimoire.Worker.Wikidata;
+using Grimoire.Worker.Wikipedia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +22,7 @@ using Polly;
 using Serilog;
 using Serilog.Events;
 
-string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks", "metalarchives"];
+string[] knownVerbs = ["seed", "edges", "previews", "listeners", "embeddings", "stats", "influence", "deaths", "atlas", "credits", "labels", "personlinks", "metalarchives", "biographies"];
 string? verb = args
     .Select(a => a.ToLowerInvariant())
     .FirstOrDefault(a => knownVerbs.Contains(a));
@@ -45,6 +46,7 @@ if (verb is null)
     Console.WriteLine("  labels      Import labels + releases.label_id from MusicBrainz (B20/B21). Batched, resumable.");
     Console.WriteLine("  personlinks Fetch url-rels for member rows so they gain a Wikidata QID (unblocks 'deaths').");
     Console.WriteLine("  metalarchives  Match bands on Metal Archives and import lyrical themes + genre (D48). ≤1 req/s, cached, resumable.");
+    Console.WriteLine("  biographies Fill artists.abstract from Wikipedia via MusicBrainz→Wikidata→Wikipedia (accurate, no homonyms). Batched, resumable.");
     return;
 }
 
@@ -117,6 +119,9 @@ switch (verb)
         break;
     case "metalarchives":
         ConfigureMetalArchives(builder);
+        break;
+    case "biographies":
+        ConfigureWikipedia(builder);
         break;
 }
 
@@ -342,6 +347,36 @@ static MetalArchivesOptions BuildMetalArchivesOptions(HostApplicationBuilder bui
     }
 
     return new MetalArchivesOptions { Limit = limit };
+}
+
+static void ConfigureWikipedia(HostApplicationBuilder builder)
+{
+    builder.Services.AddSingleton(BuildWikipediaOptions(builder));
+
+    // Two free public endpoints: Wikidata SPARQL (the accurate MusicBrainz-id match) and the
+    // Wikipedia REST summary. Both carry the identifiable User-Agent Grimoire uses everywhere and a
+    // light backoff on 429/503; the ~250 ms pacing lives in WikipediaSource's rate limiter, not here.
+    AddPoliteHttpClient(builder, WikipediaSource.WikidataClientName, "https://query.wikidata.org/");
+    AddPoliteHttpClient(builder, WikipediaSource.WikipediaClientName, "https://en.wikipedia.org/");
+
+    builder.Services.AddSingleton(sp => new WikipediaSource(
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(WikipediaSource.WikidataClientName),
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(WikipediaSource.WikipediaClientName),
+        sp.GetRequiredService<ILogger<WikipediaSource>>()));
+
+    builder.Services.AddHostedService<WikipediaJob>();
+}
+
+static WikipediaOptions BuildWikipediaOptions(HostApplicationBuilder builder)
+{
+    int limit = builder.Configuration.GetValue("Wikipedia:Limit", 500);
+
+    if (int.TryParse(Environment.GetEnvironmentVariable("GRIMOIRE_WIKIPEDIA_LIMIT"), out int envLimit) && envLimit > 0)
+    {
+        limit = envLimit;
+    }
+
+    return new WikipediaOptions { Limit = limit };
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

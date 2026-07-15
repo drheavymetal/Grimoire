@@ -43,6 +43,20 @@ public class Artist
 
     public string? Abstract { get; set; }
 
+    /// <summary>
+    /// Source URL of the <see cref="Abstract"/> (the English Wikipedia article), kept for the
+    /// CC BY-SA attribution the licence requires. Null when no biography was matched. Populated
+    /// alongside <see cref="Abstract"/> by the Wikipedia pass.
+    /// </summary>
+    public string? AbstractUrl { get; set; }
+
+    /// <summary>
+    /// When the Wikipedia biography pass last looked this artist up, matched or not. The resume
+    /// marker: a non-null value means "already checked, do not fetch again" so a re-run never
+    /// re-queries an artist Wikidata/Wikipedia has no article for (a gap, never a guess).
+    /// </summary>
+    public DateTime? AbstractCheckedAt { get; set; }
+
     /// <summary>Text embedding (nomic-embed-text, 768 dims). Null until the embedding pass runs.</summary>
     public Vector? Embedding { get; set; }
 

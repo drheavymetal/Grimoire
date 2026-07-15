@@ -81,6 +81,7 @@ public sealed class ArtistDetailBuilder
             artist.Rank,
             artist.Tags,
             artist.Abstract,
+            artist.AbstractUrl,
             artist.ImageUrl,
             artist.Links,
             releases,

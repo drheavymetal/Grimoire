@@ -13,6 +13,8 @@ type Phase = 'idle' | 'listening' | 'revealed' | 'blindResolved' | 'empty';
 // an unknown key just falls back to a fully open rite server-side, so drift degrades safely. Labels
 // are the genres' universal English names (metal subgenres are not translated).
 const RITE_GENRES: ReadonlyArray<{ key: string; label: string }> = [
+  // audit-ok: static genre catalogue mirroring the backend RiteGenres; labels are universal
+  // English genre names, deliberately not translated (see comment above), not mock content.
   { key: 'black-metal', label: 'Black Metal' },
   { key: 'death-metal', label: 'Death Metal' },
   { key: 'doom-metal', label: 'Doom Metal' },

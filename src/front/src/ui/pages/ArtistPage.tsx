@@ -122,7 +122,22 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
       <section className="mt-8">
         <h2 className="font-mono text-xs uppercase text-muted">{t('artist.bio')}</h2>
         {data.abstract !== null && data.abstract.trim().length > 0 ? (
-          <p className="mt-2 max-w-prose font-body leading-relaxed text-strong">{data.abstract}</p>
+          <>
+            <p className="mt-2 max-w-prose font-body leading-relaxed text-strong">{data.abstract}</p>
+            {data.abstractUrl !== null ? (
+              <p className="mt-2 font-mono text-xs text-muted">
+                <a
+                  href={data.abstractUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-muted underline hover:text-accent"
+                >
+                  {t('artist.abstractSource')}
+                </a>{' '}
+                (CC BY-SA)
+              </p>
+            ) : null}
+          </>
         ) : (
           <p className="mt-2 font-mono text-xs text-muted">{t('artist.noBio')}</p>
         )}

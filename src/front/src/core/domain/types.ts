@@ -59,6 +59,7 @@ export interface ArtistDetail {
   rank: Rank | null;
   tags: string[];
   abstract: string | null;
+  abstractUrl: string | null;
   imageUrl: string | null;
   links: Record<string, string> | null;
   releases: Release[];
