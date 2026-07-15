@@ -837,6 +837,22 @@ Implementación: `WikipediaSummary` (parser puro + 10 tests), `WikipediaSource/O
 
 ---
 
+## D55 — Temas reales de MA en la ficha, y **todo clicable con dos puertas** (rito ciego + browse)
+`2026-07-15` · vigente · pedido por Pedro (*«más grupos con más cosas»* + *«que se pueda hacer clic en los temas»* + *«todo debe ser clicable»*) · decisión de las dos puertas: **«Ambas»**
+
+La ficha gana la **temática lírica REAL de Metal Archives** (`LyricalThemes`, que el crawl importa) por encima del minado de títulos C21 (que se queda como aproximación honesta, D17), más el género MA. Y **cada etiqueta es una puerta, no un callejón**: clic en un tag de género, un tema lírico o un tema minado abre un menú con dos entradas:
+- **Invocar a ciegas** — rito **ciego** acotado a ese carril (el pool se estrecha, nada se revela). Preserva la tesis (como D52). Tags reusan el carril de tag (cualquiera, no solo el catálogo `RiteGenres`, vía `genreNeedle` crudo); temas líricos filtran `LyricalThemes`; temas minados filtran títulos de grabación por las keywords del `TitleLexicon`.
+- **Ver todas** — browse **con nombres** de las bandas de ese carril (la excepción explícita al ciego, como las Escenas), paginado.
+
+**Backend**: DTO de ficha con `lyricalThemes`+`metalArchivesGenre`; `POST /api/rite/serve` con `genreNeedle`/`themeNeedle`/`themeKind` opcionales; `BrowseController` (`/api/browse/tag`, `/api/browse/theme`) → `BandCardDto` paginado; guarda `SearchNeedle` (trim/lower/cap-64); `TitleLexicon.KeywordsFor`. **Índice trigram GIN en `recordings.title`** para el carril minado (migración `AddRecordingTitleTrigramIndex` idempotente — el índice se construyó CONCURRENTLY a mano en prod, 286 MB).
+**Front**: `ChipMenu`, `BrowsePage`+`useBrowse`, rito acotado-pero-ciego por search params, rutas `/browse/tag/$needle` y `/browse/theme/$key`.
+
+**Construido con dos subagentes en paralelo** (backend `web/server`+`shared`, front `front/`) a un **contrato de API bloqueado** — frentes de fichero disjuntos, cero migración compartida. Audit `--strict` verde. Desplegado y verificado en vivo: ficha Pantera (14 temas + género MA), browse/tag `black metal` 8673 en 0.96s, browse/theme lírico limpio 0.77s.
+
+**Caveats declarados**: (1) el browse de tema **minado** tarda ~4.5s (el `COUNT` + EXISTS sobre 7.8M grabaciones) — los carriles de tag y lírico van <1s; optimizable (conteo aproximado o capado). (2) El browse ordena por `listeners DESC` → mientras el crawl de Last.fm no termine, las famosas de un tag salen abajo (listeners null) y afloran homónimos metal de nombre mainstream (hay varios «Burial»); mejora sola al completarse el crawl. (3) El minado es aproximado (D17): un título con «die» casa «death» aunque la banda no vaya de eso.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
