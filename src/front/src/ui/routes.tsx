@@ -18,6 +18,7 @@ import { GiftPage } from './pages/GiftPage';
 import { WeeklyPage } from './pages/WeeklyPage';
 import { MirrorPage } from './pages/MirrorPage';
 import { MemoriamPage } from './pages/MemoriamPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 const rootRoute = createRootRoute({
   component: Layout,
@@ -132,6 +133,12 @@ const memoriamRoute = createRoute({
   component: MemoriamPage,
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profile',
+  component: ProfilePage,
+});
+
 // The NAMED "see all" door out of a ficha chip: every band under a tag, or under a theme.
 const browseTagRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -196,6 +203,7 @@ const routeTree = rootRoute.addChildren([
   weeklyRoute,
   mirrorRoute,
   memoriamRoute,
+  profileRoute,
   browseTagRoute,
   browseThemeRoute,
 ]);

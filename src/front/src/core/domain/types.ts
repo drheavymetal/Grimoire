@@ -718,6 +718,60 @@ export interface Gaps {
 }
 
 // ---------------------------------------------------------------------------
+// The user profile (2026-07-15): the signed-in listener's own page. Taste is HYBRID —
+// the Rite keeps learning by itself (EMA), and the profile adds an editable ANCHOR SET
+// plus a "rebuild my taste from these anchors" action that re-seeds the taste vector with
+// the anchors' mean. Everything here is derived from the user's own grimoire and taste.
+// ---------------------------------------------------------------------------
+
+// How many summoned bands fall in a given rank tier (null = bands with no rank yet).
+export interface RankBreakdownEntry {
+  rank: Rank | null;
+  count: number;
+}
+
+// How many summoned bands were formed in a given decade (e.g. 1980 for the 1980s).
+export interface DecadeCount {
+  decade: number;
+  count: number;
+}
+
+// How many summoned bands come from a given country.
+export interface CountryCount {
+  country: string;
+  count: number;
+}
+
+// How many summoned bands carry a given tag/genre.
+export interface GenreCount {
+  tag: string;
+  count: number;
+}
+
+// The signed-in listener's profile: their depth score, how much they have summoned, how many
+// anchors they have pinned, their rarest find, and the shape of their grimoire by rank, decade,
+// country and genre. Every list is empty for a new account — a designed empty state, not an error.
+export interface Profile {
+  depthScore: number;
+  summonedCount: number;
+  anchorCount: number;
+  deepestCut: BandCard | null;
+  rankBreakdown: RankBreakdownEntry[];
+  byDecade: DecadeCount[];
+  byCountry: CountryCount[];
+  byGenre: GenreCount[];
+}
+
+// The outcome of rebuilding the taste vector from the pinned anchors: how many anchors were
+// usable (had an embedding), whether a taste vector was set, and the resulting depth score.
+// A 400 from the endpoint means there were no usable anchors — the honest empty case.
+export interface RebuildResult {
+  anchorsUsed: number;
+  tasteSet: boolean;
+  depthScore: number;
+}
+
+// ---------------------------------------------------------------------------
 // Movement III — per-release credits (B9). Who played what on each release,
 // separating official members from guests, plus production. Keyed by release id
 // so the artist page matches it to the discography it already holds.

@@ -52,6 +52,7 @@ export function Layout() {
 
             <span aria-hidden="true" className="mx-1 h-3 w-px bg-line" />
 
+            {isAuthenticated ? <NavLink to="/profile" label={t('nav.profile')} /> : null}
             {isAuthenticated ? (
               <button
                 type="button"

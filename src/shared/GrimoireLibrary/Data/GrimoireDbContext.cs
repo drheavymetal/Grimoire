@@ -45,6 +45,8 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<TasteSnapshot> TasteSnapshots => Set<TasteSnapshot>();
 
+    public DbSet<TasteAnchor> TasteAnchors => Set<TasteAnchor>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -275,6 +277,25 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.HasOne<GrimoireUser>()
                 .WithMany()
                 .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TasteAnchor>(entity =>
+        {
+            entity.ToTable("taste_anchors");
+
+            // One row per (user, band): the composite key makes adding an anchor idempotent
+            // and removing it a plain delete (HYBRID taste model).
+            entity.HasKey(a => new { a.UserId, a.ArtistId });
+
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Artist>()
+                .WithMany()
+                .HasForeignKey(a => a.ArtistId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

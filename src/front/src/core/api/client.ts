@@ -6,6 +6,7 @@ import type {
   ArtistThemes,
   Atlas,
   AuthTokens,
+  BandCard,
   BrowseResult,
   CompareResult,
   CoverWallItem,
@@ -32,9 +33,11 @@ import type {
   OneAlbumBand,
   PathResult,
   PivotalRelease,
+  Profile,
   ProlificBand,
   RabbitHole,
   RareInstrument,
+  RebuildResult,
   Reflection,
   ReleaseCredits,
   ResolveResult,
@@ -205,6 +208,23 @@ export interface GrimoireClient {
   darkTwin(signal?: AbortSignal): Promise<DarkTwin>;
   /** Decades, countries and subgenres you have never summoned (B23). */
   gaps(signal?: AbortSignal): Promise<Gaps>;
+
+  // --- The user profile (2026-07-15) ---
+  /** The signed-in listener's profile: depth score, counts, deepest cut, and the shape of the grimoire. */
+  getProfile(signal?: AbortSignal): Promise<Profile>;
+  /** The bands the listener has pinned as taste anchors (the editable seed set). */
+  getAnchors(signal?: AbortSignal): Promise<BandCard[]>;
+  /** Pins a band as a taste anchor. Idempotent server-side; returns nothing (204). */
+  addAnchor(artistId: string): Promise<void>;
+  /** Unpins a taste anchor. Returns nothing (204). */
+  removeAnchor(artistId: string): Promise<void>;
+  /** Re-seeds the taste vector from the pinned anchors' mean. 400 when no anchor is usable. */
+  rebuildTaste(): Promise<RebuildResult>;
+  /**
+   * URL of the authenticated grimoire export (a JSON attachment). Pure string building (no fetch,
+   * no DOM), so it stays portable; the platform layer fetches it with the bearer and saves the blob.
+   */
+  profileExportUrl(): string;
 
   // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
   /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
@@ -577,6 +597,33 @@ export function createGrimoireClient(
     },
     gaps(signal) {
       return request<Gaps>('/api/mirror/gaps', { auth: true, signal });
+    },
+
+    getProfile(signal) {
+      return request<Profile>('/api/profile', { auth: true, signal });
+    },
+    getAnchors(signal) {
+      return request<BandCard[]>('/api/profile/anchors', { auth: true, signal });
+    },
+    async addAnchor(artistId) {
+      // The endpoint returns 204 No Content; requestMaybe tolerates the empty body.
+      await requestMaybe<null>('/api/profile/anchors', {
+        method: 'POST',
+        auth: true,
+        body: { artistId },
+      });
+    },
+    async removeAnchor(artistId) {
+      await requestMaybe<null>(`/api/profile/anchors/${encodeURIComponent(artistId)}`, {
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+    rebuildTaste() {
+      return request<RebuildResult>('/api/profile/rebuild-taste', { method: 'POST', auth: true });
+    },
+    profileExportUrl() {
+      return `${root}/api/profile/export`;
     },
 
     memoriam(signal) {

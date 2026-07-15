@@ -1,0 +1,502 @@
+import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
+import { ApiError } from '../../core/api/client';
+import { useGrimoireClient } from '../../core/api/context';
+import { useArtistSearch } from '../../core/hooks/useArtistSearch';
+import { useDebouncedValue } from '../../core/hooks/useDebouncedValue';
+import {
+  useAddAnchor,
+  useAnchors,
+  useProfile,
+  useRebuildTaste,
+  useRemoveAnchor,
+} from '../../core/hooks/useProfile';
+import type {
+  ArtistSummary,
+  BandCard,
+  CountryCount,
+  DecadeCount,
+  GenreCount,
+  Profile,
+  Rank,
+  RankBreakdownEntry,
+} from '../../core/domain/types';
+import { applyTheme, readTheme, type Theme } from '../../platform/theme.web';
+import { authStore } from '../../platform/authStore.web';
+import { downloadAuthenticated } from '../../platform/download.web';
+import { persistLanguage } from '../../i18n';
+import { useAuth } from '../auth/AuthProvider';
+import { AuthPanel } from '../auth/AuthPanel';
+import { PageHeader } from '../PageHeader';
+import { SectionHead } from '../SectionHead';
+import { RankedName } from '../RankedName';
+
+// The canonical rank order, rarest last, so the distribution always reads Known → Nameless
+// regardless of the order the backend returns the breakdown in.
+const RANK_ORDER: Rank[] = ['Known', 'Obscure', 'Hidden', 'Forgotten', 'Nameless'];
+
+// The user profile (2026-07-15): the signed-in listener's own page. Taste is HYBRID — the Rite
+// keeps learning by itself (EMA), and this page adds an editable anchor set plus a "rebuild my
+// taste from these anchors" action. The page LINKS to the grimoire, the mirror and the atlas; it
+// never duplicates them. Every section has a designed empty state — a new account has nothing yet.
+export function ProfilePage() {
+  const { t } = useTranslation();
+  const { status, isAuthenticated } = useAuth();
+
+  if (status === 'unknown') {
+    return <p className="font-mono text-sm text-muted">{t('rite.checking')}</p>;
+  }
+
+  if (!isAuthenticated) {
+    return <AuthPanel />;
+  }
+
+  return <ProfileBody />;
+}
+
+function ProfileBody() {
+  const { t } = useTranslation();
+  const profile = useProfile(true);
+
+  return (
+    <section className="space-y-12">
+      <PageHeader eyebrow={t('profile.eyebrow')} title={t('profile.heading')} />
+
+      {profile.isLoading ? (
+        <p className="font-mono text-sm text-muted">{t('profile.loading')}</p>
+      ) : profile.isError ? (
+        <p className="font-mono text-sm text-danger">{t('profile.error')}</p>
+      ) : profile.data !== undefined ? (
+        <>
+          <IdentityHeader profile={profile.data} />
+          <TasteManagement anchorCount={profile.data.anchorCount} />
+          <Discoveries profile={profile.data} />
+        </>
+      ) : null}
+
+      <Settings />
+    </section>
+  );
+}
+
+// Identity: the Depth Score as the headline badge, the summoned count, and the rank distribution.
+function IdentityHeader({ profile }: { profile: Profile }) {
+  const { t } = useTranslation();
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4 border border-line p-6">
+        <div>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">
+            {t('profile.depthScore')}
+          </p>
+          <p className="font-display text-6xl leading-none text-strong">{profile.depthScore}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-muted">
+            {t('profile.summoned')}
+          </p>
+          <p className="font-display text-4xl leading-none text-strong">{profile.summonedCount}</p>
+        </div>
+      </div>
+
+      <RankDistribution breakdown={profile.rankBreakdown} total={profile.summonedCount} />
+    </section>
+  );
+}
+
+function RankDistribution({
+  breakdown,
+  total,
+}: {
+  breakdown: RankBreakdownEntry[];
+  total: number;
+}) {
+  const { t } = useTranslation();
+  const byRank = new Map<Rank | 'null', number>();
+  for (const entry of breakdown) {
+    byRank.set(entry.rank ?? 'null', entry.count);
+  }
+  const nullCount = byRank.get('null') ?? 0;
+
+  if (total === 0) {
+    return (
+      <p className="mt-4 font-mono text-xs text-muted">{t('profile.rankEmpty')}</p>
+    );
+  }
+
+  return (
+    <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
+      {RANK_ORDER.map((rank) => (
+        <div key={rank} className="flex items-baseline gap-2">
+          <dt className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-muted">
+            {t(`rank.${rank}`)}
+          </dt>
+          <dd className="font-mono text-sm text-strong">{byRank.get(rank) ?? 0}</dd>
+        </div>
+      ))}
+      {nullCount > 0 ? (
+        <div className="flex items-baseline gap-2">
+          <dt className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-muted">
+            {t('profile.rankUnknown')}
+          </dt>
+          <dd className="font-mono text-sm text-strong">{nullCount}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+// The hybrid anchor set: the pinned bands (removable), an "add band" typeahead, and the
+// rebuild-taste action. The copy is honest about the two halves of the taste.
+function TasteManagement({ anchorCount }: { anchorCount: number }) {
+  const { t } = useTranslation();
+  const anchors = useAnchors(true);
+  const removeAnchor = useRemoveAnchor();
+
+  return (
+    <section>
+      <SectionHead title={t('profile.tasteTitle')} hint={t('profile.tasteHint')} />
+
+      {anchors.isLoading ? (
+        <p className="mt-3 font-mono text-sm text-muted">{t('profile.anchorsLoading')}</p>
+      ) : anchors.isError ? (
+        <p className="mt-3 font-mono text-sm text-danger">{t('profile.anchorsError')}</p>
+      ) : (
+        <>
+          {(anchors.data ?? []).length === 0 ? (
+            <p className="mt-3 max-w-prose font-body text-sm text-muted">{t('profile.anchorsEmpty')}</p>
+          ) : (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {(anchors.data ?? []).map((band) => (
+                <li
+                  key={band.id}
+                  className="flex items-center gap-2 border border-line px-3 py-1.5"
+                >
+                  <Link
+                    to="/artist/$artistId"
+                    params={{ artistId: band.id }}
+                    className="no-underline"
+                  >
+                    <RankedName name={band.name} rank={band.rank} className="font-body text-strong" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => removeAnchor.mutate(band.id)}
+                    disabled={removeAnchor.isPending}
+                    aria-label={t('profile.anchorRemove', { name: band.name })}
+                    className="cursor-pointer font-mono text-sm text-muted hover:text-danger disabled:opacity-50"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <AnchorSearch existing={anchors.data ?? []} />
+          <RebuildTaste anchorCount={anchorCount} />
+        </>
+      )}
+    </section>
+  );
+}
+
+// The "add band" typeahead — reuses the artist search that powers the "/" route. Bands already
+// pinned are dropped from the suggestions so an anchor cannot be added twice.
+function AnchorSearch({ existing }: { existing: BandCard[] }) {
+  const { t } = useTranslation();
+  const [term, setTerm] = useState('');
+  const debounced = useDebouncedValue(term, 300);
+  const search = useArtistSearch(debounced);
+  const addAnchor = useAddAnchor();
+
+  const existingIds = new Set(existing.map((band) => band.id));
+  const suggestions = (search.data ?? []).filter((artist) => !existingIds.has(artist.id));
+  const showResults = debounced.trim().length >= 2;
+
+  function pick(artist: ArtistSummary) {
+    addAnchor.mutate(artist.id, {
+      onSuccess: () => {
+        setTerm('');
+      },
+    });
+  }
+
+  return (
+    <div className="mt-5">
+      <label className="block">
+        <span className="font-mono text-xs uppercase text-muted">{t('profile.addLabel')}</span>
+        <input
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder={t('profile.addPlaceholder')}
+          autoComplete="off"
+          className="mt-1 w-full border border-line bg-panel px-4 py-3 font-body text-strong outline-none focus:border-accent"
+        />
+      </label>
+
+      {addAnchor.isError ? (
+        <p className="mt-2 font-mono text-xs text-danger">{t('profile.addError')}</p>
+      ) : null}
+
+      {showResults && search.isFetching ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('profile.addSearching')}</p>
+      ) : null}
+
+      {showResults && !search.isFetching && suggestions.length === 0 ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('profile.addEmpty')}</p>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <ul className="mt-2 divide-y divide-line border-y border-line">
+          {suggestions.map((artist) => (
+            <li key={artist.id}>
+              <button
+                type="button"
+                onClick={() => pick(artist)}
+                disabled={addAnchor.isPending}
+                className="flex w-full items-baseline justify-between gap-4 py-2.5 text-left disabled:opacity-50"
+              >
+                <RankedName name={artist.name} rank={artist.rank} className="font-body text-strong" />
+                <span className="shrink-0 font-mono text-xs text-muted">
+                  {artist.country ?? t('search.countryUnknown')}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+// The "rebuild my taste from these anchors" action. It re-seeds the taste vector with the anchors'
+// mean; the Rite keeps learning on its own afterwards. Surfaces the result, or the 400 no-anchor case.
+function RebuildTaste({ anchorCount }: { anchorCount: number }) {
+  const { t } = useTranslation();
+  const rebuild = useRebuildTaste();
+
+  const noAnchors =
+    rebuild.isError && rebuild.error instanceof ApiError && rebuild.error.status === 400;
+
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <button
+        type="button"
+        onClick={() => rebuild.mutate()}
+        disabled={rebuild.isPending || anchorCount === 0}
+        className="border border-accent px-5 py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-accent hover:bg-accent hover:text-bg disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {rebuild.isPending ? t('profile.rebuilding') : t('profile.rebuild')}
+      </button>
+      <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('profile.rebuildNote')}</p>
+
+      {noAnchors ? (
+        <p className="mt-3 font-mono text-sm text-danger">{t('profile.rebuildNoAnchors')}</p>
+      ) : rebuild.isError ? (
+        <p className="mt-3 font-mono text-sm text-danger">{t('profile.rebuildError')}</p>
+      ) : rebuild.data !== undefined ? (
+        <p className="mt-3 font-mono text-sm text-strong">
+          {rebuild.data.tasteSet
+            ? t('profile.rebuildDone', {
+                used: rebuild.data.anchorsUsed,
+                depth: rebuild.data.depthScore,
+              })
+            : t('profile.rebuildNoAnchors')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// Discoveries + stats: the rarest find, and the grimoire's shape by decade, country and genre,
+// with doors out to the grimoire, the mirror and the atlas.
+function Discoveries({ profile }: { profile: Profile }) {
+  const { t } = useTranslation();
+
+  return (
+    <section>
+      <SectionHead title={t('profile.discoveriesTitle')} hint={t('profile.discoveriesHint')} />
+
+      {profile.deepestCut !== null ? (
+        <div className="mt-4 border border-accent p-5">
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">
+            {t('profile.deepestCut')}
+          </p>
+          <Link
+            to="/artist/$artistId"
+            params={{ artistId: profile.deepestCut.id }}
+            className="no-underline"
+          >
+            <RankedName
+              name={profile.deepestCut.name}
+              rank={profile.deepestCut.rank}
+              className="mt-2 block font-display text-3xl text-strong"
+            />
+          </Link>
+          <p className="mt-2 font-mono text-xs text-muted">
+            {profile.deepestCut.rank !== null ? t(`rank.${profile.deepestCut.rank}`) : t('profile.rankUnknown')}
+            {' · '}
+            {profile.deepestCut.country ?? t('search.countryUnknown')}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-4 max-w-prose font-body text-sm text-muted">{t('profile.deepestCutEmpty')}</p>
+      )}
+
+      <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        <StatColumn
+          title={t('profile.byDecade')}
+          rows={profile.byDecade.map((d: DecadeCount) => ({ label: `${d.decade}s`, count: d.count }))}
+          empty={t('profile.statsEmpty')}
+        />
+        <StatColumn
+          title={t('profile.byCountry')}
+          rows={profile.byCountry.map((c: CountryCount) => ({ label: c.country, count: c.count }))}
+          empty={t('profile.statsEmpty')}
+        />
+        <StatColumn
+          title={t('profile.byGenre')}
+          rows={profile.byGenre.map((g: GenreCount) => ({ label: g.tag, count: g.count }))}
+          empty={t('profile.statsEmpty')}
+        />
+      </div>
+
+      <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
+        <Link to="/grimoire" className="font-mono text-xs uppercase tracking-[0.14em] text-accent no-underline hover:text-strong">
+          {t('profile.toGrimoire')}
+        </Link>
+        <Link to="/mirror" className="font-mono text-xs uppercase tracking-[0.14em] text-accent no-underline hover:text-strong">
+          {t('profile.toMirror')}
+        </Link>
+        <Link to="/atlas" className="font-mono text-xs uppercase tracking-[0.14em] text-accent no-underline hover:text-strong">
+          {t('profile.toAtlas')}
+        </Link>
+      </nav>
+    </section>
+  );
+}
+
+function StatColumn({
+  title,
+  rows,
+  empty,
+}: {
+  title: string;
+  rows: { label: string; count: number }[];
+  empty: string;
+}) {
+  const max = rows.reduce((acc, row) => Math.max(acc, row.count), 0);
+
+  return (
+    <div>
+      <h3 className="font-mono text-xs uppercase text-muted">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="mt-2 font-mono text-xs text-muted">{empty}</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {rows.map((row) => (
+            <li key={row.label} className="font-mono text-xs">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate text-strong">{row.label}</span>
+                <span className="shrink-0 text-muted">{row.count}</span>
+              </div>
+              <span
+                aria-hidden="true"
+                className="mt-1 block h-px bg-accent"
+                style={{ width: `${max > 0 ? Math.max(6, (row.count / max) * 100) : 0}%` }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Settings: theme + language (surfaced here too, not removed from the nav), the grimoire export,
+// the honest D28 note about sessions, and sign out.
+function Settings() {
+  const { t, i18n } = useTranslation();
+  const { logout } = useAuth();
+  const client = useGrimoireClient();
+  const [theme, setTheme] = useState<Theme>(() => readTheme());
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+
+  function toggleTheme() {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    setTheme(next);
+  }
+
+  function toggleLanguage() {
+    const next = i18n.language === 'es' ? 'en' : 'es';
+    void i18n.changeLanguage(next);
+    persistLanguage(next);
+  }
+
+  async function exportGrimoire() {
+    setExporting(true);
+    setExportError(false);
+    try {
+      await downloadAuthenticated(
+        client.profileExportUrl(),
+        authStore.getAccessToken(),
+        'grimoire.json',
+      );
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <section>
+      <SectionHead title={t('profile.settingsTitle')} />
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong"
+        >
+          {theme === 'dark' ? t('profile.themeToLight') : t('profile.themeToDark')}
+        </button>
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong"
+        >
+          {i18n.language === 'es' ? t('profile.languageToEn') : t('profile.languageToEs')}
+        </button>
+        <button
+          type="button"
+          onClick={() => void exportGrimoire()}
+          disabled={exporting}
+          className="border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong disabled:opacity-50"
+        >
+          {exporting ? t('profile.exporting') : t('profile.export')}
+        </button>
+      </div>
+
+      {exportError ? (
+        <p className="mt-2 font-mono text-xs text-danger">{t('profile.exportError')}</p>
+      ) : null}
+
+      <p className="mt-5 max-w-prose font-mono text-xs text-muted">{t('profile.sessionNote')}</p>
+
+      <button
+        type="button"
+        onClick={logout}
+        className="mt-4 border border-danger px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-danger hover:bg-danger hover:text-bg"
+      >
+        {t('profile.logout')}
+      </button>
+    </section>
+  );
+}
