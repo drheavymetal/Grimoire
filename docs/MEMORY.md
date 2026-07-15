@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-12**.
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6c** — la sesión más grande: MA scraper + Last.fm tags corriendo, clásica eliminada, 3 fixes de producto, Rito por género, enlaces de streaming).
 
 ---
 
@@ -18,7 +18,7 @@ La tesis: no dejamos de escuchar lo mismo por falta de recomendaciones, sino por
 ## 2. Estado actual (foto)
 
 - **Desplegado y vivo en `https://grimoire.drheavymetal.com`** (TLS Let's Encrypt, ver §6).
-- **Catálogo real: 207 622 artistas** destilados del dump completo de MusicBrainz (D5), 668 885 releases, 199 971 aristas `member_of` con fechas e instrumentos, 65 600 sellos.
+- **Catálogo real: 206 887 artistas** (tras purgar la clásica, D50 — antes 207 622) destilados del dump completo de MusicBrainz (D5), 668 885 releases, `member_of` con fechas e instrumentos, 65 600 sellos. **Sin música clásica** (§6c).
 - **Motor de descubrimiento a escala**: 175 230 embeddings centrados (D26), búsqueda en anillo por percentiles, proyección Atlas (xy) para las 175k.
 - **Escucha a ciegas online**: previews resueltos **just-in-time** al servir (iTunes→Deezer), stream por proxy anti-leak, **cero audio local** (D40).
 - **Rediseño visual v2** implementado en toda la app (identidad metal atmosférica: logo, corrosión por rareza, el Rito como ritual — ver §5).
@@ -156,6 +156,43 @@ Alternativa gratuita y complementaria, **para el underground que no está en nin
 ### Deuda operativa detectada
 
 - **El puerto 5173 lo ocupa el dev server de OTRO proyecto** (SkadAI). `playwright.config.ts` usa `reuseExistingServer: true`, así que **los E2E le hablaban a la app equivocada** y salían en rojo sin culpa de Grimoire. Workaround usado: levantar el front en `:5174` y un config temporal. **Pedro debe decidir** si se fija el puerto o se desactiva el reuse.
+
+---
+
+## 6c. Sesión 2026-07-15 — sesión larga y autónoma (LEER)
+
+Sesión con Pedro que empezó con la 2ª respuesta de MA y acabó en un despliegue grande, hecho **de forma autónoma** mientras él dormía. Todo commiteado sin firmar y pusheado a `origin/main` en checkpoints (commits `6d1f5c0`, `686e01d`, `7433362`, `3158053`, `3c22b58`). Estado: **desplegado y verificado en vivo**.
+
+### Metal Archives — 2ª respuesta y el scraper, YA CORRIENDO
+- MA respondió (`outreach/` §4, **D48/D49**): **que scrapeemos** (menos esfuerzo para ellos; no tienen API), **no tienen MBIDs** (match por nombre+país+año, R3 confirmado), y **las imágenes no son suyas** para autorizarlas → Pedro decide cachear+servir con retirada a petición (D49). No comercial ratificado. Se les mandó un correo de agradecimiento (`outreach/` §5).
+- **Scraper construido y desplegado**: `MetalArchivesParser` (puro, tests), `MetalArchivesSource`, `MetalArchivesJob`, verbo `metalarchives`. Importa **temática lírica + género MA + `metal_archives_id`** (enlace a Metallum, invariante 3). Formación/reviews/imágenes = v2.
+- **BUG CLAVE resuelto**: MA está tras un WAF que **403ea HTTP/1.1 y sirve HTTP/2**. .NET usa HTTP/1.1 por defecto → todo 403. Fix: `DefaultRequestVersion=Version20` + `RequestVersionOrHigher` (commit `3c22b58`). **Verificado en vivo: casó Pantera con toda su temática lírica.**
+- **Corriendo en el server** (`grimoire-metalarchives`, `restart unless-stopped`), 1 req/s, ~83 490 bandas pendientes, resumible vía `metal_archives_checked_at`. **Ordena por listeners DESC** → procesa primero las mainstream (no metal, no casan) antes de las metal; correcto pero ineficiente — **optimización futura: filtrar a metal-o-sin-tags**.
+
+### Last.fm — pase relanzado con tags
+- `LastFmArtist` ahora deserializa **tags** además de listeners → un solo `artist.getInfo` rellena ambos huecos. El job hace backfill de tags solo donde la banda no tiene (no pisa los de MB).
+- **Corriendo en el server** (`grimoire-listeners`, `unless-stopped`), ~101 340 pendientes, ordena por nº de releases DESC (bandas reales primero). Ya llevaba 14 366 con listeners de antes.
+- La key de Last.fm va por env `GRIMOIRE_LASTFM_APIKEY` (no user-secrets en el contenedor).
+
+### Música clásica — ELIMINADA (D50, supersede D11/D13)
+- Pedro: enturbiaba la app de heavy+rock+folk. **Datos purgados en prod**: 23 compositores + 2291 works + 634 orquestas + 81 coros (**preservadas 3 con tag heavy**) + linaje maestro-discípulo. **207 622 → 206 887 artistas.** Migración `RemoveClassicalAddMetalArchives` dropeó la tabla `works`.
+- **Código arrancado entero**: modelo `Work`, ficha de compositor (front), `ComposerController`/servicios, verbo `classical`, `EdgeKind.Teacher/Student`, `SeedFamily.Classical`. Se conservan `CreditResolver` y `CoverVersion` (créditos MB genéricos).
+
+### Tres fixes de producto que Pedro reportó
+- **Fuente de bandas ilegible (D51, corrige D38)**: la escala de corrosión de Redaction estaba **invertida**. Verificado renderizando las 6 caras: **cut10=limpio, cut100=corroído** (bloque ilegible). El código y `DESIGN.md §3` decían lo contrario → las Known salían feas y `BASE=100` hacía feo TODO rank desconocido. Corregido: BASE=10, mapa Known 10→Nameless 70 (capado, cut100 solo para el reveal transitorio). Verificado por render.
+- **Atlas colgaba el PC (#5)**: `AtlasController` enviaba los **175k stars sin límite** → el canvas pinta un gradiente radial por star → 175k por frame = cuelgue. Capado a **muestra de 8000** server-side. Y la base PCA se reconstruía de los 175k embeddings (~½ GB en la API) → capada a muestra de 12k. Verificado: `/api/atlas` devuelve 8000, no cuelga.
+- **Espejo→trayectoria en blanco (#4)**: dependía de la proyección Atlas pesada (null → chart vacío). Reescrita para pintar **depth score en el tiempo** (siempre presente, sin proyección).
+
+### Dos features nuevas que pidió Pedro
+- **Rito por género, OPCIONAL (D52, supersede D43)**: puedes invocar dentro de un género (black metal, thrash, folk, viking…) **pero sigues catando a ciegas**. Solo el Rito principal (no duelo/semanal). `RiteGenres` (shared), `GET /api/rite/genres`, `RiteFilters.GenreNeedle` con ILIKE substring en `ServablePool`. **Verificado en vivo: serve con genre=black-metal → 200.** Cobertura crece con el pase de Last.fm.
+- **Enlaces «Escuchar en» Spotify/Apple Music/Tidal/YouTube Music** en banda y disco: deep-links de búsqueda, coste cero (Grimoire no reproduce, invariante 4). Front puro.
+
+### Deuda/pendiente detectado esta sesión
+- **MA ordena por listeners DESC** → gasta las primeras horas en bandas mainstream no-metal. Optimización: restringir el pool MA a `Tags vacío OR tag metal-ish`.
+- **Imágenes de MA (D49)**: decidido cachear+servir con retirada a petición, **no implementado** aún (v2).
+- **Formación + review score de MA (D44)**: no implementado (v2).
+- El error `libgssapi_krb5.so.2` en los workers es **benigno** (Npgsql intenta GSSAPI, cae al fallback; la conexión funciona).
+- Los dos crawls sobreviven al apagado del PC de Pedro (corren en el server) y a reboots (`unless-stopped`). Se **auto-supervisan**.
 
 ---
 
