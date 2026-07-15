@@ -245,6 +245,25 @@ Orden y estado. Cada ola = feature COMPLETA, desplegada y verificada (olas por l
 
 ---
 
+## 6e. Sesión 2026-07-15 noche / 2026-07-16 — revisión de crawls: MA cerrado, bios arreglado (batch)
+
+Revisión con Pedro del estado de los tres crawls de enriquecimiento en el server. Commit `8c6b967` en `origin/main`.
+
+### Metal Archives — TERMINADO, contenedor parado
+Scope metal-ish (D53) **agotado**: `0 bands pending`. Aportó, dato real y rico para la ficha (D55): **1 958** hits (`metal_archives_id` + `metal_archives_genre` + enlace a Metallum), **1 338** con `lyrical_themes` (array) reales de MA (ej. Pantera→Groove Metal/Violence,Drugs,Suicide; Powerwolf→Werewolves,Dark myths,Horror). Ratio 1 958/61 986 chequeados = 3.2% (normal: la mayoría de MB no es metal ni está en MA). **⚠️ Falsos positivos por match-por-nombre**: mainstream que comparte nombre con banda oscura de MA (ej. "Plan B" rapero→Thrash Metal, "goat"→Death/Black). Genuino en bandas metal reales, ruido en no-metal populares (riesgo D17). Contenedor `grimoire-metalarchives` **eliminado** (churnaba en bucle `Restarting` cada ~60s sin trabajo por `restart: unless-stopped`).
+
+### Last.fm `listeners` — SANO, avanzando
+`112 103 / 206 887` = **54%** (salto enorme desde el stall de la letra B de §6b). Contenedor `grimoire-listeners` vivo, 200s fluyendo. Sigue por horas (el underground no está en Last.fm).
+
+### Biografías Wikipedia (D54) — ARREGLADO: batch SPARQL + no-envenenar el marcador (commit `8c6b967`)
+**Dos bugs cazados y corregidos:**
+1. **Throughput cráter** — el pase hacía **1 query SPARQL por artista** contra WDQS (Wikidata Query Service público, compartido y throttleado) → `timed out` + `429` → ~**0.4 artistas/s**, 5× por debajo de su propio limitador. **Fix: batch con `VALUES`** — 1 query resuelve ~50 MBIDs (`WikipediaSource.ResolveBatchAsync`, `WikipediaSummary.ParseArticleTitles`, `WikipediaOptions.BatchSize`, env `GRIMOIRE_WIKIPEDIA_BATCH`=50). Verificado en prod: **~8 artistas/s = 20× más rápido**, `0 left for retry`.
+2. **🐛 El marcador se envenenaba** — `WikipediaJob` sellaba `AbstractCheckedAt` **pase lo que pase**, y `ResolveAsync` devolvía `null` igual en miss real, timeout y 429. → un fallo transitorio de WDQS quedaba grabado **para siempre** como «esta banda no tiene bio» y nunca se reintentaba. **Fix: tres desenlaces** `BiographyOutcome.{Matched, NoArticle, Unavailable}` — solo respuestas definitivas sellan; transitorio (timeout/429/5xx en cualquiera de los dos endpoints) deja **sin sellar** para reintento. **Limpieza aplicada en prod**: `UPDATE artists SET abstract_checked_at=NULL WHERE abstract IS NULL AND abstract_checked_at IS NOT NULL` → **5 844** falsos negativos re-encolados, **0 bios perdidas** (el filtro `abstract IS NULL` no toca ninguna biografía guardada). Worker `go2chaindev/grimoire-worker:latest` reconstruido + `docker save|gzip|ssh|load` + contenedor `grimoire-biographies` recreado. Estado tras redesplegar: 195 039 pendientes, bios ~11 900 y subiendo. **Pendiente aún**: re-embeber las bandas que ganen `abstract` (cambia el texto del embedding) + refrescar `corpus_stats` cuando acaben listeners+bios.
+
+**Tests**: 4 nuevos en `WikipediaSummaryTests` (parser batch, case-insensitive MBID, filas incompletas). `audit.sh --strict` verde.
+
+---
+
 ## 7. Huecos y pendientes
 
 **Features de grabaciones — RESUELTAS** (import de `recording` de MB: 8 925 364 grabaciones, 99.9% de releases, títulos 100%, duración 91%; 21 418 versiones. Migración `AddRecordingsAndCoverVersions`, scripts `scripts/mb-import/recordings/`):
