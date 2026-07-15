@@ -853,6 +853,21 @@ export interface FriendAtlasPoint {
   y: number | null;
 }
 
+// A taste duel between the caller and a friend (the NOTIFICATIONS wave): a light head-to-head over
+// who has dug deepest, plus how their collections and their ears line up. `winner` is framed by
+// rarity — deeper Depth Score wins. `shared`/`mineOnly`/`theirsOnly` cross the two grimoires;
+// `alignment` is a 0..1 cosine similarity of the two taste vectors, null when either has no taste
+// yet (the honest empty case). Named FriendDuel (not DuelResult, which the C2 blind duel already owns).
+export interface FriendDuel {
+  myDepth: number;
+  theirDepth: number;
+  winner: 'me' | 'them' | 'tie';
+  shared: number;
+  mineOnly: number;
+  theirsOnly: number;
+  alignment: number | null;
+}
+
 // ---------------------------------------------------------------------------
 // Notifications (the NOTIFICATIONS wave): a polled in-app inbox (NOT web push). The
 // server records an event when someone adds you, accepts your request, or sends you a
@@ -860,7 +875,14 @@ export interface FriendAtlasPoint {
 // the page. A gift stays BLIND — the notification never carries the band name to the UI.
 // ---------------------------------------------------------------------------
 
-export type NotificationType = 'FriendRequest' | 'FriendAccepted' | 'GiftReceived';
+export type NotificationType =
+  | 'FriendRequest'
+  | 'FriendAccepted'
+  | 'GiftReceived'
+  // A friend passed you on the rarity leaderboard (links to Friends, where the leaderboard lives).
+  | 'RaritySurpassed'
+  // A friend challenged you to a taste duel (links to Friends, to open the duel with them).
+  | 'DuelChallenge';
 
 // One inbox event. `actorHandle` is the listener who caused it (null when they have no handle).
 // `friendshipId` links a friend event to the Friends page; `giftToken` links a gift to the blind

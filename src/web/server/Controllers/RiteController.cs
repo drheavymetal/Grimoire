@@ -41,6 +41,7 @@ public class RiteController : ControllerBase
     private readonly PreviewResolver _previews;
     private readonly IColdStartImport _lastFm;
     private readonly GrimoireCrossService _cross;
+    private readonly NotificationService _notifications;
     private readonly ILogger<RiteController> _logger;
 
     public RiteController(
@@ -51,6 +52,7 @@ public class RiteController : ControllerBase
         PreviewResolver previews,
         IColdStartImport lastFm,
         GrimoireCrossService cross,
+        NotificationService notifications,
         ILogger<RiteController> logger)
     {
         _db = db;
@@ -60,6 +62,7 @@ public class RiteController : ControllerBase
         _previews = previews;
         _lastFm = lastFm;
         _cross = cross;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -474,6 +477,10 @@ public class RiteController : ControllerBase
         rite.State = target;
         rite.ResolvedAt = DateTimeOffset.UtcNow;
 
+        // The Depth Score before this summon recomputes it, so we can tell whether the summon lifted
+        // the summoner over any friend (the rarity-surpassed notification below).
+        int oldDepth = taste.DepthScore;
+
         // Depth Score (feature B15): recompute on every summon over everything the user has summoned,
         // this band included, awarding more for rarer finds. The current rite is still Served in the
         // DB (its state change is not yet saved), so we sum the other summoned bands' ranks and add
@@ -493,6 +500,14 @@ public class RiteController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // A summon that lifted the summoner's Depth Score may have carried them past a friend: tell
+        // any friend they just overtook (feature: "a friend surpassed you in rarity"). Best-effort and
+        // AFTER the resolve is committed — a notification hiccup must never fail or slow the summon.
+        if (target == RiteState.Summoned && taste.DepthScore > oldDepth)
+        {
+            await NotifyRaritySurpassedAsync(userId, oldDepth, taste.DepthScore, ct);
+        }
 
         // Reveal only on summon: the reward. Banish and again stay blind on purpose (C3/C20).
         RiteRevealDto? reveal = null;
@@ -1072,6 +1087,62 @@ public class RiteController : ControllerBase
             DepthScore = taste.DepthScore,
             CreatedAt = DateTimeOffset.UtcNow,
         });
+    }
+
+    /// <summary>
+    /// Notifies any accepted friend the summoner just overtook in Depth Score (feature: "a friend
+    /// surpassed you in rarity"). A friend F is crossed when the summoner's depth was at or below F's
+    /// before this summon and strictly above it after — i.e. this summon is the moment they went
+    /// deeper than F. Best-effort by contract: it never throws out of the summon path (a swallowed,
+    /// logged failure is preferable to a failed summon) and does a single cheap pass over the
+    /// summoner's accepted friends' live depth scores. Fires nothing when there are no friends or the
+    /// summon crossed no one.
+    /// </summary>
+    private async Task NotifyRaritySurpassedAsync(Guid summonerId, int oldDepth, int newDepth, CancellationToken ct)
+    {
+        try
+        {
+            List<Guid> friendIds = await _db.Friendships
+                .Where(f => f.Status == FriendshipStatus.Accepted
+                    && (f.RequesterId == summonerId || f.AddresseeId == summonerId))
+                .Select(f => f.RequesterId == summonerId ? f.AddresseeId : f.RequesterId)
+                .ToListAsync(ct);
+
+            if (friendIds.Count == 0)
+            {
+                return;
+            }
+
+            // Each friend's live Depth Score, computed the same way B15 does — from the ranks of what
+            // they have summoned. A friend with no summons is absent here and reads as depth 0.
+            Dictionary<Guid, int> friendDepths = (await _db.Rites
+                    .Where(r => friendIds.Contains(r.UserId) && r.State == RiteState.Summoned)
+                    .Join(_db.Artists, r => r.ArtistId, a => a.Id, (r, a) => new { r.UserId, a.Rank })
+                    .ToListAsync(ct))
+                .GroupBy(r => r.UserId)
+                .ToDictionary(g => g.Key, g => DepthScore.Compute(g.Select(r => r.Rank)));
+
+            foreach (Guid friendId in friendIds)
+            {
+                int friendDepth = friendDepths.TryGetValue(friendId, out int d) ? d : 0;
+
+                // Crossed above: was at or below them, now strictly past them.
+                if (oldDepth <= friendDepth && newDepth > friendDepth)
+                {
+                    await _notifications.CreateAsync(
+                        friendId,
+                        NotificationType.RaritySurpassed,
+                        summonerId,
+                        new { score = newDepth },
+                        ct);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Best-effort: a notification failure must never surface as a failed summon.
+            _logger.LogWarning(ex, "Rarity-surpassed notification pass failed after a summon; the summon itself stands.");
+        }
     }
 
     private async Task<UserTaste> UpsertTasteAsync(Guid userId, CancellationToken ct)

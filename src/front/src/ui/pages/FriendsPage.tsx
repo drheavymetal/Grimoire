@@ -6,8 +6,10 @@ import {
   useAcceptFriend,
   useBlockUser,
   useDeclineFriend,
+  useChallengeDuel,
   useFriendAtlasPoint,
   useFriendCrossed,
+  useFriendDuel,
   useFriendGrimoire,
   useFriendRequests,
   useFriends,
@@ -61,9 +63,9 @@ export function FriendsPage() {
   return <FriendsBody />;
 }
 
-// What the user has opened under a friend: their grimoire, the cross, the Atlas, or the gift picker.
-// Null = closed.
-type FriendView = 'grimoire' | 'crossed' | 'atlas' | 'gift';
+// What the user has opened under a friend: their grimoire, the cross, the Atlas, the gift picker,
+// or the taste duel. Null = closed.
+type FriendView = 'grimoire' | 'crossed' | 'atlas' | 'gift' | 'duel';
 
 interface Selection {
   friend: Friend;
@@ -345,6 +347,11 @@ function FriendsList({
                     active={active === 'gift'}
                     onClick={() => onOpen(friend, 'gift')}
                   />
+                  <FriendAction
+                    label={t('friends.duelAction')}
+                    active={active === 'duel'}
+                    onClick={() => onOpen(friend, 'duel')}
+                  />
                   <button
                     type="button"
                     onClick={() => remove.mutate(friend.friendshipId)}
@@ -410,7 +417,9 @@ function FriendDetail({ selection, onClose }: { selection: Selection; onClose: (
               ? t('friends.detailCrossed', { name })
               : view === 'atlas'
                 ? t('friends.detailAtlas', { name })
-                : t('friends.detailGift', { name })}
+                : view === 'gift'
+                  ? t('friends.detailGift', { name })
+                  : t('friends.detailDuel', { name })}
         </h2>
         <button
           type="button"
@@ -428,8 +437,10 @@ function FriendDetail({ selection, onClose }: { selection: Selection; onClose: (
           <FriendCrossedView friend={friend} />
         ) : view === 'atlas' ? (
           <FriendAtlasView friend={friend} name={name} />
-        ) : (
+        ) : view === 'gift' ? (
           <FriendGiftView friend={friend} />
+        ) : (
+          <FriendDuelView friend={friend} name={name} />
         )}
       </div>
     </section>
@@ -674,6 +685,137 @@ function FriendGiftView({ friend }: { friend: Friend }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+// A light taste duel with a friend (the NOTIFICATIONS wave). Head-to-head Depth Scores (rarer wins,
+// so it reads as "who has dug deepest"), the crossed counts of the two grimoires, and how the two
+// tastes align. The Challenge button drops a duel notification on the friend's side. 403 (not
+// friends) surfaces as friendly copy for both the read and the challenge.
+function FriendDuelView({ friend, name }: { friend: Friend; name: string }) {
+  const { t } = useTranslation();
+  const duel = useFriendDuel(friend.userId, true);
+  const challenge = useChallengeDuel();
+
+  if (duel.isLoading) {
+    return <p className="font-mono text-sm text-muted">{t('friends.duelLoading')}</p>;
+  }
+  if (duel.isError || duel.data === undefined) {
+    const status = duel.error instanceof ApiError ? duel.error.status : null;
+    return (
+      <p className="font-mono text-sm text-danger">
+        {status === 403 ? t('friends.forbidden') : t('friends.duelError')}
+      </p>
+    );
+  }
+
+  const result = duel.data;
+  const myWins = result.winner === 'me';
+  const theirWins = result.winner === 'them';
+  const alignmentPct = result.alignment !== null ? Math.round(result.alignment * 100) : null;
+
+  const challengeStatus = challenge.error instanceof ApiError ? challenge.error.status : null;
+
+  return (
+    <div className="space-y-6">
+      <p className="max-w-prose font-body text-sm text-muted">{t('friends.duelIntro')}</p>
+
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <DuelSide
+          label={t('friends.you')}
+          depth={result.myDepth}
+          won={myWins}
+          tie={result.winner === 'tie'}
+        />
+        <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          {t('friends.duelVersus')}
+        </span>
+        <DuelSide
+          label={name}
+          depth={result.theirDepth}
+          won={theirWins}
+          tie={result.winner === 'tie'}
+        />
+      </div>
+
+      <p className="text-center font-body text-sm text-strong">
+        {myWins
+          ? t('friends.duelYouWin')
+          : theirWins
+            ? t('friends.duelTheyWin', { name })
+            : t('friends.duelTie')}
+      </p>
+
+      <dl className="grid grid-cols-3 gap-3 border-y border-line py-4 text-center">
+        <DuelCount label={t('friends.duelShared')} value={result.shared} />
+        <DuelCount label={t('friends.duelMineOnly')} value={result.mineOnly} />
+        <DuelCount label={t('friends.duelTheirsOnly')} value={result.theirsOnly} />
+      </dl>
+
+      <p className="font-body text-sm text-strong">
+        {alignmentPct !== null
+          ? t('friends.duelAlignment', { pct: alignmentPct })
+          : t('friends.duelNoAlignment')}
+      </p>
+
+      {challenge.isSuccess ? (
+        <p className="font-mono text-sm text-strong">{t('friends.duelChallengeSent')}</p>
+      ) : (
+        <div>
+          <button
+            type="button"
+            onClick={() => challenge.mutate(friend.userId)}
+            disabled={challenge.isPending}
+            className="border border-accent px-5 py-2 font-mono text-xs uppercase tracking-[0.18em] text-accent hover:bg-accent hover:text-bg disabled:opacity-50"
+          >
+            {challenge.isPending ? t('friends.duelChallenging') : t('friends.duelChallenge')}
+          </button>
+          {challenge.isError ? (
+            <p className="mt-2 font-mono text-xs text-danger">
+              {challengeStatus === 403 ? t('friends.forbidden') : t('friends.duelChallengeError')}
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One competitor in the duel head-to-head: their label and Depth Score, with the winner marked (and
+// both marked on a tie). Rarer — a deeper Depth Score — is the winner.
+function DuelSide({
+  label,
+  depth,
+  won,
+  tie,
+}: {
+  label: string;
+  depth: number;
+  won: boolean;
+  tie: boolean;
+}) {
+  const { t } = useTranslation();
+  const marked = won || tie;
+  return (
+    <div className={`border p-4 text-center ${marked ? 'border-accent' : 'border-line'}`}>
+      <p className={`truncate font-body ${marked ? 'text-accent' : 'text-strong'}`}>{label}</p>
+      <p className="mt-2 font-display text-3xl text-strong">{depth}</p>
+      {marked ? (
+        <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-accent">
+          {tie ? t('friends.duelTieMark') : t('friends.duelWinMark')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// One crossed count of the duel: how many bands are shared, only yours, or only theirs.
+function DuelCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <dd className="font-display text-2xl text-strong">{value}</dd>
+      <dt className="mt-1 font-mono text-xs uppercase tracking-[0.12em] text-muted">{label}</dt>
     </div>
   );
 }

@@ -95,7 +95,11 @@ function NotificationRow({ notification }: { notification: Notification }) {
       ? t('notifications.friendRequest', { handle })
       : notification.type === 'FriendAccepted'
         ? t('notifications.friendAccepted', { handle })
-        : t('notifications.giftReceived', { handle });
+        : notification.type === 'RaritySurpassed'
+          ? t('notifications.raritySurpassed', { handle })
+          : notification.type === 'DuelChallenge'
+            ? t('notifications.duelChallenge', { handle })
+            : t('notifications.giftReceived', { handle });
 
   const action =
     notification.type === 'GiftReceived'
@@ -151,7 +155,14 @@ function NotificationRow({ notification }: { notification: Notification }) {
     );
   }
 
-  if (notification.type === 'FriendRequest' || notification.type === 'FriendAccepted') {
+  // The friend events and the two rarity/duel events all live on the Friends page: the leaderboard
+  // (where a rarity pass shows) and the duel face-off both open from there.
+  if (
+    notification.type === 'FriendRequest' ||
+    notification.type === 'FriendAccepted' ||
+    notification.type === 'RaritySurpassed' ||
+    notification.type === 'DuelChallenge'
+  ) {
     return (
       <li>
         <Link to="/friends" onClick={markIfUnread} className={`${rowClass} block hover:bg-panel`}>

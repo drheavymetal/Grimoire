@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Grimoire.Library.Data;
 using Grimoire.Library.Models;
+using Grimoire.Library.Services;
 using Grimoire.Server.Dtos;
 using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -521,6 +522,67 @@ public class FriendsController : ControllerBase
     }
 
     // -----------------------------------------------------------------------
+    // The taste face-off (light, async — accepted friends only)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// A light taste face-off against a friend (FRIENDS wave): each user's Depth Score and who is
+    /// deeper, the grimoire cross (shared / mine-only / theirs-only counts, feature C23) and the
+    /// alignment of the two tastes. Async and read-only — no realtime, no new table; the friend opens
+    /// the same view for themselves. 403 if not accepted friends.
+    /// </summary>
+    [HttpGet("{friendId:guid}/duel")]
+    public async Task<ActionResult<DuelFaceOffDto>> Duel(Guid friendId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        Dictionary<Guid, (int Depth, int Count)> stats = await DepthStatsAsync([me, friendId], ct);
+        int myDepth = stats.TryGetValue(me, out (int Depth, int Count) mine) ? mine.Depth : 0;
+        int theirDepth = stats.TryGetValue(friendId, out (int Depth, int Count) theirs) ? theirs.Depth : 0;
+
+        string winner = myDepth > theirDepth ? "me" : theirDepth > myDepth ? "them" : "tie";
+
+        // Grimoire cross (C23): reuse the one implementation and reduce its three lists to counts.
+        CrossedGrimoiresDto cross = await _cross.CrossAsync(me, friendId, ct);
+
+        double? alignment = await AlignmentAsync(me, friendId, ct);
+
+        return Ok(new DuelFaceOffDto(
+            myDepth,
+            theirDepth,
+            winner,
+            cross.Shared.Count,
+            cross.YoursOnly.Count,
+            cross.TheirsOnly.Count,
+            alignment));
+    }
+
+    /// <summary>
+    /// Challenges a friend to a taste face-off (FRIENDS wave): drops a <see cref="NotificationType.DuelChallenge"/>
+    /// notification into their inbox (actor = the caller). No realtime and no state — the friend opens
+    /// the same face-off view themselves. 403 if not accepted friends. 204.
+    /// </summary>
+    [HttpPost("{friendId:guid}/duel/challenge")]
+    public async Task<IActionResult> ChallengeDuel(Guid friendId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        await _notifications.CreateAsync(friendId, NotificationType.DuelChallenge, me, new { }, ct);
+
+        return NoContent();
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -575,6 +637,32 @@ public class FriendsController : ControllerBase
             .ToDictionary(
                 g => g.Key,
                 g => (DepthScore.Compute(g.Select(r => r.Rank)), g.Count()));
+    }
+
+    /// <summary>
+    /// The alignment of two users' tastes for the face-off: the cosine similarity (0..1) of their
+    /// stored taste vectors, read in a single query. Both vectors are already centred (DECISIONS D26)
+    /// so they are compared as-is — never re-centred. Null when either user has no taste vector yet
+    /// (an honest gap, never a fabricated zero). The similarity is clamped to [0, 1] to match the
+    /// contract's range (a rare anti-correlation floors at 0 rather than going negative).
+    /// </summary>
+    private async Task<double?> AlignmentAsync(Guid me, Guid friendId, CancellationToken ct)
+    {
+        Dictionary<Guid, float[]> vectors = (await _db.UserTastes
+                .AsNoTracking()
+                .Where(t => (t.UserId == me || t.UserId == friendId) && t.Embedding != null)
+                .Select(t => new { t.UserId, t.Embedding })
+                .ToListAsync(ct))
+            .ToDictionary(t => t.UserId, t => t.Embedding!.ToArray());
+
+        if (!vectors.TryGetValue(me, out float[]? mine) || !vectors.TryGetValue(friendId, out float[]? theirs))
+        {
+            return null;
+        }
+
+        double similarity = 1.0 - VectorMath.CosineDistance(mine, theirs);
+
+        return Math.Clamp(similarity, 0.0, 1.0);
     }
 
     private static string? Handle(IReadOnlyDictionary<Guid, string?> handles, Guid id)

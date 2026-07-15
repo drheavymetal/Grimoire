@@ -20,6 +20,7 @@ import type {
   DuelServed,
   Friend,
   FriendAtlasPoint,
+  FriendDuel,
   FriendRequests,
   Gaps,
   Gift,
@@ -283,6 +284,10 @@ export interface GrimoireClient {
    * Returns nothing (204). The recipient hears it blind — the name never reaches them until reveal.
    */
   giftToFriend(friendId: string, artistId: string): Promise<void>;
+  /** A taste duel with a friend: the two Depth Scores, the crossed counts, and taste alignment. 403 when not friends. */
+  friendDuel(friendId: string, signal?: AbortSignal): Promise<FriendDuel>;
+  /** Challenges a friend to a taste duel (drops a notification on their side). Returns 204. 403 when not friends. */
+  challengeDuel(friendId: string): Promise<void>;
 
   // --- Notifications (the NOTIFICATIONS wave): a polled in-app inbox, NOT web push ---
   /** A page of the caller's notifications, newest first. */
@@ -794,6 +799,19 @@ export function createGrimoireClient(
         method: 'POST',
         auth: true,
         body: { artistId },
+      });
+    },
+    friendDuel(friendId, signal) {
+      return request<FriendDuel>(`/api/friends/${encodeURIComponent(friendId)}/duel`, {
+        auth: true,
+        signal,
+      });
+    },
+    async challengeDuel(friendId) {
+      // 204 on success; 403 (not friends) surfaces as ApiError.
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(friendId)}/duel/challenge`, {
+        method: 'POST',
+        auth: true,
       });
     },
 

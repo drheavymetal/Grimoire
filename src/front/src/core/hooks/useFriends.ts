@@ -4,6 +4,7 @@ import type {
   CrossedGrimoires,
   Friend,
   FriendAtlasPoint,
+  FriendDuel,
   FriendRequests,
   GrimoireEntry,
   LeaderboardEntry,
@@ -77,6 +78,28 @@ export function useFriendAtlasPoint(friendId: string | null) {
     queryFn: ({ signal }) => client.friendAtlasPoint(friendId as string, signal),
     enabled: friendId !== null,
     retry: false,
+  });
+}
+
+// A taste duel with a friend — only fetched once the duel view is opened (403 when not friends).
+export function useFriendDuel(friendId: string | null, enabled: boolean) {
+  const client = useGrimoireClient();
+
+  return useQuery<FriendDuel>({
+    queryKey: ['friends', friendId ?? '', 'duel'],
+    queryFn: ({ signal }) => client.friendDuel(friendId as string, signal),
+    enabled: enabled && friendId !== null,
+    retry: false,
+  });
+}
+
+// Challenges a friend to a taste duel: it drops a notification on their side, so nothing here
+// invalidates the caller's own views. 403 (not friends) surfaces as ApiError for the caller to read.
+export function useChallengeDuel() {
+  const client = useGrimoireClient();
+
+  return useMutation<void, unknown, string>({
+    mutationFn: (friendId) => client.challengeDuel(friendId),
   });
 }
 

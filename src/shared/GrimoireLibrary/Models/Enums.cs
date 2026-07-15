@@ -63,14 +63,19 @@ public enum RiteState
 /// Kind of in-app notification dropped into a user's inbox (the NOTIFICATIONS wave). A
 /// <see cref="FriendRequest"/> lands when someone asks to be your friend; a
 /// <see cref="FriendAccepted"/> when a request you sent is accepted (or completed as a mutual
-/// accept); a <see cref="GiftReceived"/> when a friend sends you a band face-down (C22). Stored as
-/// a string, like the other enums. The type also decides which payload fields are present.
+/// accept); a <see cref="GiftReceived"/> when a friend sends you a band face-down (C22); a
+/// <see cref="RaritySurpassed"/> when a friend's summon pushes their Depth Score above yours (they
+/// just went deeper than you); a <see cref="DuelChallenge"/> when a friend invites you to a taste
+/// face-off. Stored as a string, like the other enums. The type also decides which payload fields
+/// are present.
 /// </summary>
 public enum NotificationType
 {
     FriendRequest,
     FriendAccepted,
     GiftReceived,
+    RaritySurpassed,
+    DuelChallenge,
 }
 
 /// <summary>
