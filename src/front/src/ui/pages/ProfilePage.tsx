@@ -11,7 +11,9 @@ import {
   useProfile,
   useRebuildTaste,
   useRemoveAnchor,
+  useUpdateHandle,
 } from '../../core/hooks/useProfile';
+import { useLogoutAll, useSessions } from '../../core/hooks/useSessions';
 import type {
   ArtistSummary,
   BandCard,
@@ -21,6 +23,7 @@ import type {
   Profile,
   Rank,
   RankBreakdownEntry,
+  Session,
 } from '../../core/domain/types';
 import { applyTheme, readTheme, type Theme } from '../../platform/theme.web';
 import { authStore } from '../../platform/authStore.web';
@@ -375,6 +378,9 @@ function Discoveries({ profile }: { profile: Profile }) {
         <Link to="/atlas" className="font-mono text-xs uppercase tracking-[0.14em] text-accent no-underline hover:text-strong">
           {t('profile.toAtlas')}
         </Link>
+        <Link to="/friends" className="font-mono text-xs uppercase tracking-[0.14em] text-accent no-underline hover:text-strong">
+          {t('profile.toFriends')}
+        </Link>
       </nav>
     </section>
   );
@@ -488,15 +494,206 @@ function Settings() {
         <p className="mt-2 font-mono text-xs text-danger">{t('profile.exportError')}</p>
       ) : null}
 
-      <p className="mt-5 max-w-prose font-mono text-xs text-muted">{t('profile.sessionNote')}</p>
+      <HandleSettings />
+      <SessionSettings />
 
       <button
         type="button"
         onClick={logout}
-        className="mt-4 border border-danger px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-danger hover:bg-danger hover:text-bg"
+        className="mt-8 border border-danger px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-danger hover:bg-danger hover:text-bg"
       >
         {t('profile.logout')}
       </button>
     </section>
+  );
+}
+
+// The public handle (the FRIENDS wave): the name friends add you by. Shows the current handle or
+// "not set", with an inline editor. The 409 (taken) and 400 (bad format) cases surface as friendly
+// copy; the format rule (3–30 chars, lower-case a–z 0–9 _) is stated up front.
+function HandleSettings() {
+  const { t } = useTranslation();
+  const profile = useProfile(true);
+  const update = useUpdateHandle();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+
+  const current = profile.data?.handle ?? null;
+
+  function begin() {
+    setValue(current ?? '');
+    update.reset();
+    setEditing(true);
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    update.mutate(value.trim(), {
+      onSuccess: () => {
+        setEditing(false);
+      },
+    });
+  }
+
+  const taken = update.isError && update.error instanceof ApiError && update.error.status === 409;
+  const badFormat =
+    update.isError && update.error instanceof ApiError && update.error.status === 400;
+
+  return (
+    <div className="mt-8 border-t border-line pt-5">
+      <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">
+        {t('profile.handleTitle')}
+      </p>
+      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('profile.handleHint')}</p>
+
+      {!editing ? (
+        <div className="mt-3 flex flex-wrap items-baseline gap-3">
+          <span className="font-body text-lg text-strong">
+            {current !== null ? `@${current}` : t('profile.handleNotSet')}
+          </span>
+          <button
+            type="button"
+            onClick={begin}
+            className="font-mono text-xs uppercase tracking-[0.14em] text-accent hover:text-strong"
+          >
+            {current !== null ? t('profile.handleEdit') : t('profile.handleSet')}
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-3 flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <label className="flex items-center gap-1 border border-line bg-panel px-3 py-2 focus-within:border-accent">
+              <span className="font-mono text-sm text-muted">@</span>
+              <input
+                type="text"
+                value={value}
+                onChange={(event) => setValue(event.target.value.toLowerCase())}
+                placeholder={t('profile.handlePlaceholder')}
+                autoComplete="off"
+                autoFocus
+                minLength={3}
+                maxLength={30}
+                className="min-w-0 flex-1 bg-transparent font-body text-strong outline-none"
+              />
+            </label>
+            <p className="mt-1 font-mono text-[0.7rem] text-muted">{t('profile.handleRule')}</p>
+            {taken ? (
+              <p className="mt-1 font-mono text-xs text-danger">{t('profile.handleTaken')}</p>
+            ) : badFormat ? (
+              <p className="mt-1 font-mono text-xs text-danger">{t('profile.handleBadFormat')}</p>
+            ) : update.isError ? (
+              <p className="mt-1 font-mono text-xs text-danger">{t('profile.handleError')}</p>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={update.isPending || value.trim().length === 0}
+              className="border border-accent px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-accent hover:bg-accent hover:text-bg disabled:opacity-50"
+            >
+              {update.isPending ? t('profile.handleSaving') : t('profile.handleSave')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong"
+            >
+              {t('profile.handleCancel')}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// Active sessions (D28): every device signed in, the current one flagged. "Log out this session"
+// revokes the current refresh token and signs you out here; "log out everywhere" revokes them all.
+function SessionSettings() {
+  const { t } = useTranslation();
+  const { logout } = useAuth();
+  const sessions = useSessions(true);
+  const logoutAll = useLogoutAll();
+
+  function logoutEverywhere() {
+    logoutAll.mutate(undefined, {
+      // Revoking every session kills the current one too, so sign out locally right after.
+      onSuccess: () => {
+        logout();
+      },
+    });
+  }
+
+  return (
+    <div className="mt-8 border-t border-line pt-5">
+      <p className="font-mono text-[0.7rem] uppercase tracking-[0.28em] text-accent">
+        {t('profile.sessionsTitle')}
+      </p>
+      <p className="mt-1 max-w-prose font-mono text-xs text-muted">{t('profile.sessionsHint')}</p>
+
+      {sessions.isLoading ? (
+        <p className="mt-3 font-mono text-xs text-muted">{t('profile.sessionsLoading')}</p>
+      ) : sessions.isError ? (
+        <p className="mt-3 font-mono text-xs text-danger">{t('profile.sessionsError')}</p>
+      ) : (sessions.data ?? []).length === 0 ? (
+        <p className="mt-3 font-mono text-xs text-muted">{t('profile.sessionsEmpty')}</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-line border-y border-line">
+          {(sessions.data ?? []).map((session) => (
+            <SessionRow key={session.id} session={session} />
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={logout}
+          className="border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-muted hover:text-strong"
+        >
+          {t('profile.sessionLogoutThis')}
+        </button>
+        <button
+          type="button"
+          onClick={logoutEverywhere}
+          disabled={logoutAll.isPending}
+          className="border border-danger px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-danger hover:bg-danger hover:text-bg disabled:opacity-50"
+        >
+          {logoutAll.isPending ? t('profile.sessionLoggingOutAll') : t('profile.sessionLogoutAll')}
+        </button>
+      </div>
+
+      {logoutAll.isError ? (
+        <p className="mt-2 font-mono text-xs text-danger">{t('profile.sessionLogoutAllError')}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function SessionRow({ session }: { session: Session }) {
+  const { t } = useTranslation();
+
+  return (
+    <li className="py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="min-w-0 break-all font-body text-sm text-strong">
+          {session.userAgent ?? t('profile.sessionUnknownDevice')}
+          {session.current ? (
+            <span className="ml-2 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-accent">
+              {t('profile.sessionCurrent')}
+            </span>
+          ) : null}
+        </span>
+        <span className="shrink-0 font-mono text-[0.7rem] text-muted">
+          {session.createdByIp ?? t('profile.sessionUnknownIp')}
+        </span>
+      </div>
+      <p className="mt-1 font-mono text-[0.7rem] text-muted">
+        {t('profile.sessionDates', {
+          created: session.createdAt.slice(0, 10),
+          expires: session.expiresAt.slice(0, 10),
+        })}
+      </p>
+    </li>
   );
 }

@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Grimoire.Library.Models;
 using Microsoft.Extensions.Options;
@@ -34,7 +35,20 @@ public class TokenService
         string access = WriteToken(user, AccessType, accessExpiry);
         string refresh = WriteToken(user, RefreshType, refreshExpiry);
 
-        return new TokenPair(access, refresh, accessExpiry);
+        return new TokenPair(access, refresh, accessExpiry, refreshExpiry);
+    }
+
+    /// <summary>
+    /// The lower-case hex SHA-256 of a refresh token, used as its persisted key (D28). The raw token
+    /// is never stored — only this hash — so a leak of the refresh_tokens table cannot mint sessions.
+    /// Pure and deterministic; unit-tested without a database.
+    /// </summary>
+    public static string HashToken(string token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     /// <summary>
@@ -112,5 +126,9 @@ public class TokenService
     }
 }
 
-/// <summary>A freshly issued access/refresh token pair.</summary>
-public record TokenPair(string AccessToken, string RefreshToken, DateTime AccessTokenExpiresAt);
+/// <summary>A freshly issued access/refresh token pair, with both expiries.</summary>
+public record TokenPair(
+    string AccessToken,
+    string RefreshToken,
+    DateTime AccessTokenExpiresAt,
+    DateTime RefreshTokenExpiresAt);

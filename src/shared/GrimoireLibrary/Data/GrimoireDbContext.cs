@@ -47,6 +47,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<TasteAnchor> TasteAnchors => Set<TasteAnchor>();
 
+    public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
+
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -297,6 +301,59 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
                 .WithMany()
                 .HasForeignKey(a => a.ArtistId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // A public handle for friend requests (FRIENDS wave). Unique WHEN SET: the filtered index
+        // skips the nulls, so any number of users may have no handle while a claimed one is unique.
+        builder.Entity<GrimoireUser>(entity =>
+        {
+            entity.Property(u => u.Handle).HasMaxLength(30);
+            entity.HasIndex(u => u.Handle)
+                .IsUnique()
+                .HasFilter("handle IS NOT NULL");
+        });
+
+        builder.Entity<RefreshTokenRecord>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(r => r.Id);
+
+            // We look a presented token up by its hash on every refresh/logout — unique so a hash
+            // maps to exactly one session — and list a user's sessions by user id.
+            entity.Property(r => r.TokenHash).HasMaxLength(64);
+            entity.HasIndex(r => r.TokenHash).IsUnique();
+            entity.HasIndex(r => r.UserId);
+
+            entity.Property(r => r.ReplacedByTokenHash).HasMaxLength(64);
+
+            // Revoke a user's sessions when the account goes.
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Friendship>(entity =>
+        {
+            entity.ToTable("friendships");
+            entity.HasKey(f => f.Id);
+            entity.Property(f => f.Status).HasConversion<string>().HasMaxLength(16);
+
+            // At most one edge per ordered pair; the request/accept/block flows upsert on it.
+            entity.HasIndex(f => new { f.RequesterId, f.AddresseeId }).IsUnique();
+
+            // Both endpoints are users. Two cascade paths from AspNetUsers to one table are more than
+            // PostgreSQL allows, so these are Restrict: a friendship must be deleted before its users
+            // (the app deletes friendships explicitly; accounts are not deleted in normal operation).
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(f => f.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(f => f.AddresseeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

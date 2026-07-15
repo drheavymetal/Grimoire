@@ -76,9 +76,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('authenticated');
       },
       logout() {
-        authStore.clear();
-        queryClient.removeQueries({ queryKey: ['rite'] });
-        setStatus('anonymous');
+        // Best-effort server-side revoke of the current refresh token (D28) BEFORE clearing local
+        // state: capture the token first, ask the server to kill the session, then clear locally
+        // whether or not that call succeeds — a failed revoke must never trap the user signed in.
+        const refreshToken = authStore.getRefreshToken();
+        const clearLocal = () => {
+          authStore.clear();
+          queryClient.removeQueries({ queryKey: ['rite'] });
+          queryClient.removeQueries({ queryKey: ['profile'] });
+          queryClient.removeQueries({ queryKey: ['friends'] });
+          queryClient.removeQueries({ queryKey: ['auth', 'sessions'] });
+          setStatus('anonymous');
+        };
+
+        if (refreshToken) {
+          client
+            .logout(refreshToken)
+            .catch(() => {
+              // Swallow: revoking is best-effort, the local sign-out below is what matters.
+            })
+            .finally(clearLocal);
+        } else {
+          clearLocal();
+        }
       },
     }),
     [status, client, queryClient],

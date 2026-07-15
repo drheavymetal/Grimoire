@@ -30,6 +30,7 @@ interface Colors {
   strong: string;
   muted: string;
   accent: string;
+  danger: string;
 }
 
 function readColors(element: HTMLElement): Colors {
@@ -39,15 +40,21 @@ function readColors(element: HTMLElement): Colors {
     strong: style.getPropertyValue('--color-strong').trim() || '#fff',
     muted: style.getPropertyValue('--color-muted').trim() || '#888',
     accent: style.getPropertyValue('--color-accent').trim() || '#8f7c18',
+    danger: style.getPropertyValue('--color-danger').trim() || '#c0392b',
   };
 }
 
 interface Props {
   atlas: Atlas;
   aliveIds: Set<string>;
+  // The FRIENDS wave: a friend's taste projected into the same plane, drawn as a distinct
+  // danger-coloured diamond with its own legend entry. Absent/null = no friend overlaid (the
+  // default, so the plain Atlas page is unaffected). Only drawn when both coords are finite.
+  friendPoint?: AtlasPoint | null;
+  friendLabel?: string;
 }
 
-export function AtlasCanvas({ atlas, aliveIds }: Props) {
+export function AtlasCanvas({ atlas, aliveIds, friendPoint = null, friendLabel }: Props) {
   const { t } = useTranslation();
   const [containerRef, measuredWidth] = useMeasuredWidth<HTMLDivElement>();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -152,8 +159,36 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
       ctx.fillStyle = colors.accent;
       ctx.fill();
     }
+
+    // A friend's taste (the FRIENDS wave): a danger-coloured diamond ring, deliberately a different
+    // shape and hue from your own sulphur ring so the two are never confused. Only when placeable.
+    if (friendPoint !== null && Number.isFinite(friendPoint.x) && Number.isFinite(friendPoint.y)) {
+      const p = screenOf(friendPoint);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = colors.danger;
+      ctx.fillStyle = colors.danger;
+      ctx.lineWidth = 1.5;
+      // Diamond ring.
+      const r = 7;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - r);
+      ctx.lineTo(p.x + r, p.y);
+      ctx.lineTo(p.x, p.y + r);
+      ctx.lineTo(p.x - r, p.y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (friendLabel !== undefined && friendLabel.length > 0) {
+        ctx.font = '11px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(friendLabel, p.x, p.y - r - 4);
+      }
+    }
     // themeTick forces a redraw on theme change; it is a dependency, not used in the body.
-  }, [atlas.stars, atlas.taste, aliveIds, screenOf, width, themeTick, containerRef]);
+  }, [atlas.stars, atlas.taste, aliveIds, screenOf, width, themeTick, containerRef, friendPoint, friendLabel]);
 
   function nearestStar(clientX: number, clientY: number): AtlasStar | null {
     const canvas = canvasRef.current;
@@ -340,6 +375,14 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
           <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
           {t('atlas.legendTaste')}
         </span>
+        {friendPoint !== null && Number.isFinite(friendPoint.x) && Number.isFinite(friendPoint.y) ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rotate-45 bg-danger" />
+            {friendLabel !== undefined && friendLabel.length > 0
+              ? t('atlas.legendFriendNamed', { name: friendLabel })
+              : t('atlas.legendFriend')}
+          </span>
+        ) : null}
       </div>
     </div>
   );

@@ -15,7 +15,13 @@ public record ProfileDto(
     IReadOnlyList<RankCountDto> RankBreakdown,
     IReadOnlyList<DecadeCountDto> ByDecade,
     IReadOnlyList<CountryCountDto> ByCountry,
-    IReadOnlyList<GenreCountDto> ByGenre);
+    IReadOnlyList<GenreCountDto> ByGenre,
+    // The caller's public friend handle (FRIENDS wave), or null until they claim one.
+    string? Handle);
+
+/// <summary>Sets the caller's public friend handle (FRIENDS wave): 3-30 chars of [a-z0-9_].</summary>
+public record SetHandleRequest(
+    string Handle);
 
 /// <summary>How many summoned bands sit in a given rarity tier. A null <see cref="Rank"/> is the
 /// unranked bucket (listeners unknown) — kept, never dropped, never invented into a tier.</summary>

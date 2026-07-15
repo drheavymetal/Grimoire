@@ -101,6 +101,10 @@ builder.Services.AddHttpClient<CoverArtCache>(client =>
 // The Rite (movement II). Artist detail is shared by the artist page and the reveal.
 builder.Services.AddScoped<ArtistDetailBuilder>();
 
+// Crossed grimoires (feature C23), shared by the by-code path (RiteController) and the named-friend
+// path (FriendsController) so the cross is computed in exactly one place.
+builder.Services.AddScoped<GrimoireCrossService>();
+
 // Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
 // Rabbit Hole and grimoire-graph endpoints.
 builder.Services.AddScoped<LineageGraph>();

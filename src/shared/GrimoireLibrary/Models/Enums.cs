@@ -58,3 +58,16 @@ public enum RiteState
     Banished,
     Again,
 }
+
+/// <summary>
+/// State of a <see cref="Friendship"/> between two users (the FRIENDS wave). A row is created
+/// <see cref="Pending"/> by the requester, moves to <see cref="Accepted"/> when the addressee
+/// agrees, and <see cref="Blocked"/> is a one-directional wall the requester raises against the
+/// addressee (a blocked user cannot send friend requests). Stored as a string, like the other enums.
+/// </summary>
+public enum FriendshipStatus
+{
+    Pending,
+    Accepted,
+    Blocked,
+}

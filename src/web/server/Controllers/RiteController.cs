@@ -40,6 +40,7 @@ public class RiteController : ControllerBase
     private readonly PreviewAudioProxy _audio;
     private readonly PreviewResolver _previews;
     private readonly IColdStartImport _lastFm;
+    private readonly GrimoireCrossService _cross;
     private readonly ILogger<RiteController> _logger;
 
     public RiteController(
@@ -49,6 +50,7 @@ public class RiteController : ControllerBase
         PreviewAudioProxy audio,
         PreviewResolver previews,
         IColdStartImport lastFm,
+        GrimoireCrossService cross,
         ILogger<RiteController> logger)
     {
         _db = db;
@@ -57,6 +59,7 @@ public class RiteController : ControllerBase
         _audio = audio;
         _previews = previews;
         _lastFm = lastFm;
+        _cross = cross;
         _logger = logger;
     }
 
@@ -812,53 +815,7 @@ public class RiteController : ControllerBase
             return NotFound(new { message = "No grimoire answers to that code." });
         }
 
-        HashSet<Guid> mine = (await _db.Rites
-                .Where(r => r.UserId == userId && r.State == RiteState.Summoned)
-                .Select(r => r.ArtistId)
-                .ToListAsync(ct))
-            .ToHashSet();
-
-        HashSet<Guid> theirs = (await _db.Rites
-                .Where(r => r.UserId == other && r.State == RiteState.Summoned)
-                .Select(r => r.ArtistId)
-                .ToListAsync(ct))
-            .ToHashSet();
-
-        List<Guid> theirsOnlyIds = theirs.Where(id => !mine.Contains(id)).ToList();
-        List<Guid> yoursOnlyIds = mine.Where(id => !theirs.Contains(id)).ToList();
-        List<Guid> sharedIds = mine.Where(theirs.Contains).ToList();
-
-        Dictionary<Guid, ArtistSummaryDto> summaries = await SummariesAsync(
-            theirsOnlyIds.Concat(yoursOnlyIds).Concat(sharedIds).ToHashSet(), ct);
-
-        return Ok(new CrossedGrimoiresDto(
-            Order(theirsOnlyIds, summaries),
-            Order(yoursOnlyIds, summaries),
-            Order(sharedIds, summaries)));
-    }
-
-    private async Task<Dictionary<Guid, ArtistSummaryDto>> SummariesAsync(IReadOnlySet<Guid> ids, CancellationToken ct)
-    {
-        if (ids.Count == 0)
-        {
-            return [];
-        }
-
-        return await _db.Artists
-            .AsNoTracking()
-            .Where(a => ids.Contains(a.Id))
-            .Select(a => new ArtistSummaryDto(a.Id, a.Name, a.Country, a.FormedYear, a.Rank))
-            .ToDictionaryAsync(a => a.Id, ct);
-    }
-
-    private static List<ArtistSummaryDto> Order(IEnumerable<Guid> ids, IReadOnlyDictionary<Guid, ArtistSummaryDto> summaries)
-    {
-        return ids
-            .Select(id => summaries.TryGetValue(id, out ArtistSummaryDto? s) ? s : null)
-            .Where(s => s is not null)
-            .Select(s => s!)
-            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return Ok(await _cross.CrossAsync(userId, other, ct));
     }
 
     // -----------------------------------------------------------------------

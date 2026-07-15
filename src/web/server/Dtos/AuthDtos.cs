@@ -20,8 +20,28 @@ public record LoginRequest(
 public record RefreshRequest(
     [Required] string RefreshToken);
 
+/// <summary>Logout request: the refresh token whose session to revoke (D28).</summary>
+public record LogoutRequest(
+    [Required] string RefreshToken);
+
 /// <summary>Authentication response carrying a token pair.</summary>
 public record AuthResponse(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiresAt);
+
+/// <summary>
+/// One active refresh-token session in the caller's list (D28). <see cref="Current"/> marks the
+/// session the caller is refreshing with when it can be told apart; from an access token alone it
+/// cannot, so it is best-effort and may be false for all.
+/// </summary>
+public record SessionDto(
+    Guid Id,
+    DateTime CreatedAt,
+    DateTime ExpiresAt,
+    string? UserAgent,
+    string? CreatedByIp,
+    bool Current);
+
+/// <summary>The outcome of revoking every session: how many were still live before the sweep.</summary>
+public record LogoutAllResultDto(int Revoked);

@@ -1,0 +1,531 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Grimoire.Library.Data;
+using Grimoire.Library.Models;
+using Grimoire.Server.Dtos;
+using Grimoire.Server.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Grimoire.Server.Controllers;
+
+/// <summary>
+/// Friends (the FRIENDS wave): request/accept/decline/remove/block, the friends list and pending
+/// requests, a Depth Score leaderboard, and — for accepted friends only — reading their grimoire,
+/// crossing grimoires (feature C23, shared with the by-code path) and placing their taste on the
+/// Atlas (feature C18/B22, shared with <c>AtlasController</c>). Every endpoint requires a signed-in
+/// user and reads only relationships the caller is part of.
+/// </summary>
+[ApiController]
+[Route("api/friends")]
+[Authorize]
+public class FriendsController : ControllerBase
+{
+    private readonly GrimoireDbContext _db;
+    private readonly GrimoireCrossService _cross;
+    private readonly AtlasProjector _projector;
+
+    public FriendsController(GrimoireDbContext db, GrimoireCrossService cross, AtlasProjector projector)
+    {
+        _db = db;
+        _cross = cross;
+        _projector = projector;
+    }
+
+    // -----------------------------------------------------------------------
+    // The friends list, requests and leaderboard
+    // -----------------------------------------------------------------------
+
+    /// <summary>The caller's accepted friends (both directions), with each friend's Depth Score and summon count.</summary>
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<FriendDto>>> Friends(CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        List<Friendship> accepted = await _db.Friendships
+            .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == me || f.AddresseeId == me))
+            .ToListAsync(ct);
+
+        List<Guid> friendIds = accepted
+            .Select(f => f.RequesterId == me ? f.AddresseeId : f.RequesterId)
+            .ToList();
+
+        Dictionary<Guid, string?> handles = await HandlesAsync(friendIds, ct);
+        Dictionary<Guid, (int Depth, int Count)> stats = await DepthStatsAsync(friendIds, ct);
+
+        List<FriendDto> friends = accepted
+            .Select(f =>
+            {
+                Guid friendId = f.RequesterId == me ? f.AddresseeId : f.RequesterId;
+                (int depth, int count) = stats.TryGetValue(friendId, out (int Depth, int Count) s) ? s : (0, 0);
+                handles.TryGetValue(friendId, out string? handle);
+
+                return new FriendDto(friendId, handle, depth, count, f.Id, f.Status.ToString());
+            })
+            .OrderByDescending(f => f.DepthScore)
+            .ToList();
+
+        return Ok(friends);
+    }
+
+    /// <summary>The caller's pending friend requests, split into incoming (to accept) and outgoing (awaiting).</summary>
+    [HttpGet("requests")]
+    public async Task<ActionResult<FriendRequestsDto>> Requests(CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        List<Friendship> pending = await _db.Friendships
+            .Where(f => f.Status == FriendshipStatus.Pending && (f.RequesterId == me || f.AddresseeId == me))
+            .ToListAsync(ct);
+
+        List<Guid> others = pending
+            .Select(f => f.RequesterId == me ? f.AddresseeId : f.RequesterId)
+            .ToList();
+
+        Dictionary<Guid, string?> handles = await HandlesAsync(others, ct);
+
+        List<FriendRequestDto> incoming = pending
+            .Where(f => f.AddresseeId == me)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => new FriendRequestDto(f.Id, f.RequesterId, Handle(handles, f.RequesterId), f.CreatedAt))
+            .ToList();
+
+        List<FriendRequestDto> outgoing = pending
+            .Where(f => f.RequesterId == me)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => new FriendRequestDto(f.Id, f.AddresseeId, Handle(handles, f.AddresseeId), f.CreatedAt))
+            .ToList();
+
+        return Ok(new FriendRequestsDto(incoming, outgoing));
+    }
+
+    /// <summary>
+    /// Sends a friend request by handle. 404 for an unknown handle; 400 for befriending yourself;
+    /// 409 when a block or an existing friendship/request is in the way. If the addressee had already
+    /// sent the caller a pending request, this ACCEPTS it instead (a mutual accept) and returns Accepted.
+    /// </summary>
+    [HttpPost("request")]
+    public async Task<ActionResult<FriendRequestResultDto>> SendRequest([FromBody] SendFriendRequestBody body, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        Guid me = CurrentUserId();
+
+        string? handle = HandleValidator.Normalize(body.Handle);
+
+        if (handle is null)
+        {
+            return NotFound(new { message = "No user answers to that handle." });
+        }
+
+        Guid? targetId = await _db.Users
+            .Where(u => u.Handle == handle)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (targetId is null)
+        {
+            return NotFound(new { message = "No user answers to that handle." });
+        }
+
+        Guid target = targetId.Value;
+
+        if (target == me)
+        {
+            return BadRequest(new { message = "You cannot send yourself a friend request." });
+        }
+
+        List<Friendship> edges = await EdgesBetweenAsync(me, target, ct);
+
+        if (edges.Any(f => f.Status == FriendshipStatus.Blocked))
+        {
+            return Conflict(new { message = "This user cannot be added." });
+        }
+
+        if (edges.Any(f => f.Status == FriendshipStatus.Accepted))
+        {
+            return Conflict(new { message = "You are already friends." });
+        }
+
+        // They already asked you: complete it as a mutual accept rather than a second pending row.
+        Friendship? reversePending = edges.FirstOrDefault(f =>
+            f.Status == FriendshipStatus.Pending && f.RequesterId == target);
+
+        if (reversePending is not null)
+        {
+            reversePending.Status = FriendshipStatus.Accepted;
+            reversePending.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new FriendRequestResultDto(reversePending.Id, reversePending.Status.ToString()));
+        }
+
+        if (edges.Any(f => f.Status == FriendshipStatus.Pending && f.RequesterId == me))
+        {
+            return Conflict(new { message = "You have already sent this user a request." });
+        }
+
+        DateTime now = DateTime.UtcNow;
+        Friendship friendship = new()
+        {
+            Id = Guid.NewGuid(),
+            RequesterId = me,
+            AddresseeId = target,
+            Status = FriendshipStatus.Pending,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        _db.Friendships.Add(friendship);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new FriendRequestResultDto(friendship.Id, friendship.Status.ToString()));
+    }
+
+    /// <summary>Accepts a pending request. Only the addressee may accept. 404 unknown; 403 not addressee; 409 not pending.</summary>
+    [HttpPost("{friendshipId:guid}/accept")]
+    public async Task<IActionResult> Accept(Guid friendshipId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        Friendship? friendship = await _db.Friendships.FirstOrDefaultAsync(f => f.Id == friendshipId, ct);
+
+        if (friendship is null)
+        {
+            return NotFound(new { message = "No such friend request." });
+        }
+
+        if (friendship.AddresseeId != me)
+        {
+            return Forbid();
+        }
+
+        if (friendship.Status != FriendshipStatus.Pending)
+        {
+            return Conflict(new { message = "This request is no longer pending." });
+        }
+
+        friendship.Status = FriendshipStatus.Accepted;
+        friendship.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>Declines a pending request (deletes it). Only the addressee may decline. 404/403/409 as accept.</summary>
+    [HttpPost("{friendshipId:guid}/decline")]
+    public async Task<IActionResult> Decline(Guid friendshipId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        Friendship? friendship = await _db.Friendships.FirstOrDefaultAsync(f => f.Id == friendshipId, ct);
+
+        if (friendship is null)
+        {
+            return NotFound(new { message = "No such friend request." });
+        }
+
+        if (friendship.AddresseeId != me)
+        {
+            return Forbid();
+        }
+
+        if (friendship.Status != FriendshipStatus.Pending)
+        {
+            return Conflict(new { message = "This request is no longer pending." });
+        }
+
+        _db.Friendships.Remove(friendship);
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>Removes an accepted friendship (either party). 404 unknown; 403 not a party; 409 if not accepted.</summary>
+    [HttpDelete("{friendshipId:guid}")]
+    public async Task<IActionResult> Remove(Guid friendshipId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        Friendship? friendship = await _db.Friendships.FirstOrDefaultAsync(f => f.Id == friendshipId, ct);
+
+        if (friendship is null)
+        {
+            return NotFound(new { message = "No such friendship." });
+        }
+
+        if (friendship.RequesterId != me && friendship.AddresseeId != me)
+        {
+            return Forbid();
+        }
+
+        if (friendship.Status != FriendshipStatus.Accepted)
+        {
+            return Conflict(new { message = "That friendship is not active." });
+        }
+
+        _db.Friendships.Remove(friendship);
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Blocks a user: raises (or replaces) a one-directional Blocked wall Me→them and clears any
+    /// pending/accepted edges between the two (their own block of the caller, if any, is left intact).
+    /// A blocked user can no longer send the caller requests. 400 for blocking yourself. 204.
+    /// </summary>
+    [HttpPost("{userId:guid}/block")]
+    public async Task<IActionResult> Block(Guid userId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (userId == me)
+        {
+            return BadRequest(new { message = "You cannot block yourself." });
+        }
+
+        List<Friendship> edges = await EdgesBetweenAsync(me, userId, ct);
+
+        // Drop the reverse pending/accepted edges (never their Blocked wall against me) and my own
+        // pending/accepted edge, leaving a single Blocked row Me→them.
+        List<Friendship> reverseToClear = edges
+            .Where(f => f.RequesterId == userId && f.Status != FriendshipStatus.Blocked)
+            .ToList();
+
+        if (reverseToClear.Count > 0)
+        {
+            _db.Friendships.RemoveRange(reverseToClear);
+        }
+
+        DateTime now = DateTime.UtcNow;
+        Friendship? forward = edges.FirstOrDefault(f => f.RequesterId == me);
+
+        if (forward is not null)
+        {
+            forward.Status = FriendshipStatus.Blocked;
+            forward.UpdatedAt = now;
+        }
+        else
+        {
+            _db.Friendships.Add(new Friendship
+            {
+                Id = Guid.NewGuid(),
+                RequesterId = me,
+                AddresseeId = userId,
+                Status = FriendshipStatus.Blocked,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>Lifts the caller's block of a user (deletes the Blocked wall Me→them). Idempotent 204.</summary>
+    [HttpDelete("{userId:guid}/block")]
+    public async Task<IActionResult> Unblock(Guid userId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        Friendship? block = await _db.Friendships.FirstOrDefaultAsync(
+            f => f.RequesterId == me && f.AddresseeId == userId && f.Status == FriendshipStatus.Blocked, ct);
+
+        if (block is not null)
+        {
+            _db.Friendships.Remove(block);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return NoContent();
+    }
+
+    /// <summary>The caller and their accepted friends, ranked by Depth Score (feature B15), highest first.</summary>
+    [HttpGet("leaderboard")]
+    public async Task<ActionResult<IReadOnlyList<LeaderboardEntryDto>>> Leaderboard(CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        List<Friendship> accepted = await _db.Friendships
+            .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == me || f.AddresseeId == me))
+            .ToListAsync(ct);
+
+        List<Guid> ids = accepted
+            .Select(f => f.RequesterId == me ? f.AddresseeId : f.RequesterId)
+            .Append(me)
+            .Distinct()
+            .ToList();
+
+        Dictionary<Guid, string?> handles = await HandlesAsync(ids, ct);
+        Dictionary<Guid, (int Depth, int Count)> stats = await DepthStatsAsync(ids, ct);
+
+        List<LeaderboardEntryDto> board = ids
+            .Select(id => new LeaderboardEntryDto(
+                id,
+                Handle(handles, id),
+                stats.TryGetValue(id, out (int Depth, int Count) s) ? s.Depth : 0,
+                id == me))
+            .OrderByDescending(e => e.DepthScore)
+            .ThenBy(e => e.Handle, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Ok(board);
+    }
+
+    // -----------------------------------------------------------------------
+    // A friend's grimoire, crossed grimoires and Atlas point (accepted friends only)
+    // -----------------------------------------------------------------------
+
+    /// <summary>A friend's summoned bands, newest first — same shape as the caller's own grimoire. 403 if not friends.</summary>
+    [HttpGet("{friendId:guid}/grimoire")]
+    public async Task<ActionResult<IReadOnlyList<GrimoireEntryDto>>> FriendGrimoire(Guid friendId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        List<GrimoireEntryDto> entries = await _db.Rites
+            .Where(r => r.UserId == friendId && r.State == RiteState.Summoned)
+            .OrderByDescending(r => r.ResolvedAt)
+            .Join(
+                _db.Artists,
+                r => r.ArtistId,
+                a => a.Id,
+                (r, a) => new GrimoireEntryDto(
+                    new ArtistSummaryDto(a.Id, a.Name, a.Country, a.FormedYear, a.Rank),
+                    r.ResolvedAt!.Value))
+            .ToListAsync(ct);
+
+        return Ok(entries);
+    }
+
+    /// <summary>Crosses the caller's grimoire with a friend's (feature C23). 403 if not friends.</summary>
+    [HttpGet("{friendId:guid}/crossed")]
+    public async Task<ActionResult<CrossedGrimoiresDto>> Crossed(Guid friendId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        return Ok(await _cross.CrossAsync(me, friendId, ct));
+    }
+
+    /// <summary>
+    /// A friend's taste placed on the Atlas plane (feature C18/B22), the same projector the caller's
+    /// own "you are here" marker uses. Coordinates are null when the friend has no taste or the
+    /// projection cannot be built. 403 if not friends.
+    /// </summary>
+    [HttpGet("{friendId:guid}/atlas-point")]
+    public async Task<ActionResult<FriendAtlasPointDto>> AtlasPoint(Guid friendId, CancellationToken ct)
+    {
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        float[]? taste = (await _db.UserTastes
+                .AsNoTracking()
+                .Where(t => t.UserId == friendId)
+                .Select(t => t.Embedding)
+                .FirstOrDefaultAsync(ct))
+            ?.ToArray();
+
+        if (taste is null)
+        {
+            return Ok(new FriendAtlasPointDto(null, null));
+        }
+
+        (double X, double Y)? projected = await _projector.ProjectTasteAsync(taste, ct);
+
+        return Ok(projected is null
+            ? new FriendAtlasPointDto(null, null)
+            : new FriendAtlasPointDto(projected.Value.X, projected.Value.Y));
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    /// <summary>All friendship rows between two users, in either direction (at most a handful).</summary>
+    private async Task<List<Friendship>> EdgesBetweenAsync(Guid a, Guid b, CancellationToken ct)
+    {
+        return await _db.Friendships
+            .Where(f => (f.RequesterId == a && f.AddresseeId == b) || (f.RequesterId == b && f.AddresseeId == a))
+            .ToListAsync(ct);
+    }
+
+    private async Task<bool> AreAcceptedFriendsAsync(Guid a, Guid b, CancellationToken ct)
+    {
+        return await _db.Friendships.AnyAsync(
+            f => f.Status == FriendshipStatus.Accepted
+                && ((f.RequesterId == a && f.AddresseeId == b) || (f.RequesterId == b && f.AddresseeId == a)),
+            ct);
+    }
+
+    /// <summary>Public handles for a set of user ids (missing ids simply absent from the map).</summary>
+    private async Task<Dictionary<Guid, string?>> HandlesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.Handle })
+            .ToDictionaryAsync(u => u.Id, u => u.Handle, ct);
+    }
+
+    /// <summary>
+    /// Depth Score and summon count for a set of users, computed from their live grimoires in one
+    /// query (feature B15). A user with no summons is simply absent — the caller reads it as (0, 0).
+    /// </summary>
+    private async Task<Dictionary<Guid, (int Depth, int Count)>> DepthStatsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await _db.Rites
+            .Where(r => ids.Contains(r.UserId) && r.State == RiteState.Summoned)
+            .Join(_db.Artists, r => r.ArtistId, a => a.Id, (r, a) => new { r.UserId, a.Rank })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => (DepthScore.Compute(g.Select(r => r.Rank)), g.Count()));
+    }
+
+    private static string? Handle(IReadOnlyDictionary<Guid, string?> handles, Guid id)
+    {
+        return handles.TryGetValue(id, out string? handle) ? handle : null;
+    }
+
+    private Guid CurrentUserId()
+    {
+        // MapInboundClaims is off, so the subject is the raw "sub" claim.
+        string? sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (Guid.TryParse(sub, out Guid id))
+        {
+            return id;
+        }
+
+        throw new InvalidOperationException("Authenticated request carries no usable subject claim.");
+    }
+}

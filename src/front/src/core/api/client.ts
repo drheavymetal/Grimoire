@@ -18,6 +18,9 @@ import type {
   Diaspora,
   DuelResult,
   DuelServed,
+  Friend,
+  FriendAtlasPoint,
+  FriendRequests,
   Gaps,
   Gift,
   GiftBlind,
@@ -26,6 +29,8 @@ import type {
   GrimoireEntry,
   LabelDetail,
   LabelSummary,
+  LeaderboardEntry,
+  LogoutAllResult,
   MemberBands,
   MemoriamEntry,
   MissingLink,
@@ -44,6 +49,7 @@ import type {
   RiteAction,
   Scene,
   SeedCandidate,
+  Session,
   SemanticHit,
   ServedRite,
   ServeFilters,
@@ -93,6 +99,12 @@ export interface GrimoireClient {
   register(email: string, password: string): Promise<AuthTokens>;
   login(email: string, password: string): Promise<AuthTokens>;
   refresh(refreshToken: string): Promise<AuthTokens>;
+  /** Revokes the current session's refresh token (D28). Best-effort on sign out. Returns 204. */
+  logout(refreshToken: string): Promise<void>;
+  /** Revokes every session of the caller ("log out everywhere"). Returns how many were revoked. */
+  logoutAll(): Promise<LogoutAllResult>;
+  /** The caller's active sessions, one per sign-in, with the current one flagged (D28). */
+  sessions(signal?: AbortSignal): Promise<Session[]>;
 
   // --- The Rite ---
   getTaste(signal?: AbortSignal): Promise<TasteStatus>;
@@ -220,11 +232,42 @@ export interface GrimoireClient {
   removeAnchor(artistId: string): Promise<void>;
   /** Re-seeds the taste vector from the pinned anchors' mean. 400 when no anchor is usable. */
   rebuildTaste(): Promise<RebuildResult>;
+  /** Sets the caller's public handle. 204 on success, 409 taken, 400 bad format (3–30 [a-z0-9_]). */
+  updateHandle(handle: string): Promise<void>;
   /**
    * URL of the authenticated grimoire export (a JSON attachment). Pure string building (no fetch,
    * no DOM), so it stays portable; the platform layer fetches it with the bearer and saves the blob.
    */
   profileExportUrl(): string;
+
+  // --- Friends (the FRIENDS wave) ---
+  /** The caller's confirmed friends, with each one's rarity numbers and the friendship-edge id. */
+  friends(signal?: AbortSignal): Promise<Friend[]>;
+  /** The caller's pending friend requests, split into incoming and outgoing. */
+  friendRequests(signal?: AbortSignal): Promise<FriendRequests>;
+  /**
+   * Adds a friend by their handle (or accepts a matching incoming request). 404 unknown handle,
+   * 400 adding yourself, 409 already friends/pending. Returns nothing on success.
+   */
+  requestFriend(handle: string): Promise<void>;
+  /** Accepts an incoming friend request by its friendship id. Returns 204. */
+  acceptFriend(friendshipId: string): Promise<void>;
+  /** Declines an incoming friend request by its friendship id. Returns 204. */
+  declineFriend(friendshipId: string): Promise<void>;
+  /** Removes a confirmed friend by the friendship id. Returns 204. */
+  removeFriend(friendshipId: string): Promise<void>;
+  /** Blocks a user by their user id. Returns 204. */
+  blockUser(userId: string): Promise<void>;
+  /** Unblocks a user by their user id. Returns 204. */
+  unblockUser(userId: string): Promise<void>;
+  /** The rarity leaderboard: the caller and their friends ranked by Depth Score. */
+  leaderboard(signal?: AbortSignal): Promise<LeaderboardEntry[]>;
+  /** A friend's grimoire — the same shape as the caller's own. 403 when not friends. */
+  friendGrimoire(friendId: string, signal?: AbortSignal): Promise<GrimoireEntry[]>;
+  /** Crosses the caller's grimoire with a friend's. Same shape as the compare. 403 when not friends. */
+  friendCrossed(friendId: string, signal?: AbortSignal): Promise<CrossedGrimoires>;
+  /** A friend's taste projected into the Atlas plane. Both coords null when they have no taste yet. */
+  friendAtlasPoint(friendId: string, signal?: AbortSignal): Promise<FriendAtlasPoint>;
 
   // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
   /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
@@ -373,6 +416,20 @@ export function createGrimoireClient(
     },
     refresh(refreshToken) {
       return request<AuthTokens>('/api/auth/refresh', { method: 'POST', body: { refreshToken } });
+    },
+    async logout(refreshToken) {
+      // 204 No Content on success; requestMaybe tolerates the empty body.
+      await requestMaybe<null>('/api/auth/logout', {
+        method: 'POST',
+        auth: true,
+        body: { refreshToken },
+      });
+    },
+    logoutAll() {
+      return request<LogoutAllResult>('/api/auth/logout-all', { method: 'POST', auth: true });
+    },
+    sessions(signal) {
+      return request<Session[]>('/api/auth/sessions', { auth: true, signal });
     },
 
     getTaste(signal) {
@@ -622,8 +679,82 @@ export function createGrimoireClient(
     rebuildTaste() {
       return request<RebuildResult>('/api/profile/rebuild-taste', { method: 'POST', auth: true });
     },
+    async updateHandle(handle) {
+      // 204 on success; 409 (taken) and 400 (bad format) surface as ApiError for the caller to read.
+      await requestMaybe<null>('/api/profile/handle', {
+        method: 'PUT',
+        auth: true,
+        body: { handle },
+      });
+    },
     profileExportUrl() {
       return `${root}/api/profile/export`;
+    },
+
+    friends(signal) {
+      return request<Friend[]>('/api/friends', { auth: true, signal });
+    },
+    friendRequests(signal) {
+      return request<FriendRequests>('/api/friends/requests', { auth: true, signal });
+    },
+    async requestFriend(handle) {
+      // Success may be 200/201/204; requestMaybe tolerates them. 404/400/409 surface as ApiError.
+      await requestMaybe<null>('/api/friends/request', {
+        method: 'POST',
+        auth: true,
+        body: { handle },
+      });
+    },
+    async acceptFriend(friendshipId) {
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(friendshipId)}/accept`, {
+        method: 'POST',
+        auth: true,
+      });
+    },
+    async declineFriend(friendshipId) {
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(friendshipId)}/decline`, {
+        method: 'POST',
+        auth: true,
+      });
+    },
+    async removeFriend(friendshipId) {
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(friendshipId)}`, {
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+    async blockUser(userId) {
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(userId)}/block`, {
+        method: 'POST',
+        auth: true,
+      });
+    },
+    async unblockUser(userId) {
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(userId)}/block`, {
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+    leaderboard(signal) {
+      return request<LeaderboardEntry[]>('/api/friends/leaderboard', { auth: true, signal });
+    },
+    friendGrimoire(friendId, signal) {
+      return request<GrimoireEntry[]>(`/api/friends/${encodeURIComponent(friendId)}/grimoire`, {
+        auth: true,
+        signal,
+      });
+    },
+    friendCrossed(friendId, signal) {
+      return request<CrossedGrimoires>(`/api/friends/${encodeURIComponent(friendId)}/crossed`, {
+        auth: true,
+        signal,
+      });
+    },
+    friendAtlasPoint(friendId, signal) {
+      return request<FriendAtlasPoint>(`/api/friends/${encodeURIComponent(friendId)}/atlas-point`, {
+        auth: true,
+        signal,
+      });
     },
 
     memoriam(signal) {

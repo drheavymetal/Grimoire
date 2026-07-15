@@ -61,6 +61,11 @@ public class ProfileController : ControllerBase
             ? null
             : new BandCardDto(deepest.Id, deepest.Name, deepest.Rank, deepest.Country, deepest.Kind);
 
+        string? handle = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.Handle)
+            .FirstOrDefaultAsync(ct);
+
         ProfileDto dto = new(
             depthScore,
             summoned.Count,
@@ -69,9 +74,53 @@ public class ProfileController : ControllerBase
             ProfileAggregates.RankBreakdown(summoned),
             ProfileAggregates.ByDecade(summoned),
             ProfileAggregates.ByCountry(summoned, TopCountries),
-            ProfileAggregates.ByGenre(summoned, TopGenres));
+            ProfileAggregates.ByGenre(summoned, TopGenres),
+            handle);
 
         return Ok(dto);
+    }
+
+    /// <summary>
+    /// Claims or changes the caller's public friend handle (FRIENDS wave). 400 when the handle is
+    /// malformed (not 3-30 chars of <c>[a-z0-9_]</c>); 409 when another user already holds it. The
+    /// handle is stored lower-cased, so it is compared and reserved case-insensitively. 204 on success.
+    /// </summary>
+    [HttpPut("handle")]
+    public async Task<IActionResult> SetHandle([FromBody] SetHandleRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        Guid userId = CurrentUserId();
+
+        string? normalized = HandleValidator.Normalize(request.Handle);
+
+        if (normalized is null)
+        {
+            return BadRequest(new
+            {
+                message = "A handle is 3-30 characters of lowercase letters, digits or underscore (a-z, 0-9, _).",
+            });
+        }
+
+        bool taken = await _db.Users
+            .AnyAsync(u => u.Handle == normalized && u.Id != userId, ct);
+
+        if (taken)
+        {
+            return Conflict(new { message = "That handle is already taken." });
+        }
+
+        GrimoireUser? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+        if (user is null)
+        {
+            return NotFound(new { message = "No such user." });
+        }
+
+        user.Handle = normalized;
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
     }
 
     /// <summary>The caller's taste anchors as band cards, newest first.</summary>

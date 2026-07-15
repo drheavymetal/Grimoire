@@ -755,6 +755,8 @@ export interface Profile {
   depthScore: number;
   summonedCount: number;
   anchorCount: number;
+  // The public handle other listeners add you by (lower-case a–z 0–9 _, 3–30 chars). Null until set.
+  handle: string | null;
   deepestCut: BandCard | null;
   rankBreakdown: RankBreakdownEntry[];
   byDecade: DecadeCount[];
@@ -769,6 +771,72 @@ export interface RebuildResult {
   anchorsUsed: number;
   tasteSet: boolean;
   depthScore: number;
+}
+
+// ---------------------------------------------------------------------------
+// Sessions (D28): the FRIENDS wave surfaces the refresh tokens as revocable
+// sessions. Each is one sign-in; `current` marks the device the caller is on.
+// ---------------------------------------------------------------------------
+
+export interface Session {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  userAgent: string | null;
+  createdByIp: string | null;
+  current: boolean;
+}
+
+// The tally of a "log out everywhere" call: how many sessions were revoked.
+export interface LogoutAllResult {
+  revoked: number;
+}
+
+// ---------------------------------------------------------------------------
+// Friends (the FRIENDS wave): listeners add each other by handle, then can see a
+// friend's grimoire, cross grimoires, and place them on the Atlas. Rarity is the
+// game — the leaderboard ranks who has dug deepest by Depth Score.
+// ---------------------------------------------------------------------------
+
+// A confirmed friend: who they are, their public handle, their rarity numbers, and the id of the
+// friendship edge (used to remove it). `status` echoes the backend's relationship state.
+export interface Friend {
+  userId: string;
+  handle: string | null;
+  depthScore: number;
+  summonedCount: number;
+  friendshipId: string;
+  status: string;
+}
+
+// A pending friend request, either incoming (someone added you) or outgoing (you added them).
+export interface FriendRequest {
+  friendshipId: string;
+  userId: string;
+  handle: string | null;
+  createdAt: string;
+}
+
+// The two sides of the pending queue.
+export interface FriendRequests {
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+}
+
+// One row of the rarity leaderboard: a friend (or you) ranked by Depth Score. `isSelf` highlights
+// the caller so they can find themselves in the ranking.
+export interface LeaderboardEntry {
+  userId: string;
+  handle: string | null;
+  depthScore: number;
+  isSelf: boolean;
+}
+
+// A friend's taste projected into the Atlas plane (the same projection as the caller's "you are
+// here"). Both coordinates are null when the friend has no taste vector yet — a designed empty state.
+export interface FriendAtlasPoint {
+  x: number | null;
+  y: number | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -70,3 +70,18 @@ export function useRebuildTaste() {
     onSuccess: invalidate,
   });
 }
+
+// Sets the caller's public handle (the FRIENDS wave): the name friends add you by. A 409 (taken) or
+// 400 (bad format) surfaces as an ApiError the caller reads. On success the profile is invalidated
+// so the new handle shows immediately.
+export function useUpdateHandle() {
+  const client = useGrimoireClient();
+  const queryClient = useQueryClient();
+
+  return useMutation<void, unknown, string>({
+    mutationFn: (handle) => client.updateHandle(handle),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
