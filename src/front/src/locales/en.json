@@ -108,7 +108,25 @@
     "noCredits": "No credits recorded for this release. The underground is thin here — nobody wrote them down.",
     "creditsMembers": "Members",
     "creditsGuests": "Guests",
-    "creditsProduction": "Production"
+    "creditsProduction": "Production",
+    "lyricalThemes": "Lyrical themes",
+    "lyricalThemesHint": "From Metal Archives — the real lyrical subject matter, not a guess from the titles.",
+    "metalArchivesGenre": "Genre (Metal Archives)"
+  },
+  "chipMenu": {
+    "summonBlind": "Summon blind",
+    "seeAll": "See all"
+  },
+  "browse": {
+    "eyebrowTag": "Tag",
+    "eyebrowTheme": "Theme",
+    "intro": "Every band in the catalogue under this sign. The underground is thin here — there may be few.",
+    "count_one": "{{count}} band",
+    "count_other": "{{count}} bands",
+    "loading": "Gathering the bands…",
+    "error": "The bands would not load. Try again.",
+    "empty": "No band carries this sign yet. The margin is quiet here.",
+    "loadMore": "Load more"
   },
   "creditRole": {
     "producer": "producer",
@@ -176,7 +194,8 @@
     "againBody": "Skipped, neither summoned nor banished. Your taste is unchanged.",
     "next": "Invoke another",
     "emptyTitle": "Nothing answers in that ring",
-    "emptyBody": "Either you pushed the slider into the abyss and nothing servable lives that far out, or you have already invoked everything this close. Move the slider back, loosen the filters, or return later."
+    "emptyBody": "Either you pushed the slider into the abyss and nothing servable lives that far out, or you have already invoked everything this close. Move the slider back, loosen the filters, or return later.",
+    "scoped": "Scoped rite — the ring narrows, the band stays hidden."
   },
   "atlas": {
     "heading": "The Atlas",

@@ -6,6 +6,7 @@ import type {
   ArtistThemes,
   Atlas,
   AuthTokens,
+  BrowseResult,
   CompareResult,
   CoverWallItem,
   CrossedGrimoires,
@@ -44,6 +45,7 @@ import type {
   ServedRite,
   ServeFilters,
   TasteStatus,
+  ThemeKind,
   Track,
   Trajectory,
   VersionGraph,
@@ -159,6 +161,12 @@ export interface GrimoireClient {
   coverWall(limit: number, signal?: AbortSignal): Promise<CoverWallItem[]>;
   /** The split graph: bands joined by a shared split release (C9). */
   splits(signal?: AbortSignal): Promise<Graph>;
+
+  // --- Browse "see all" (the named door out of a chip) ---
+  /** Every band under a raw lowercase tag substring, paged. NAMED (not blind) — the "see all" door. */
+  browseByTag(needle: string, skip: number, take: number, signal?: AbortSignal): Promise<BrowseResult>;
+  /** Every band under a theme (real lyrical or C21 mined), paged. NAMED — the "see all" door. */
+  browseByTheme(key: string, kind: ThemeKind, skip: number, take: number, signal?: AbortSignal): Promise<BrowseResult>;
 
   // --- Movement V — gift a discovery (C22) ---
   /** Wraps a band as a blind, signed gift. Returns the shareable capability token. */
@@ -384,6 +392,11 @@ export function createGrimoireClient(
           decadeFrom: filters.decadeFrom ?? null,
           decadeTo: filters.decadeTo ?? null,
           genre: filters.genre ?? null,
+          // The three scope needles are backward-compatible: JSON.stringify drops the undefined
+          // keys, so a plain serve sends exactly what it did before (contract 2026-07-15).
+          genreNeedle: filters.genreNeedle,
+          themeNeedle: filters.themeNeedle,
+          themeKind: filters.themeKind,
         },
       });
     },
@@ -494,6 +507,21 @@ export function createGrimoireClient(
     },
     splits(signal) {
       return request<Graph>('/api/splits', { signal });
+    },
+
+    browseByTag(needle, skip, take, signal) {
+      const params = new URLSearchParams({ skip: String(skip), take: String(take) });
+      return request<BrowseResult>(
+        `/api/browse/tag/${encodeURIComponent(needle)}?${params.toString()}`,
+        { signal },
+      );
+    },
+    browseByTheme(key, kind, skip, take, signal) {
+      const params = new URLSearchParams({ kind, skip: String(skip), take: String(take) });
+      return request<BrowseResult>(
+        `/api/browse/theme/${encodeURIComponent(key)}?${params.toString()}`,
+        { signal },
+      );
     },
 
     createGift(artistId, note) {

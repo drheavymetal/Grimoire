@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useArtistThemes } from '../../core/hooks/useRecordings';
+import { ChipMenu } from '../ChipMenu';
 
 // C21 — song-title mining: the lyrical themes a band's titles evoke, as badges with counts. It is
 // an APPROXIMATION from the titles (a closed bilingual vocabulary + a counter), not a curated
@@ -25,12 +26,17 @@ export function ArtistThemes({ artistId }: { artistId: string }) {
       {data.themes.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-2">
           {data.themes.map((theme) => (
-            <li
-              key={theme.theme}
-              className="flex items-baseline gap-1.5 border border-line px-2 py-1 font-mono text-xs text-strong"
-            >
-              <span>{t(`theme.${theme.theme}`)}</span>
-              <span className="text-muted tabular-nums">{theme.count}</span>
+            // The chip's id (`theme.theme`) is the C21 TitleLexicon key — passed as the mined
+            // needle to scope a blind rite, and as the browse key with kind=mined. The count badge
+            // stays inside the chip.
+            <li key={theme.theme}>
+              <ChipMenu
+                rite={{ themeNeedle: theme.theme, themeKind: 'mined' }}
+                browse={{ kind: 'theme', themeKey: theme.theme, themeKind: 'mined' }}
+              >
+                <span>{t(`theme.${theme.theme}`)}</span>
+                <span className="text-muted tabular-nums">{theme.count}</span>
+              </ChipMenu>
             </li>
           ))}
         </ul>

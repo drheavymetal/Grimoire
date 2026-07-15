@@ -85,6 +85,8 @@ public sealed class ArtistDetailBuilder
             artist.ImageUrl,
             artist.Links,
             releases,
-            edges);
+            edges,
+            artist.LyricalThemes,
+            artist.MetalArchivesGenre);
     }
 }

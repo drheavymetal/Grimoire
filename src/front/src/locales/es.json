@@ -108,7 +108,25 @@
     "noCredits": "Sin créditos registrados para este lanzamiento. El underground es fino aquí — nadie los apuntó.",
     "creditsMembers": "Miembros",
     "creditsGuests": "Invitados",
-    "creditsProduction": "Producción"
+    "creditsProduction": "Producción",
+    "lyricalThemes": "Temática lírica",
+    "lyricalThemesHint": "De Metal Archives — la temática real de las letras, no una conjetura por los títulos.",
+    "metalArchivesGenre": "Género (Metal Archives)"
+  },
+  "chipMenu": {
+    "summonBlind": "Invocar a ciegas",
+    "seeAll": "Ver todas"
+  },
+  "browse": {
+    "eyebrowTag": "Etiqueta",
+    "eyebrowTheme": "Temática",
+    "intro": "Todas las bandas del catálogo bajo esta señal. El underground es fino aquí — puede haber pocas.",
+    "count_one": "{{count}} banda",
+    "count_other": "{{count}} bandas",
+    "loading": "Reuniendo las bandas…",
+    "error": "No se pudieron cargar las bandas. Inténtalo de nuevo.",
+    "empty": "Ninguna banda lleva esta señal todavía. El margen está callado aquí.",
+    "loadMore": "Cargar más"
   },
   "creditRole": {
     "producer": "producción",
@@ -176,7 +194,8 @@
     "againBody": "Saltada, ni invocada ni desterrada. Tu gusto no cambia.",
     "next": "Invocar otra",
     "emptyTitle": "Nada responde en ese anillo",
-    "emptyBody": "O empujaste el deslizador hacia el abismo y nada servible vive tan lejos, o ya invocaste todo lo que hay tan cerca. Mueve el deslizador hacia atrás, afloja los filtros, o vuelve más tarde."
+    "emptyBody": "O empujaste el deslizador hacia el abismo y nada servible vive tan lejos, o ya invocaste todo lo que hay tan cerca. Mueve el deslizador hacia atrás, afloja los filtros, o vuelve más tarde.",
+    "scoped": "Rito acotado — el anillo se estrecha, la banda sigue oculta."
   },
   "atlas": {
     "heading": "El Atlas",

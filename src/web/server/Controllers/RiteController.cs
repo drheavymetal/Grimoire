@@ -315,11 +315,18 @@ public class RiteController : ControllerBase
             return Conflict(new { message = "No taste yet. Seed it by choosing bands or importing Last.fm before starting a rite." });
         }
 
+        // The tag lane: a raw clicked tag (GenreNeedle) takes precedence over a catalogue key (Genre);
+        // both feed the SAME tag lane. The theme lane is orthogonal and ANDed on top when present. All
+        // are optional — with none set the rite is fully open, exactly as before. The rite stays blind.
+        string? tagNeedle = SearchNeedle.Clean(request.GenreNeedle) ?? RiteGenres.NeedleFor(request.Genre);
+
         RiteFilters filters = new(
             request.Country,
             request.DecadeFrom,
             request.DecadeTo,
-            RiteGenres.NeedleFor(request.Genre));
+            tagNeedle,
+            SearchNeedle.Clean(request.ThemeNeedle),
+            request.ThemeKind);
 
         // Draw several ring candidates, not one: the ring is now the embedded catalogue (audibility is
         // no longer pre-filtered — DECISIONS D25/D19), so we resolve the preview just-in-time and skip

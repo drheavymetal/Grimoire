@@ -76,6 +76,36 @@ public class TitleLexiconTests
         Assert.Empty(TitleLexicon.CountThemes([]));
     }
 
+    [Fact]
+    public void KeywordsFor_KnownTheme_ReturnsItsKeywords()
+    {
+        System.Collections.Generic.IReadOnlyList<string> winter = TitleLexicon.KeywordsFor("winter");
+
+        Assert.NotEmpty(winter);
+        Assert.Contains("frost", winter);
+        Assert.Contains("snow", winter);
+    }
+
+    [Fact]
+    public void KeywordsFor_IsCaseAndWhitespaceTolerant()
+    {
+        // The mined lane hands us a theme id; a stray case/whitespace must not turn it into "unknown".
+        Assert.Equal(TitleLexicon.KeywordsFor("blood"), TitleLexicon.KeywordsFor("  BLOOD  "));
+    }
+
+    [Fact]
+    public void KeywordsFor_UnknownTheme_IsEmpty()
+    {
+        Assert.Empty(TitleLexicon.KeywordsFor("not-a-theme"));
+    }
+
+    [Fact]
+    public void KeywordsFor_BlankId_IsEmpty()
+    {
+        Assert.Empty(TitleLexicon.KeywordsFor(""));
+        Assert.Empty(TitleLexicon.KeywordsFor("   "));
+    }
+
     private static void ThemeCountOf(
         System.Collections.Generic.IReadOnlyList<TitleLexicon.ThemeCount> counts,
         string theme,

@@ -1,8 +1,10 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import type { RiteScope, ThemeKind } from '../core/domain/types';
 import { Layout } from './Layout';
 import { SearchPage } from './pages/SearchPage';
 import { ArtistPage } from './pages/ArtistPage';
 import { RitePage } from './pages/RitePage';
+import { BrowsePage } from './pages/BrowsePage';
 import { DuelPage } from './pages/DuelPage';
 import { DecadePage } from './pages/DecadePage';
 import { GrimoirePage } from './pages/GrimoirePage';
@@ -36,7 +38,20 @@ const artistRoute = createRoute({
 const riteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rite',
-  component: RitePage,
+  // A ficha chip can scope a blind rite by passing a tag or theme needle in the URL. The rite stays
+  // blind — the scope only narrows the pool (see RiteConsole). Unknown values are dropped.
+  validateSearch: (search: Record<string, unknown>): RiteScope => {
+    const themeKind =
+      search.themeKind === 'lyrical' || search.themeKind === 'mined'
+        ? (search.themeKind as ThemeKind)
+        : undefined;
+    return {
+      genreNeedle: typeof search.genreNeedle === 'string' ? search.genreNeedle : undefined,
+      themeNeedle: typeof search.themeNeedle === 'string' ? search.themeNeedle : undefined,
+      themeKind,
+    };
+  },
+  component: RiteRouteComponent,
 });
 
 const duelRoute = createRoute({
@@ -117,6 +132,22 @@ const memoriamRoute = createRoute({
   component: MemoriamPage,
 });
 
+// The NAMED "see all" door out of a ficha chip: every band under a tag, or under a theme.
+const browseTagRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/browse/tag/$needle',
+  component: BrowseTagRouteComponent,
+});
+
+const browseThemeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/browse/theme/$key',
+  validateSearch: (search: Record<string, unknown>): { kind: ThemeKind } => ({
+    kind: search.kind === 'mined' ? 'mined' : 'lyrical',
+  }),
+  component: BrowseThemeRouteComponent,
+});
+
 function ArtistRouteComponent() {
   const { artistId } = artistRoute.useParams();
   return <ArtistPage artistId={artistId} />;
@@ -130,6 +161,22 @@ function LabelRouteComponent() {
 function GiftRouteComponent() {
   const { token } = giftRoute.useParams();
   return <GiftPage token={token} />;
+}
+
+function RiteRouteComponent() {
+  const scope = riteRoute.useSearch();
+  return <RitePage scope={scope} />;
+}
+
+function BrowseTagRouteComponent() {
+  const { needle } = browseTagRoute.useParams();
+  return <BrowsePage mode={{ kind: 'tag', needle }} />;
+}
+
+function BrowseThemeRouteComponent() {
+  const { key } = browseThemeRoute.useParams();
+  const { kind } = browseThemeRoute.useSearch();
+  return <BrowsePage mode={{ kind: 'theme', themeKey: key, themeKind: kind }} />;
 }
 
 const routeTree = rootRoute.addChildren([
@@ -149,6 +196,8 @@ const routeTree = rootRoute.addChildren([
   weeklyRoute,
   mirrorRoute,
   memoriamRoute,
+  browseTagRoute,
+  browseThemeRoute,
 ]);
 
 export const router = createRouter({ routeTree });

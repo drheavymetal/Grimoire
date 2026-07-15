@@ -16,6 +16,7 @@ import type {
   TurnoverMember,
 } from '../../core/domain/types';
 import { Cover } from '../Cover';
+import { ChipMenu } from '../ChipMenu';
 import { RankedName } from '../RankedName';
 import { StreamingLinks } from '../StreamingLinks';
 import { GiftButton } from '../GiftButton';
@@ -106,13 +107,28 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
 
       <section className="mt-6">
         <h2 className="font-mono text-xs uppercase text-muted">{t('artist.tags')}</h2>
+        {data.metalArchivesGenre !== null && data.metalArchivesGenre.trim().length > 0 ? (
+          <p className="mt-1 font-mono text-[0.65rem] text-muted">
+            {t('artist.metalArchivesGenre')}: <span className="text-strong">{data.metalArchivesGenre}</span>
+          </p>
+        ) : null}
         {data.tags.length > 0 ? (
           <ul className="mt-2 flex flex-wrap gap-2">
-            {data.tags.map((tag) => (
-              <li key={tag} className="border border-line px-2 py-1 font-mono text-xs text-strong">
-                {tag}
-              </li>
-            ))}
+            {data.tags.map((tag) => {
+              // Each tag opens a chip menu: "Invocar a ciegas" scopes a blind rite to the tag
+              // (lowercased needle), "Ver todas" opens the named grid under it.
+              const needle = tag.toLowerCase();
+              return (
+                <li key={tag}>
+                  <ChipMenu
+                    rite={{ genreNeedle: needle }}
+                    browse={{ kind: 'tag', needle }}
+                  >
+                    {tag}
+                  </ChipMenu>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="mt-2 font-mono text-xs text-muted">{t('artist.noTags')}</p>
@@ -147,6 +163,30 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
           around it. Shown only when the band's lineup actually churned around a dated release;
           otherwise the endpoint returns nothing and this section is absent (no invented drama). */}
       {pivotal ? <PivotalReleaseCallout pivotal={pivotal} /> : null}
+
+      {/* The real lyrical themes as Metal Archives records them (not an approximation). Shown ABOVE
+          the C21 title-mining below it: real data first. Each chip scopes a blind rite (kind=lyrical)
+          or opens the named grid. Absent for bands with no Metallum match. */}
+      {data.lyricalThemes.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="font-mono text-xs uppercase text-muted">{t('artist.lyricalThemes')}</h2>
+          <p className="mt-1 max-w-prose font-mono text-[0.65rem] text-muted">
+            {t('artist.lyricalThemesHint')}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {data.lyricalThemes.map((theme) => (
+              <li key={theme}>
+                <ChipMenu
+                  rite={{ themeNeedle: theme, themeKind: 'lyrical' }}
+                  browse={{ kind: 'theme', themeKey: theme, themeKind: 'lyrical' }}
+                >
+                  {theme}
+                </ChipMenu>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* C21 — the lyrical themes the band's song titles evoke (an approximation, marked as such). */}
       <ArtistThemes artistId={data.id} />

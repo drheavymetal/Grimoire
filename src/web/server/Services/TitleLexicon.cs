@@ -63,6 +63,24 @@ public static class TitleLexicon
     public static IReadOnlyCollection<string> Themes => (IReadOnlyCollection<string>)Lexicon.Keys;
 
     /// <summary>
+    /// The keyword set for a mined theme id (C21), for the callers that filter recording titles by a
+    /// theme's words — the Rite's mined lane and the browse door. Returns the theme's whole-word
+    /// keywords (already normalised: lower-case, no diacritics), or an empty list when the id is not a
+    /// known theme. An unknown theme matches nothing; it never widens the filter to everything.
+    /// </summary>
+    public static IReadOnlyList<string> KeywordsFor(string themeId)
+    {
+        if (string.IsNullOrWhiteSpace(themeId))
+        {
+            return [];
+        }
+
+        return Lexicon.TryGetValue(themeId.Trim().ToLowerInvariant(), out string[]? keywords)
+            ? keywords
+            : [];
+    }
+
+    /// <summary>
     /// Lower-cases a title and strips diacritics so <c>SKÁLD</c> reads as <c>skald</c> and
     /// <c>frío</c> as <c>frio</c> — the same tolerance the search uses. Non-letters are left in
     /// place; <see cref="CountThemes"/> splits on them.

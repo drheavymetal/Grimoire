@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useServe, useResolve } from '../../core/hooks/useRite';
 import { comfortToPercentileBand } from '../../core/domain/rite';
-import type { RiteAction, RiteReveal, ServedRite } from '../../core/domain/types';
+import type { RiteAction, RiteReveal, RiteScope, ServedRite } from '../../core/domain/types';
 import { RitePlayer } from './RitePlayer';
 import { RevealCard } from './RevealCard';
 
@@ -40,10 +40,16 @@ const RITE_GENRES: ReadonlyArray<{ key: string; label: string }> = [
 // The Rite console (features B13, B14, C4, C13). The slider sets the ring percentiles, the
 // player serves a band blind, and Summon/Banish/Again resolve it. Only a summon reveals the
 // band; banish and again stay blind on purpose (C3/C20).
-export function RiteConsole() {
+// A scope arriving via search params (from a ficha chip's "Invocar a ciegas") narrows the pool but
+// keeps the tasting blind — the card never shows the band's name, genre or theme (the app's thesis).
+export function RiteConsole({ scope }: { scope?: RiteScope }) {
   const { t } = useTranslation();
   const serve = useServe();
   const resolve = useResolve();
+
+  const isScoped =
+    scope !== undefined &&
+    (scope.genreNeedle !== undefined || scope.themeNeedle !== undefined);
 
   const [comfort, setComfort] = useState(0.5);
   const [genre, setGenre] = useState('');
@@ -68,6 +74,10 @@ export function RiteConsole() {
         country: country.trim() === '' ? null : country.trim().toUpperCase(),
         decadeFrom: decadeFrom.trim() === '' ? null : Number(decadeFrom),
         decadeTo: decadeTo.trim() === '' ? null : Number(decadeTo),
+        // The incoming scope narrows the pool; it never touches what the card reveals (stays blind).
+        genreNeedle: scope?.genreNeedle,
+        themeNeedle: scope?.themeNeedle,
+        themeKind: scope?.themeKind,
       },
       {
         onSuccess: (result) => {
@@ -136,6 +146,13 @@ export function RiteConsole() {
         </div>
       </div>
       <p className="mt-2 max-w-prose font-mono text-xs text-muted">{t('rite.subheading')}</p>
+
+      {/* A scoped rite says only that the pool is narrowed — never the band's identity (stays blind). */}
+      {isScoped ? (
+        <p className="mt-3 inline-block border border-accent/40 px-3 py-1 font-mono text-xs uppercase text-accent">
+          {t('rite.scoped')}
+        </p>
+      ) : null}
 
       {/* Slider Comfort <-> Abyss (B14): the honest percentile window is shown, not a decoration. */}
       <div className="mt-6 border border-line bg-panel p-5">

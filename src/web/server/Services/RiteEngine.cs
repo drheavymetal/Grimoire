@@ -29,12 +29,27 @@ public sealed class RiteEngineOptions
 }
 
 /// <summary>
-/// Hard filters for the pool (feature C13): decade, country, and an optional genre lane. GenreNeedle
-/// is a lower-case tag substring (resolved from a <see cref="RiteGenres"/> key by the controller);
-/// null leaves the rite fully open, the default. The tasting stays blind either way — the genre only
-/// narrows which bands the ring may draw from.
+/// Hard filters for the pool (feature C13, plus the tag/theme lanes added 2026-07-15). Decade and
+/// country narrow the ring; the three needles narrow it further, ANDed together when more than one
+/// is present. The tasting stays blind either way — a lane only decides which bands the ring may
+/// draw from, never reveals one.
+///
+/// <para>
+/// <see cref="TagNeedle"/> is a lower-case tag substring (either a raw clicked tag or one resolved
+/// from a <see cref="RiteGenres"/> key by the controller). <see cref="ThemeNeedle"/> plus
+/// <see cref="ThemeKind"/> scope by lyrical theme: <c>"lyrical"</c> matches Metal Archives'
+/// curated <c>lyrical_themes</c> against the needle; <c>"mined"</c> matches the needle as a
+/// <see cref="TitleLexicon"/> theme id and keeps bands with a recording title evoking any of that
+/// theme's keywords. All three default to null, which leaves the rite fully open.
+/// </para>
 /// </summary>
-public sealed record RiteFilters(string? Country, int? DecadeFrom, int? DecadeTo, string? GenreNeedle = null);
+public sealed record RiteFilters(
+    string? Country,
+    int? DecadeFrom,
+    int? DecadeTo,
+    string? TagNeedle = null,
+    string? ThemeNeedle = null,
+    string? ThemeKind = null);
 
 /// <summary>A candidate the engine chose from the ring, with its distance and slider risk.</summary>
 public sealed record RiteCandidate(Guid ArtistId, double Distance, double RiskPercentile);
@@ -190,7 +205,7 @@ public sealed class RiteEngine
         //    two ring radii at the slider's percentiles. The sample defines the ring; the query
         //    below applies it. The sample is drawn from the SAME pool the query uses, so scorable
         //    duels/decade games get percentiles calibrated to the scorable pool.
-        List<double> sample = await ServablePool(scorableOnly, filters.GenreNeedle)
+        List<double> sample = await ServablePool(scorableOnly, filters)
             .OrderBy(_ => EF.Functions.Random())
             .Take(_options.SampleSize)
             .Select(a => a.Embedding!.CosineDistance(taste))
@@ -210,7 +225,7 @@ public sealed class RiteEngine
         double? safeRadius = null;
         if (repulsion is not null)
         {
-            List<double> repulsionSample = await ServablePool(scorableOnly, filters.GenreNeedle)
+            List<double> repulsionSample = await ServablePool(scorableOnly, filters)
                 .OrderBy(_ => EF.Functions.Random())
                 .Take(_options.SampleSize)
                 .Select(a => a.Embedding!.CosineDistance(repulsion))
@@ -232,7 +247,7 @@ public sealed class RiteEngine
                           && r.ResolvedAt < secondChanceCutoff))
             .Select(r => r.ArtistId);
 
-        var ranked = ServablePool(scorableOnly, filters.GenreNeedle)
+        var ranked = ServablePool(scorableOnly, filters)
             .Where(a => !excluded.Contains(a.Id));
 
         if (!string.IsNullOrWhiteSpace(filters.Country))
@@ -290,7 +305,7 @@ public sealed class RiteEngine
     /// it cannot score.
     /// </para>
     /// </summary>
-    private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false, string? genreNeedle = null)
+    private IQueryable<Library.Models.Artist> ServablePool(bool scorableOnly = false, RiteFilters? filters = null)
     {
         IQueryable<Library.Models.Artist> pool = _db.Artists.Discoverable();
 
@@ -299,14 +314,45 @@ public sealed class RiteEngine
             pool = pool.Where(a => a.FormedYear != null && a.Country != null && a.Tags.Length > 0);
         }
 
-        if (!string.IsNullOrWhiteSpace(genreNeedle))
+        string? tagNeedle = SearchNeedle.Clean(filters?.TagNeedle);
+        if (tagNeedle is not null)
         {
             // ILIKE substring over the band's tags so a family catches its compounds ("black metal"
             // also matches "atmospheric black metal"). Applied to BOTH the distance sample and the
-            // ring query, so the ring radii are calibrated to the genre's own distribution, not the
+            // ring query, so the ring radii are calibrated to the lane's own distribution, not the
             // whole corpus. Npgsql translates Array.Any(ILike) via unnest.
-            string pattern = $"%{genreNeedle.Trim()}%";
+            string pattern = $"%{tagNeedle}%";
             pool = pool.Where(a => a.Tags.Any(t => EF.Functions.ILike(t, pattern)));
+        }
+
+        string? themeNeedle = SearchNeedle.Clean(filters?.ThemeNeedle);
+        string? themeKind = filters?.ThemeKind?.Trim().ToLowerInvariant();
+
+        if (themeNeedle is not null && themeKind == "lyrical")
+        {
+            // Metal Archives' curated lyrical themes (D48): match the needle against the band's own
+            // theme strings. A blind pool filter, never a reveal.
+            string pattern = $"%{themeNeedle}%";
+            pool = pool.Where(a => a.LyricalThemes.Any(x => EF.Functions.ILike(x, pattern)));
+        }
+        else if (themeNeedle is not null && themeKind == "mined")
+        {
+            // Song-title mining (C21): the needle is a TitleLexicon theme id; keep bands with at least
+            // one recording title evoking any of that theme's keywords (EXISTS over recordings, using
+            // the recordings-title trigram index). An unknown theme has no keywords, so the pool
+            // narrows to nothing rather than silently widening to the whole corpus.
+            IReadOnlyList<string> keywords = TitleLexicon.KeywordsFor(themeNeedle);
+
+            if (keywords.Count == 0)
+            {
+                pool = pool.Where(a => false);
+            }
+            else
+            {
+                string[] patterns = keywords.Select(k => $"%{k}%").ToArray();
+                pool = pool.Where(a => _db.Recordings.Any(r =>
+                    r.Release!.ArtistId == a.Id && patterns.Any(p => EF.Functions.ILike(r.Title, p))));
+            }
         }
 
         return pool;

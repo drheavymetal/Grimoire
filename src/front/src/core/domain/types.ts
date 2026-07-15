@@ -62,8 +62,48 @@ export interface ArtistDetail {
   abstractUrl: string | null;
   imageUrl: string | null;
   links: Record<string, string> | null;
+  // The real lyrical subject matter, as Metal Archives records it (not the C21 title-mining
+  // approximation). Empty when the band was never matched on Metallum or carries no themes.
+  lyricalThemes: string[];
+  // The genre string exactly as Metal Archives writes it (e.g. "Melodic Death Metal"). Null when
+  // the band has no Metallum match. A caption beside the tags, never a structural field (invariant 5).
+  metalArchivesGenre: string | null;
   releases: Release[];
   edges: ArtistEdge[];
+}
+
+// ---------------------------------------------------------------------------
+// Browse "see all" (2026-07-15): the explicit NAMED door out of a chip. A tag or a
+// theme opens a paged grid of the real bands under it — the opposite of the blind rite.
+// ---------------------------------------------------------------------------
+
+// One band in a browse grid: enough to render a card and link to the ficha. NOT blind — this
+// is the "see all" surface, so the name is shown (like Scenes).
+export interface BandCard {
+  id: string;
+  name: string;
+  rank: Rank | null;
+  country: string | null;
+  kind: ArtistKind;
+}
+
+// A page of a browse listing: the total under the tag/theme and the current slice of bands.
+export interface BrowseResult {
+  total: number;
+  bands: BandCard[];
+}
+
+// Which theme namespace a needle belongs to: the real Metal Archives lyrical themes, or the C21
+// title-mining approximation (its keys are the TitleLexicon ids the ficha renders today).
+export type ThemeKind = 'lyrical' | 'mined';
+
+// The optional scope carried into a rite by a chip's "Invocar a ciegas": an arbitrary tag substring
+// or a theme needle. All optional — absent means a fully open, blind rite. The rite STAYS blind; a
+// scope only narrows the pool, it never reveals name, genre or theme on the card.
+export interface RiteScope {
+  genreNeedle?: string;
+  themeNeedle?: string;
+  themeKind?: ThemeKind;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +235,12 @@ export interface ServeFilters {
   decadeTo?: number | null;
   // Optional genre lane (a RiteGenres key, e.g. "black-metal"). Null/absent = fully open, blind.
   genre?: string | null;
+  // Scoped-rite needles (2026-07-15): narrow the blind pool by an arbitrary lowercase tag substring
+  // (`genreNeedle`) or a lyrical/mined theme (`themeNeedle` + `themeKind`). All optional and default
+  // undefined — backward-compatible with a plain serve. The tasting stays blind either way.
+  genreNeedle?: string;
+  themeNeedle?: string;
+  themeKind?: ThemeKind;
 }
 
 // An entry in the user's grimoire: a summoned band and when it was summoned.

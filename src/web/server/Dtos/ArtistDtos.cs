@@ -54,4 +54,9 @@ public record ArtistDetailDto(
     string? ImageUrl,
     Dictionary<string, string>? Links,
     IReadOnlyList<ReleaseDto> Releases,
-    IReadOnlyList<ArtistEdgeDto> Edges);
+    IReadOnlyList<ArtistEdgeDto> Edges,
+    // Lyrical themes from Metal Archives (D48/Q4). Empty until the MA pass matches the band —
+    // an empty list is a real gap, never invented (Invariant 5).
+    IReadOnlyList<string> LyricalThemes,
+    // Metal Archives' own genre string (e.g. "Black Metal (early); Ambient (later)"). Null until matched.
+    string? MetalArchivesGenre);

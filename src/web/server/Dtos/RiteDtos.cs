@@ -49,7 +49,16 @@ public record ServeRequest(
     int? DecadeTo = null,
     // Optional genre lane (a RiteGenres key, e.g. "black-metal"). Null = fully open, the default.
     // The tasting stays blind; the genre only narrows which bands the ring may draw from.
-    string? Genre = null);
+    string? Genre = null,
+    // A raw lower-case tag substring, used DIRECTLY as the tag lane (bypassing the RiteGenres
+    // catalogue) — how an arbitrary clicked tag scopes a blind rite. Takes precedence over Genre
+    // when both are present. Null = no raw tag lane.
+    string? GenreNeedle = null,
+    // A raw theme key: a lyrical_themes substring when ThemeKind is "lyrical", or a TitleLexicon
+    // theme id when ThemeKind is "mined". Null = no theme lane.
+    string? ThemeNeedle = null,
+    // "lyrical" or "mined" — which theme source ThemeNeedle scopes. Null when no theme scope.
+    string? ThemeKind = null);
 
 /// <summary>One genre lane offered in The Rite: its key (sent back on a serve) and display label.</summary>
 public record RiteGenreDto(string Key, string Label);
