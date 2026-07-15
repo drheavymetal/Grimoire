@@ -822,6 +822,21 @@ El grueso de la mejora de velocidad es **el filtro, no la cadencia** (~18 h → 
 
 ---
 
+## D54 — Biografías desde Wikipedia, emparejadas por MBID→Wikidata (nunca por nombre)
+`2026-07-15` · vigente · pedido por Pedro (*«la mayor parte de las bandas no tienen biografía»*) · coste cero (Wikidata + Wikipedia gratis)
+
+`Artist.Abstract` estaba casi siempre vacío. Verbo nuevo `biographies` lo rellena desde la **Wikipedia inglesa**, con estas decisiones:
+- **Match solo por MusicBrainz id → Wikidata (`wdt:P434`) → artículo enwiki → REST summary.** **Nunca por nombre** — los homónimos («Death»/«Toto») son la trampa de siempre (R4). Sin sitelink enwiki o sin MBID → null, un hueco honesto.
+- **Idioma: inglés** — coincide con el dato english-first de la app; la mayoría de info de bandas de metal solo existe en inglés. Mostrar bio inglesa en UI español es asumible.
+- **Cobertura sesgada a lo conocido (R2), asumido.** El underground al que la app te lleva casi nunca tiene artículo → rellena el extremo famoso (Coldplay, etc.), deja lo oscuro como hueco declarado, jamás inventado.
+- **Atribución CC BY-SA obligatoria**: la ficha muestra el texto con enlace «Fuente: Wikipedia (CC BY-SA)». Es requisito de licencia, no cortesía.
+- **Resumible** por `abstract_checked_at` (marcado, case o no → no re-consulta un miss). Educado 250 ms, UA con contacto.
+- **Rellenar `Abstract` cambia el texto del embedding** → esas bandas necesitan un re-embed posterior; el job **no** lo dispara (se hará en pase aparte).
+
+Implementación: `WikipediaSummary` (parser puro + 10 tests), `WikipediaSource/Options/Job`, migración `AddWikipediaBiography` (`abstract_url`, `abstract_checked_at`). Desplegado y verificado en vivo (ficha de Coldplay 200 con abstract + url).
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |

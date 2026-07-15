@@ -218,6 +218,29 @@ El error `libgssapi_krb5.so.2` al arrancar es benigno. **Cuando Last.fm acabe**:
 
 ---
 
+## 6d. Sesión 2026-07-15 (continuación con Pedro) — MA opt, Atlas, biografías, y el ROADMAP social
+
+Sesión con Pedro despierto, iterando rápido. Todo commiteado sin firmar y pusheado a `origin/main`.
+
+### Desplegado y verificado en vivo esta sesión
+- **MA scraper optimizado (D53)** — pool restringido a metal-ish (53 696→31 954 pendientes, salta 40% mainstream) + cadencia 1→3 req/s (decisión de Pedro sobre la palabra dada de «≤1 req/s»; sin cap: 1964/1964 = 200). MA de semanas a ~4-6h. Commit `88180f2`.
+- **Atlas usable** — hover muestra el nombre del grupo flotante; clic **fija una tarjeta** (nombre+rank+«Ver ficha →») en vez de saltar a la ficha y perder el mapa. Front-only (el nombre ya venía en el payload). Commit `79c7733`.
+- **Biografías desde Wikipedia (D54)** — verbo `biographies`, match por MBID→Wikidata→enwiki (nunca por nombre), atribución CC BY-SA en la ficha. Corriendo en el server (`grimoire-biographies`, `unless-stopped`, 206 887 pendientes, listeners DESC). Worker+api+front redesplegados, migración `AddWikipediaBiography` aplicada. Verificado: ficha Coldplay 200 con abstract+url. Commit `887415a`. **Pendiente**: re-embeber las bandas que ganen abstract (cambia el texto del embedding).
+
+### ROADMAP acordado con Pedro — «sin MVPs, todo implementado, cada feature entera»
+Orden y estado. Cada ola = feature COMPLETA, desplegada y verificada (olas por linealidad de migración EF + choques en Program.cs/rutas/DTOs/locales, NO por trocear).
+1. ✅ **Biografías** (D54).
+2. 🔜 **Ficha (lo pedido antes de biografías)** — decisión de Pedro: hacer TODA la ficha antes de perfil:
+   - **Temas REALES de MA en la ficha** — aflorar `LyricalThemes` (el crawl MA los importa) por encima del minado de títulos C21 (que es «aproximado»). Barato.
+   - **Tags + temas CLICABLES → «Ambas» puertas** (D-pendiente): clic en un tag/tema abre dos puertas: (a) **rito CIEGO acotado** (reusa `RiteFilters.Genre` que ya existe para tags; **carril de TEMA nuevo** sobre `LyricalThemes`/minado), y (b) **lista de bandas** con ese tag/tema (endpoint browse nuevo + página). El front ya tiene `RITE_GENRES` en `RiteConsole.tsx`.
+3. 🔜 **Perfil de usuario** (entero) — gestión de gusto (añadir/quitar bandas → recalcular vector, re-sembrar), grimorio+stats por rank, corte más profundo, hogar para trayectoria(C16)/espejo(C20)/dark-twin(B18)/huecos(B23), Depth Score como identidad, ajustes (idioma/tema/**sesiones D28**/exportar grimorio). Mucho es **aflorar lo ya construido**.
+4. 🔜 **Amigos** (entero) — grafo (`friendships`: requester/addressee/status pending·accepted·blocked; añadir por usuario/enlace/QR, solicitudes, quitar/bloquear) + grimorios cruzados (C23) + tabla de rareza por Depth Score + regalar rito ciego (C22) + amigo en el Atlas + six degrees (B19) + duelo (C2) + feed opt-in. **Sube la prioridad de D28** (auth revocable).
+5. 🔜 **Notificaciones** (entero) — **in-app, NO push, no instantáneo** (Pedro): tabla `notifications` (user_id, type, actor_id, payload jsonb, created_at, read_at), centro con badge de no-leídas, se refresca al abrir/navegar. NO usa el WebPush/VAPID de movimiento VI. Tipos: solicitud de amistad, aceptada, regalo recibido, «un amigo te superó en rareza», etc.
+
+**Guardarraíles del bloque social**: el ciego se queda (amigos comparten lo *revelado*, regalar es a ciegas — nada de filtrar por lo que le mola al amigo); rareza inversa premia lo oscuro (encaje perfecto); coste cero (D47); opt-in siempre.
+
+---
+
 ## 7. Huecos y pendientes
 
 **Features de grabaciones — RESUELTAS** (import de `recording` de MB: 8 925 364 grabaciones, 99.9% de releases, títulos 100%, duración 91%; 21 418 versiones. Migración `AddRecordingsAndCoverVersions`, scripts `scripts/mb-import/recordings/`):
