@@ -194,6 +194,24 @@ Sesión con Pedro que empezó con la 2ª respuesta de MA y acabó en un desplieg
 - El error `libgssapi_krb5.so.2` en los workers es **benigno** (Npgsql intenta GSSAPI, cae al fallback; la conexión funciona).
 - Los dos crawls sobreviven al apagado del PC de Pedro (corren en el server) y a reboots (`unless-stopped`). Se **auto-supervisan**.
 
+### Cómo reanudar los crawls (desde cualquier máquina con el repo)
+SSH al server: `ssh -o IdentityAgent=none -i ~/.ssh/id_ed25519 drheavymetal@192.168.1.3`. Ver vivos + progreso:
+```
+docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'listeners|metalarchives'
+docker exec grimoire-db psql -U grimoire -d grimoire -tA -c "select count(*) filter (where listeners is not null), count(*) filter (where metal_archives_id is not null) from artists;"
+```
+Si un crawl murió, **relanzarlo continúa** (marcadores: Last.fm `listeners is null`, MA `metal_archives_checked_at is null`):
+```
+docker run -d --name grimoire-listeners --network grimoire --restart unless-stopped \
+  -e ConnectionStrings__Grimoire="Host=db;Port=5432;Database=grimoire;Username=grimoire;Password=grimoire" \
+  -e GRIMOIRE_LASTFM_APIKEY=<key de user-secrets / memoria local, NUNCA aquí> \
+  -e GRIMOIRE_LISTENERS_LIMIT=300000 go2chaindev/grimoire-worker:latest listeners
+docker run -d --name grimoire-metalarchives --network grimoire --restart unless-stopped \
+  -e ConnectionStrings__Grimoire="Host=db;Port=5432;Database=grimoire;Username=grimoire;Password=grimoire" \
+  -e GRIMOIRE_METALARCHIVES_LIMIT=300000 go2chaindev/grimoire-worker:latest metalarchives
+```
+El error `libgssapi_krb5.so.2` al arrancar es benigno. **Cuando Last.fm acabe**: re-embeber las bandas que ganaron tags + refrescar `corpus_stats`.
+
 ---
 
 ## 7. Huecos y pendientes
