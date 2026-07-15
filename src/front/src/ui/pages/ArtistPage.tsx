@@ -17,6 +17,7 @@ import type {
 } from '../../core/domain/types';
 import { Cover } from '../Cover';
 import { RankedName } from '../RankedName';
+import { StreamingLinks } from '../StreamingLinks';
 import { GiftButton } from '../GiftButton';
 import { LineupTimeline } from '../lineup/LineupTimeline';
 import { Bloodline } from '../lineage/Bloodline';
@@ -77,6 +78,9 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
       <h1 className="mt-3">
         <RankedName name={data.name} rank={data.rank} className="text-5xl text-strong" />
       </h1>
+
+      {/* Listen on the streaming services (Grimoire never plays music itself, invariant 4). */}
+      <StreamingLinks query={data.name} className="mt-3 flex flex-wrap items-baseline" />
 
       {/* The Gantt is the hero, in the header-photo slot (DESIGN 6): Grimoire has no band
           photos, so it shows the band's structure in time. B7/B8; reused for B10 (a person's
@@ -142,6 +146,7 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
                 <ReleaseGroup
                   key={type}
                   artistId={data.id}
+                  artistName={data.name}
                   type={type}
                   releases={grouped[type]}
                   creditsByRelease={creditsByRelease}
@@ -180,12 +185,14 @@ function ArtistBody({ data }: { data: ArtistDetail }) {
 
 function ReleaseGroup({
   artistId,
+  artistName,
   type,
   releases,
   creditsByRelease,
   pivotalReleaseId,
 }: {
   artistId: string;
+  artistName: string;
   type: ReleaseType;
   releases: Release[];
   creditsByRelease: Map<string, ReleaseCredits>;
@@ -203,6 +210,7 @@ function ReleaseGroup({
           <ReleaseRow
             key={release.id}
             artistId={artistId}
+            artistName={artistName}
             release={release}
             credits={creditsByRelease.get(release.id)}
             isPivotal={release.id === pivotalReleaseId}
@@ -218,11 +226,13 @@ function ReleaseGroup({
 // "no credits" state otherwise (R2 — the underground is thin, the ficha must degrade with dignity).
 function ReleaseRow({
   artistId,
+  artistName,
   release,
   credits,
   isPivotal,
 }: {
   artistId: string;
+  artistName: string;
   release: Release;
   credits: ReleaseCredits | undefined;
   isPivotal: boolean;
@@ -254,6 +264,11 @@ function ReleaseRow({
 
       {open ? (
         <div className="mt-2 space-y-3 pl-[calc(3rem+0.75rem)]">
+          {/* Listen to this specific release on the streaming services (band + album search). */}
+          <StreamingLinks
+            query={`${artistName} ${release.title}`}
+            className="flex flex-wrap items-baseline"
+          />
           {/* B5 — the tracklist, fetched lazily now the row is open. */}
           <Tracklist artistId={artistId} releaseId={release.id} enabled={open} />
           {/* B9 — the per-release credits, or a designed "no credits" state. */}
