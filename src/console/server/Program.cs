@@ -303,6 +303,11 @@ static void ConfigureMetalArchives(HostApplicationBuilder builder)
             client.BaseAddress = new Uri("https://www.metal-archives.com/");
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "Grimoire/1.0 (+https://grimoire.drheavymetal.com; pmanso@go2chain.es)");
+            // MA sits behind a WAF that 403s HTTP/1.1 and serves HTTP/2 (verified: identical request,
+            // only the protocol differs). .NET defaults to HTTP/1.1, which is why every request was
+            // blocked; negotiate HTTP/2 via ALPN, falling back only if the server truly lacks it.
+            client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
+            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
             client.Timeout = TimeSpan.FromSeconds(30);
         })
         .AddResilienceHandler("metalarchives", pipeline =>
