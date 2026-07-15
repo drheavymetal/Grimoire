@@ -183,7 +183,7 @@
     "loading": "Charting the sky…",
     "error": "The sky would not load. Try again.",
     "reset": "Reset view",
-    "hint": "Drag to pan · scroll to zoom · click a star to open it",
+    "hint": "Hover to read · click a star to pin it · drag to pan · scroll to zoom",
     "aria": "Atlas star field, {{count}} bands",
     "emptyTitle": "No sky to chart yet",
     "emptyBody": "No band has been projected to the map yet. The Atlas fills in once the embeddings are placed.",
@@ -192,7 +192,9 @@
     "toRite": "Begin the rite →",
     "eyebrow": "The periphery, mapped",
     "legendField": "Catalogue",
-    "legendTaste": "Near your taste"
+    "legendTaste": "Near your taste",
+    "openFiche": "Open band →",
+    "close": "Close"
   },
   "grimoire": {
     "heading": "Your grimoire",

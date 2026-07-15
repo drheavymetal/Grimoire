@@ -6,10 +6,10 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { atlasScreenOf, fitAtlas, type AtlasPoint } from '../../core/domain/atlas';
-import type { Atlas } from '../../core/domain/types';
+import type { Atlas, AtlasStar } from '../../core/domain/types';
 import { useMeasuredWidth } from '../lineup/useMeasuredWidth';
 
 // The Atlas (C18/B22) is the ONE view that renders to a canvas, the explicit exception to
@@ -49,13 +49,17 @@ interface Props {
 
 export function AtlasCanvas({ atlas, aliveIds }: Props) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [containerRef, measuredWidth] = useMeasuredWidth<HTMLDivElement>();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [themeTick, setThemeTick] = useState(0);
+  // The star under the cursor (transient, follows the mouse) and the one the user clicked to pin.
+  // Hovering reads a group without opening it; a click pins a card so a stray click never yanks you
+  // off the map — navigation is only the explicit "open" link on the card.
+  const [hovered, setHovered] = useState<AtlasStar | null>(null);
+  const [pinned, setPinned] = useState<AtlasStar | null>(null);
   const dragRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const width = measuredWidth > 0 ? measuredWidth : 640;
@@ -151,7 +155,7 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
     // themeTick forces a redraw on theme change; it is a dependency, not used in the body.
   }, [atlas.stars, atlas.taste, aliveIds, screenOf, width, themeTick, containerRef]);
 
-  function nearestStarId(clientX: number, clientY: number): string | null {
+  function nearestStar(clientX: number, clientY: number): AtlasStar | null {
     const canvas = canvasRef.current;
     if (canvas === null) {
       return null;
@@ -160,17 +164,17 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
 
-    let bestId: string | null = null;
+    let best: AtlasStar | null = null;
     let bestDistSq = HIT_RADIUS * HIT_RADIUS;
     for (const star of atlas.stars) {
       const p = screenOf(star);
       const dSq = (p.x - x) ** 2 + (p.y - y) ** 2;
       if (dSq <= bestDistSq) {
         bestDistSq = dSq;
-        bestId = star.id;
+        best = star;
       }
     }
-    return bestId;
+    return best;
   }
 
   const onWheel = (event: ReactWheelEvent<HTMLCanvasElement>): void => {
@@ -185,11 +189,19 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
-    if (dragRef.current === null) {
+    // Panning: drag the field and suppress the hover label until the drag ends.
+    if (dragRef.current !== null) {
+      dragRef.current.moved = true;
+      setPan({ x: event.clientX - dragRef.current.x, y: event.clientY - dragRef.current.y });
+      if (hovered !== null) {
+        setHovered(null);
+      }
       return;
     }
-    dragRef.current.moved = true;
-    setPan({ x: event.clientX - dragRef.current.x, y: event.clientY - dragRef.current.y });
+    // Not dragging: read the nearest star under the cursor. Only touch state when the id changes so a
+    // plain mouse move does not re-render on every pixel.
+    const star = nearestStar(event.clientX, event.clientY);
+    setHovered((prev) => (prev?.id === (star?.id ?? null) ? prev : star));
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
@@ -198,19 +210,30 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    // A click that did not pan opens the nearest star's page (its ficha).
+    // A click that did not pan pins the nearest star's card (or clears the pin on empty space). It no
+    // longer navigates — that would drop you out of the Atlas; the card carries the explicit link.
     if (drag !== null && !drag.moved) {
-      const id = nearestStarId(event.clientX, event.clientY);
-      if (id !== null) {
-        void navigate({ to: '/artist/$artistId', params: { artistId: id } });
-      }
+      setPinned(nearestStar(event.clientX, event.clientY));
     }
+  };
+
+  const onPointerLeave = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
+    // Leaving the canvas ends any drag and drops the hover label, but never pins or clears the card.
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setHovered(null);
   };
 
   const resetView = (): void => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
+
+  // Screen positions for the HTML overlays, recomputed each render so they track pan and zoom.
+  const hoveredPos = hovered !== null ? screenOf(hovered) : null;
+  const pinnedPos = pinned !== null ? screenOf(pinned) : null;
 
   if (atlas.stars.length === 0) {
     return (
@@ -242,18 +265,70 @@ export function AtlasCanvas({ atlas, aliveIds }: Props) {
           ref={canvasRef}
           role="img"
           aria-label={t('atlas.aria', { count: atlas.stars.length })}
-          style={{ display: 'block', width: '100%', height: HEIGHT, cursor: dragRef.current?.moved ? 'grabbing' : 'crosshair', touchAction: 'none' }}
+          style={{ display: 'block', width: '100%', height: HEIGHT, cursor: dragRef.current?.moved ? 'grabbing' : hovered !== null ? 'pointer' : 'crosshair', touchAction: 'none' }}
           onWheel={onWheel}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerLeave={onPointerLeave}
         />
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{ background: 'radial-gradient(120% 90% at 50% 40%, transparent 52%, color-mix(in srgb, var(--color-bg) 82%, transparent) 100%)' }}
         />
+
+        {/* Hover label: the group's name floating above its star, so the field can be read by moving
+            the cursor. Hidden while a card is pinned on the same star (the card already names it). */}
+        {hoveredPos !== null && hovered !== null && hovered.id !== pinned?.id ? (
+          <div
+            className="pointer-events-none absolute z-10 whitespace-nowrap border border-line px-2 py-1 font-mono text-[0.7rem] text-strong"
+            style={{
+              left: hoveredPos.x,
+              top: hoveredPos.y,
+              transform: 'translate(-50%, calc(-100% - 10px))',
+              background: 'color-mix(in srgb, var(--color-bg) 92%, transparent)',
+            }}
+          >
+            {hovered.name}
+          </div>
+        ) : null}
+
+        {/* Pinned card: a click parks the group here with its rank and an explicit link, instead of
+            navigating away and losing the map. Flips to the other side of the point near the edge. */}
+        {pinnedPos !== null && pinned !== null ? (
+          <div
+            className="pointer-events-auto absolute z-20 w-max max-w-[220px] border border-line p-3 shadow-lg"
+            style={{
+              left: pinnedPos.x,
+              top: pinnedPos.y,
+              transform: `translate(${pinnedPos.x > width / 2 ? 'calc(-100% - 12px)' : '12px'}, -50%)`,
+              background: 'var(--color-bg)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setPinned(null)}
+              aria-label={t('atlas.close')}
+              className="absolute right-1.5 top-1.5 font-mono text-xs text-muted hover:text-accent"
+            >
+              ✕
+            </button>
+            <p className="pr-4 font-display text-base text-strong">{pinned.name}</p>
+            {pinned.rank !== null ? (
+              <p className="mt-0.5 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-muted">
+                {t(`rank.${pinned.rank}`)}
+              </p>
+            ) : null}
+            <Link
+              to="/artist/$artistId"
+              params={{ artistId: pinned.id }}
+              className="mt-2 inline-block font-mono text-xs text-accent no-underline hover:text-strong"
+            >
+              {t('atlas.openFiche')}
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">

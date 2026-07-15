@@ -183,7 +183,7 @@
     "loading": "Cartografiando el cielo…",
     "error": "El cielo no se pudo cargar. Inténtalo de nuevo.",
     "reset": "Reiniciar vista",
-    "hint": "Arrastra para mover · rueda para acercar · pulsa una estrella para abrirla",
+    "hint": "Pasa el cursor para leer · pulsa una estrella para fijarla · arrastra para mover · rueda para acercar",
     "aria": "Campo de estrellas del Atlas, {{count}} bandas",
     "emptyTitle": "Aún no hay cielo que cartografiar",
     "emptyBody": "Todavía no se ha proyectado ninguna banda al mapa. El Atlas se llena en cuanto se sitúan los embeddings.",
@@ -192,7 +192,9 @@
     "toRite": "Empezar el rito →",
     "eyebrow": "La periferia, cartografiada",
     "legendField": "Catálogo",
-    "legendTaste": "Cerca de tu gusto"
+    "legendTaste": "Cerca de tu gusto",
+    "openFiche": "Ver ficha →",
+    "close": "Cerrar"
   },
   "grimoire": {
     "heading": "Tu grimorio",
