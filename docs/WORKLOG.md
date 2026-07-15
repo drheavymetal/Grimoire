@@ -131,3 +131,16 @@ Pedro preguntó cómo iba el enriquecimiento perezoso → se diagnosticó que **
 **Pendiente por mi parte**: cuando el job `listeners` D41 madure (horas), **re-dump + restore a producción** con los ranks buenos (queda a la espera por decisión de Pedro). Vigilar el loop. Tech-debt menor: el verbo `atlas` de consola lento a escala.
 
 **No es mío**: respuesta de Metal Archives (Q4), revocabilidad de refresh tokens (D28), push al registro `go2chaindev/*` (credenciales del equipo).
+
+---
+
+## Sesiones posteriores (2026-07-12 → 15) — resumen cronológico
+
+El detalle vive en `MEMORY.md` §6b/§6c/§6d y en `DECISIONS.md` (D41–D60). Cronología breve para no romper el hilo:
+
+- **2026-07-12** — enriquecimiento nocturno: `rank` 2 639→14 330, `credits`→32 929, `influence` 80 (Wikidata lo tumba). ⚠️ El «plateau» del rank era falso: `ListenersJob` recorría alfabético y lo mataba el gestor de tareas → nunca pasó de la B (§6b).
+- **2026-07-14** — cuatro bugs de prod arreglados (doble `/api`, audio bloqueado por contenido mixto, B2 en 503 sin Ollama, **D46** baterías de sesión servidas como bandas). MA contestó autorizando el scrape; correo enviado. **D47** (nunca de pago), riesgos R9/R10 (Apple/Last.fm). §6b.
+- **2026-07-15 (mañana/autónoma)** — 2ª respuesta de MA (D48/D49). **Scraper MA construido y corriendo** (bug clave: MA 403ea HTTP/1.1 → HTTP/2). Last.fm relanzado con tags. **Clásica eliminada** (D50). 3 fixes (Redaction invertida D51, Atlas colgaba, Espejo en blanco). Rito por género (D52), enlaces de streaming. §6c.
+- **2026-07-15 (tarde, con Pedro)** — optimización MA (metal-ish + 3 req/s, **D53**), Atlas usable (hover+tarjeta), **biografías Wikipedia** (**D54**), **ficha: temas MA reales + tags/temas clicables con dos puertas** (**D55**), y el **BLOQUE SOCIAL**: perfil gusto híbrido (**D56**), amigos + **D28 saldado** (**D57**), sidebar lateral (**D58**), re-seed desde perfil (**D59**), **notificaciones in-app + regalar rito + rarity-surpassed + duelo ligero** (**D60**). Todo desplegado y verificado en prod, ~14 commits, construido con oleadas de subagentes en paralelo a contrato bloqueado. §6d.
+
+**Crawls vivos en el server** al cierre: `grimoire-listeners`, `grimoire-metalarchives`, `grimoire-biographies` (`unless-stopped`, resumibles). Al terminar Last.fm + biografías: re-embeber lo que gane tags/abstract.

@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6c** — MA scraper + Last.fm tags corriendo, clásica eliminada, 3 fixes de producto, Rito por género, enlaces de streaming; **tarde: optimización MA D53** — pool metal-ish + 3 req/s, sin cap).
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
 
 ---
 
@@ -26,7 +26,9 @@ La tesis: no dejamos de escuchar lo mismo por falta de recomendaciones, sino por
 - **Enriquecimiento nocturno (2026-07-12)**: `rank` **2 639 → 14 330**, `credits` **5 153 → 32 929** grupos (casi entero), `influence` **80** (Wikidata bulk lo tumba con 502/429 — facet menor, ROI bajo).
   > ⚠️ **CORRECCIÓN (2026-07-14)**: esta entrada decía que el rank había llegado a un **«plateau»** y que «la cola restante no está en Last.fm ni por nombre». **Es falso.** El pase recorre a los artistas **por orden alfabético** (`ListenersJob.cs:65`, `.OrderBy(a => a.Name)`) y lo mataba el gestor de tareas de fondo: **nunca pasó de la letra B**. De los 14 330 con `listeners`, **13 206 empiezan por A o B**. No es un límite de la fuente, es un rastreo a medias — quedan **88 246 artistas descubribles sin `listeners`** (§6b).
 
-Los 40+ commits viven en `origin/main` (github.com:drheavymetal/Grimoire), sin firma GPG.
+- **Bloque social + producto (2026-07-15, D54–D60) — desplegado y verificado**: **biografías Wikipedia** (match por MBID→Wikidata, atribución CC BY-SA), **ficha con temática lírica REAL de MA + tags/temas clicables** (dos puertas: rito ciego acotado / browse), **perfil de usuario** (gusto híbrido EMA+anclas, stats, exportar grimorio, re-seed con la rejilla de onboarding), **sidebar lateral**, **amigos** (grafo por handle, tabla de rareza, grimorios cruzados, amigo en Atlas), **D28 saldado** (refresh tokens rotados+revocables, logout/logout-all/sessions), **notificaciones in-app** (buzón sondeado + badge, no push), **regalar rito a ciegas a un amigo**, **rarity-surpassed** y **duelo ligero**. Detalle en §6d.
+
+Los 60+ commits viven en `origin/main` (github.com:drheavymetal/Grimoire), sin firma GPG.
 
 ---
 
