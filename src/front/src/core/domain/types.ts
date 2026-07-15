@@ -854,6 +854,31 @@ export interface FriendAtlasPoint {
 }
 
 // ---------------------------------------------------------------------------
+// Notifications (the NOTIFICATIONS wave): a polled in-app inbox (NOT web push). The
+// server records an event when someone adds you, accepts your request, or sends you a
+// blind gift; the front polls the unread count for the sidebar badge and the list for
+// the page. A gift stays BLIND — the notification never carries the band name to the UI.
+// ---------------------------------------------------------------------------
+
+export type NotificationType = 'FriendRequest' | 'FriendAccepted' | 'GiftReceived';
+
+// One inbox event. `actorHandle` is the listener who caused it (null when they have no handle).
+// `friendshipId` links a friend event to the Friends page; `giftToken` links a gift to the blind
+// gift flow. `artistName` is present on the wire but MUST stay hidden for GiftReceived — the gift is
+// blind until opened (contract 2026-07-15).
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  actorId: string | null;
+  actorHandle: string | null;
+  createdAt: string;
+  read: boolean;
+  friendshipId: string | null;
+  giftToken: string | null;
+  artistName: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Movement III — per-release credits (B9). Who played what on each release,
 // separating official members from guests, plus production. Keyed by release id
 // so the artist page matches it to the discography it already holds.

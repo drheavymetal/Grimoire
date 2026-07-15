@@ -2,6 +2,7 @@ import { Link, type LinkProps } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { Theme } from '../platform/theme.web';
 import { useProfile } from '../core/hooks/useProfile';
+import { useUnreadCount } from '../core/hooks/useNotifications';
 import { useAuth } from './auth/AuthProvider';
 import { BrandLockup } from './Logo';
 
@@ -67,11 +68,14 @@ export function Sidebar({ theme, onToggleTheme, language, onToggleLanguage, onNa
       {/* The user area: the profile's proper home. Anchored at the bottom of the spine. */}
       <div className="shrink-0 border-t border-line p-3">
         {isAuthenticated ? (
-          <UserIdentity
-            handle={profileQuery.data?.handle ?? null}
-            depthScore={profileQuery.data?.depthScore}
-            onNavigate={onNavigate}
-          />
+          <>
+            <UserIdentity
+              handle={profileQuery.data?.handle ?? null}
+              depthScore={profileQuery.data?.depthScore}
+              onNavigate={onNavigate}
+            />
+            <NotificationBell onNavigate={onNavigate} />
+          </>
         ) : (
           <Link
             to="/rite"
@@ -148,6 +152,37 @@ function UserIdentity({
       <span className="mt-1 block font-mono text-[0.62rem] uppercase tracking-[0.2em] text-faint">
         {t('profile.depthScore')} · <span className="text-accent">{depthScore ?? 0}</span>
       </span>
+    </Link>
+  );
+}
+
+// The notification bell (the NOTIFICATIONS wave). It sits in the authenticated user area of the
+// spine and links to the inbox. The unread count is polled (~60s + on focus, see useUnreadCount) and
+// shown as a sulphur badge only when > 0 — sulphur is the app's one accent (D27), the icon is the
+// same xerox line art as the drawer hamburger. It renders in both the desktop rail and the mobile
+// drawer, since the spine is shared. Only mounted when signed in, so the poll is always enabled here.
+function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation();
+  const unread = useUnreadCount(true);
+  const count = unread.data ?? 0;
+
+  return (
+    <Link
+      to="/notifications"
+      onClick={onNavigate}
+      aria-label={count > 0 ? t('notifications.unreadAria', { count }) : t('nav.notifications')}
+      className="mt-1 flex items-center gap-2 rounded-sm px-2 py-2 font-mono text-xs uppercase tracking-[0.18em] text-muted no-underline hover:bg-panel hover:text-strong"
+    >
+      <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M10 3.5a3.8 3.8 0 0 0-3.8 3.8c0 3.6-1.4 4.7-1.4 4.7h10.4s-1.4-1.1-1.4-4.7A3.8 3.8 0 0 0 10 3.5Z" />
+        <path d="M8.4 15a1.6 1.6 0 0 0 3.2 0" />
+      </svg>
+      <span>{t('nav.notifications')}</span>
+      {count > 0 ? (
+        <span className="ml-auto min-w-[1.4rem] rounded-sm bg-accent px-1.5 py-0.5 text-center font-mono text-[0.62rem] font-semibold tracking-normal text-bg">
+          {count > 99 ? '99+' : count}
+        </span>
+      ) : null}
     </Link>
   );
 }

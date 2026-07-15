@@ -33,7 +33,8 @@
     "signIn": "Sign in",
     "setHandle": "Set a handle",
     "menu": "Menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "notifications": "Notifications"
   },
   "auth": {
     "email": "Email",
@@ -656,7 +657,21 @@
     "atlasNoTaste": "This friend has no taste vector yet, so they cannot be placed on the map.",
     "leaderboardTitle": "Rarity leaderboard",
     "leaderboardHint": "You and your friends, ranked by Depth Score — who has dug deepest into the periphery.",
-    "leaderboardEmpty": "No one to rank yet. Add a friend and summon rare bands to climb."
+    "leaderboardEmpty": "No one to rank yet. Add a friend and summon rare bands to climb.",
+    "giftAction": "Send a gift",
+    "detailGift": "{{name}} — send a blind gift",
+    "giftIntro": "Pick a band. They hear it blind and turn it over only if they like it — the name stays hidden until then.",
+    "giftSearchLabel": "Find a band to send",
+    "giftPlaceholder": "Search bands…",
+    "giftSearching": "Searching…",
+    "giftEmpty": "No bands match. Try another spelling.",
+    "giftSending": "Sending…",
+    "giftSent": "Your gift is on its way",
+    "giftSentHint": "They will hear it blind, and it is revealed only if they like it.",
+    "giftAnother": "Send another",
+    "giftForbidden": "You are not friends with this listener, so you cannot send them a gift.",
+    "giftMissing": "That band could not be found. Pick another.",
+    "giftError": "The gift could not be sent. Try again."
   },
   "duel": {
     "heading": "The Duel",
@@ -750,5 +765,22 @@
     "hint": "The dominant colour of each album cover, oldest to newest — sampled from the art itself, an average, not a curated palette. Gaps are covers the archive lacks.",
     "empty": "No cover art to sample yet.",
     "tainted": "The covers could not be read for their colour here."
+  },
+  "notifications": {
+    "eyebrow": "What you missed",
+    "heading": "Notifications",
+    "loading": "Reading…",
+    "error": "These would not load. Try again.",
+    "emptyTitle": "Nothing here yet",
+    "emptyBody": "When someone adds you, accepts your request, or sends you a blind gift, it lands here.",
+    "markAll": "Mark all as read",
+    "marking": "Marking…",
+    "someone": "A listener",
+    "friendRequest": "{{handle}} sent you a friend request",
+    "friendAccepted": "{{handle}} accepted your friend request",
+    "giftReceived": "{{handle}} sent you a blind gift",
+    "openFriends": "Open Friends",
+    "openGift": "Open the gift",
+    "unreadAria": "{{count}} unread"
   }
 }

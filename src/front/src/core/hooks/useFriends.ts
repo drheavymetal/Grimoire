@@ -142,3 +142,14 @@ export function useBlockUser() {
     onSuccess: invalidate,
   });
 }
+
+// Sends a friend a blind gift of a band (the NOTIFICATIONS wave). It lands in their inbox and stays
+// blind until they open it, so nothing here invalidates the sender's own views. 403 (not friends)
+// and 404 (artist missing) surface as ApiError for the caller to read.
+export function useGiftToFriend() {
+  const client = useGrimoireClient();
+
+  return useMutation<void, unknown, { friendId: string; artistId: string }>({
+    mutationFn: ({ friendId, artistId }) => client.giftToFriend(friendId, artistId),
+  });
+}

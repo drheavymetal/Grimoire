@@ -60,6 +60,20 @@ public enum RiteState
 }
 
 /// <summary>
+/// Kind of in-app notification dropped into a user's inbox (the NOTIFICATIONS wave). A
+/// <see cref="FriendRequest"/> lands when someone asks to be your friend; a
+/// <see cref="FriendAccepted"/> when a request you sent is accepted (or completed as a mutual
+/// accept); a <see cref="GiftReceived"/> when a friend sends you a band face-down (C22). Stored as
+/// a string, like the other enums. The type also decides which payload fields are present.
+/// </summary>
+public enum NotificationType
+{
+    FriendRequest,
+    FriendAccepted,
+    GiftReceived,
+}
+
+/// <summary>
 /// State of a <see cref="Friendship"/> between two users (the FRIENDS wave). A row is created
 /// <see cref="Pending"/> by the requester, moves to <see cref="Accepted"/> when the addressee
 /// agrees, and <see cref="Blocked"/> is a one-directional wall the requester raises against the

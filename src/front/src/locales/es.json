@@ -33,7 +33,8 @@
     "signIn": "Entrar",
     "setHandle": "Definir un alias",
     "menu": "Menú",
-    "closeMenu": "Cerrar menú"
+    "closeMenu": "Cerrar menú",
+    "notifications": "Notificaciones"
   },
   "auth": {
     "email": "Correo",
@@ -656,7 +657,21 @@
     "atlasNoTaste": "Este amigo aún no tiene vector de gusto, así que no se puede situar en el mapa.",
     "leaderboardTitle": "Clasificación de rareza",
     "leaderboardHint": "Tú y tus amigos, ordenados por Profundidad: quién ha excavado más hondo en la periferia.",
-    "leaderboardEmpty": "Aún no hay a quién clasificar. Añade un amigo e invoca bandas raras para subir."
+    "leaderboardEmpty": "Aún no hay a quién clasificar. Añade un amigo e invoca bandas raras para subir.",
+    "giftAction": "Enviar un regalo",
+    "detailGift": "{{name}} — enviar un regalo a ciegas",
+    "giftIntro": "Elige una banda. La escuchará a ciegas y solo la revelará si le gusta — el nombre queda oculto hasta entonces.",
+    "giftSearchLabel": "Busca una banda para enviar",
+    "giftPlaceholder": "Buscar bandas…",
+    "giftSearching": "Buscando…",
+    "giftEmpty": "Ninguna banda coincide. Prueba otra grafía.",
+    "giftSending": "Enviando…",
+    "giftSent": "Tu regalo va en camino",
+    "giftSentHint": "La escuchará a ciegas, y solo se revela si le gusta.",
+    "giftAnother": "Enviar otro",
+    "giftForbidden": "No eres amigo de este oyente, así que no puedes enviarle un regalo.",
+    "giftMissing": "No se encontró esa banda. Elige otra.",
+    "giftError": "No se pudo enviar el regalo. Inténtalo de nuevo."
   },
   "duel": {
     "heading": "El Duelo",
@@ -750,5 +765,22 @@
     "hint": "El color dominante de cada portada, de la más antigua a la más reciente — muestreado de la propia imagen, un promedio, no una paleta curada. Los huecos son portadas que el archivo no tiene.",
     "empty": "Aún no hay portadas que muestrear.",
     "tainted": "Las portadas no pudieron leerse para extraer su color aquí."
+  },
+  "notifications": {
+    "eyebrow": "Lo que te perdiste",
+    "heading": "Notificaciones",
+    "loading": "Leyendo…",
+    "error": "No se pudieron cargar. Inténtalo de nuevo.",
+    "emptyTitle": "Aquí no hay nada todavía",
+    "emptyBody": "Cuando alguien te agregue, acepte tu solicitud o te envíe un regalo a ciegas, aparecerá aquí.",
+    "markAll": "Marcar todo como leído",
+    "marking": "Marcando…",
+    "someone": "Alguien",
+    "friendRequest": "{{handle}} te envió una solicitud de amistad",
+    "friendAccepted": "{{handle}} aceptó tu solicitud de amistad",
+    "giftReceived": "{{handle}} te envió un regalo a ciegas",
+    "openFriends": "Abrir Amigos",
+    "openGift": "Abrir el regalo",
+    "unreadAria": "{{count}} sin leer"
   }
 }

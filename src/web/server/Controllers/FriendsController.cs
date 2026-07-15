@@ -5,6 +5,7 @@ using Grimoire.Library.Models;
 using Grimoire.Server.Dtos;
 using Grimoire.Server.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,12 +26,21 @@ public class FriendsController : ControllerBase
     private readonly GrimoireDbContext _db;
     private readonly GrimoireCrossService _cross;
     private readonly AtlasProjector _projector;
+    private readonly NotificationService _notifications;
+    private readonly IDataProtector _giftProtector;
 
-    public FriendsController(GrimoireDbContext db, GrimoireCrossService cross, AtlasProjector projector)
+    public FriendsController(
+        GrimoireDbContext db,
+        GrimoireCrossService cross,
+        AtlasProjector projector,
+        NotificationService notifications,
+        IDataProtectionProvider protection)
     {
         _db = db;
         _cross = cross;
         _projector = projector;
+        _notifications = notifications;
+        _giftProtector = protection.CreateProtector(GiftToken.Purpose);
     }
 
     // -----------------------------------------------------------------------
@@ -158,6 +168,10 @@ public class FriendsController : ControllerBase
             reversePending.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
 
+            // This completes a request THEY sent me: it reads as an accept, so notify the original
+            // requester (target) that I (me) accepted — same shape as the explicit accept below.
+            await _notifications.CreateAsync(target, NotificationType.FriendAccepted, me, null, ct);
+
             return Ok(new FriendRequestResultDto(reversePending.Id, reversePending.Status.ToString()));
         }
 
@@ -179,6 +193,14 @@ public class FriendsController : ControllerBase
 
         _db.Friendships.Add(friendship);
         await _db.SaveChangesAsync(ct);
+
+        // Tell the addressee I asked; the payload carries the friendship id they may accept/decline.
+        await _notifications.CreateAsync(
+            target,
+            NotificationType.FriendRequest,
+            me,
+            new NotificationPayload.FriendRequest(friendship.Id),
+            ct);
 
         return Ok(new FriendRequestResultDto(friendship.Id, friendship.Status.ToString()));
     }
@@ -209,6 +231,9 @@ public class FriendsController : ControllerBase
         friendship.Status = FriendshipStatus.Accepted;
         friendship.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+
+        // Tell the original requester that I (the addressee) accepted. No payload — the actor is enough.
+        await _notifications.CreateAsync(friendship.RequesterId, NotificationType.FriendAccepted, me, null, ct);
 
         return NoContent();
     }
@@ -451,6 +476,48 @@ public class FriendsController : ControllerBase
         return Ok(projected is null
             ? new FriendAtlasPointDto(null, null)
             : new FriendAtlasPointDto(projected.Value.X, projected.Value.Y));
+    }
+
+    /// <summary>
+    /// Gifts a band to an accepted friend (C22, the NOTIFICATIONS wave): wraps the band into an
+    /// opaque gift token — the same encrypted capability the by-link gift uses — and drops a
+    /// GiftReceived notification into the friend's inbox. 403 if not accepted friends; 404 if the
+    /// band is unknown. 204.
+    /// </summary>
+    [HttpPost("{friendId:guid}/gift")]
+    public async Task<IActionResult> Gift(Guid friendId, [FromBody] GiftToFriendRequest body, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        Guid me = CurrentUserId();
+
+        if (!await AreAcceptedFriendsAsync(me, friendId, ct))
+        {
+            return Forbid();
+        }
+
+        var artist = await _db.Artists
+            .AsNoTracking()
+            .Where(a => a.Id == body.ArtistId)
+            .Select(a => new { a.Id, a.Name })
+            .FirstOrDefaultAsync(ct);
+
+        if (artist is null)
+        {
+            return NotFound(new { message = "That band is not in the grimoire." });
+        }
+
+        // Same wrapping as GiftController: the band id is sealed inside the token, never a db row.
+        string token = GiftToken.Wrap(_giftProtector, new GiftToken.Payload(artist.Id, null));
+
+        await _notifications.CreateAsync(
+            friendId,
+            NotificationType.GiftReceived,
+            me,
+            new NotificationPayload.GiftReceived(token, artist.Name),
+            ct);
+
+        return NoContent();
     }
 
     // -----------------------------------------------------------------------

@@ -11,10 +11,13 @@ import {
   useFriendGrimoire,
   useFriendRequests,
   useFriends,
+  useGiftToFriend,
   useLeaderboard,
   useRemoveFriend,
   useRequestFriend,
 } from '../../core/hooks/useFriends';
+import { useArtistSearch } from '../../core/hooks/useArtistSearch';
+import { useDebouncedValue } from '../../core/hooks/useDebouncedValue';
 import { useAtlas } from '../../core/hooks/useAtlas';
 import { starsNearTaste } from '../../core/domain/atlas';
 import type {
@@ -28,6 +31,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AuthPanel } from '../auth/AuthPanel';
 import { AtlasCanvas } from '../atlas/AtlasCanvas';
 import { PageHeader } from '../PageHeader';
+import { RankedName } from '../RankedName';
 import { SectionHead } from '../SectionHead';
 
 // How many stars around the taste burn alive on the friend mini-Atlas. Mirrors AtlasPage ALIVE_COUNT.
@@ -57,8 +61,9 @@ export function FriendsPage() {
   return <FriendsBody />;
 }
 
-// What the user has opened under a friend: their grimoire, the cross, or the Atlas. Null = closed.
-type FriendView = 'grimoire' | 'crossed' | 'atlas';
+// What the user has opened under a friend: their grimoire, the cross, the Atlas, or the gift picker.
+// Null = closed.
+type FriendView = 'grimoire' | 'crossed' | 'atlas' | 'gift';
 
 interface Selection {
   friend: Friend;
@@ -335,6 +340,11 @@ function FriendsList({
                     active={active === 'atlas'}
                     onClick={() => onOpen(friend, 'atlas')}
                   />
+                  <FriendAction
+                    label={t('friends.giftAction')}
+                    active={active === 'gift'}
+                    onClick={() => onOpen(friend, 'gift')}
+                  />
                   <button
                     type="button"
                     onClick={() => remove.mutate(friend.friendshipId)}
@@ -398,7 +408,9 @@ function FriendDetail({ selection, onClose }: { selection: Selection; onClose: (
             ? t('friends.detailGrimoire', { name })
             : view === 'crossed'
               ? t('friends.detailCrossed', { name })
-              : t('friends.detailAtlas', { name })}
+              : view === 'atlas'
+                ? t('friends.detailAtlas', { name })
+                : t('friends.detailGift', { name })}
         </h2>
         <button
           type="button"
@@ -414,8 +426,10 @@ function FriendDetail({ selection, onClose }: { selection: Selection; onClose: (
           <FriendGrimoireView friend={friend} />
         ) : view === 'crossed' ? (
           <FriendCrossedView friend={friend} />
-        ) : (
+        ) : view === 'atlas' ? (
           <FriendAtlasView friend={friend} name={name} />
+        ) : (
+          <FriendGiftView friend={friend} />
         )}
       </div>
     </section>
@@ -553,6 +567,114 @@ function FriendAtlasView({ friend, name }: { friend: Friend; name: string }) {
       ) : null}
       <AtlasCanvas atlas={atlas.data} aliveIds={aliveIds} friendPoint={friendPoint} friendLabel={name} />
     </>
+  );
+}
+
+// Send a friend a blind gift (the NOTIFICATIONS wave). A debounced band search (the same typeahead
+// as the profile's anchor box), pick a band, and it lands face down in their inbox. It STAYS BLIND
+// for the recipient — they hear it and only then turn it over — so the confirmation never implies
+// they can see the name (the sender obviously knows what they picked). 403 (not friends) and 404
+// (band missing) surface as friendly copy.
+function FriendGiftView({ friend }: { friend: Friend }) {
+  const { t } = useTranslation();
+  const [term, setTerm] = useState('');
+  const [sent, setSent] = useState(false);
+  const debounced = useDebouncedValue(term, 300);
+  const search = useArtistSearch(debounced);
+  const gift = useGiftToFriend();
+
+  const showResults = debounced.trim().length >= 2;
+  const suggestions = search.data ?? [];
+
+  function pick(artist: ArtistSummary) {
+    gift.mutate(
+      { friendId: friend.userId, artistId: artist.id },
+      {
+        onSuccess: () => {
+          setSent(true);
+          setTerm('');
+        },
+      },
+    );
+  }
+
+  const status = gift.error instanceof ApiError ? gift.error.status : null;
+  const errorKey =
+    status === 403
+      ? 'friends.giftForbidden'
+      : status === 404
+        ? 'friends.giftMissing'
+        : gift.isError
+          ? 'friends.giftError'
+          : null;
+
+  if (sent) {
+    return (
+      <div>
+        <p className="font-display text-xl text-strong">{t('friends.giftSent')}</p>
+        <p className="mt-2 max-w-prose font-body text-sm text-muted">{t('friends.giftSentHint')}</p>
+        <button
+          type="button"
+          onClick={() => {
+            gift.reset();
+            setSent(false);
+          }}
+          className="mt-4 border border-line px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-strong hover:border-accent hover:text-accent"
+        >
+          {t('friends.giftAnother')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="max-w-prose font-body text-sm text-muted">{t('friends.giftIntro')}</p>
+
+      <label className="mt-4 block">
+        <span className="font-mono text-xs uppercase text-muted">{t('friends.giftSearchLabel')}</span>
+        <input
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder={t('friends.giftPlaceholder')}
+          autoComplete="off"
+          className="mt-1 w-full border border-line bg-panel px-4 py-3 font-body text-strong outline-none focus:border-accent"
+        />
+      </label>
+
+      {errorKey !== null ? (
+        <p className="mt-2 font-mono text-xs text-danger">{t(errorKey)}</p>
+      ) : null}
+
+      {showResults && search.isFetching ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('friends.giftSearching')}</p>
+      ) : null}
+
+      {showResults && !search.isFetching && suggestions.length === 0 ? (
+        <p className="mt-2 font-mono text-xs text-muted">{t('friends.giftEmpty')}</p>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <ul className="mt-2 divide-y divide-line border-y border-line">
+          {suggestions.map((artist) => (
+            <li key={artist.id}>
+              <button
+                type="button"
+                onClick={() => pick(artist)}
+                disabled={gift.isPending}
+                className="flex w-full items-baseline justify-between gap-4 py-2.5 text-left disabled:opacity-50"
+              >
+                <RankedName name={artist.name} rank={artist.rank} className="font-body text-strong" />
+                <span className="shrink-0 font-mono text-xs text-muted">
+                  {gift.isPending ? t('friends.giftSending') : artist.country ?? t('search.countryUnknown')}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

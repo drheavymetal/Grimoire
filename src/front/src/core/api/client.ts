@@ -34,6 +34,7 @@ import type {
   MemberBands,
   MemoriamEntry,
   MissingLink,
+  Notification,
   NotifyResult,
   OneAlbumBand,
   PathResult,
@@ -277,6 +278,21 @@ export interface GrimoireClient {
   friendCrossed(friendId: string, signal?: AbortSignal): Promise<CrossedGrimoires>;
   /** A friend's taste projected into the Atlas plane. Both coords null when they have no taste yet. */
   friendAtlasPoint(friendId: string, signal?: AbortSignal): Promise<FriendAtlasPoint>;
+  /**
+   * Sends a friend a blind gift of a band. 403 when not friends, 404 when the artist is missing.
+   * Returns nothing (204). The recipient hears it blind — the name never reaches them until reveal.
+   */
+  giftToFriend(friendId: string, artistId: string): Promise<void>;
+
+  // --- Notifications (the NOTIFICATIONS wave): a polled in-app inbox, NOT web push ---
+  /** A page of the caller's notifications, newest first. */
+  notifications(skip: number, take: number, signal?: AbortSignal): Promise<Notification[]>;
+  /** How many notifications the caller has not read yet — the sidebar badge (polled ~60s). */
+  unreadCount(signal?: AbortSignal): Promise<number>;
+  /** Marks one notification as read. Returns 204. */
+  markRead(id: string): Promise<void>;
+  /** Marks every notification as read; returns how many were marked. */
+  markAllRead(): Promise<number>;
 
   // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
   /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
@@ -771,6 +787,40 @@ export function createGrimoireClient(
         auth: true,
         signal,
       });
+    },
+    async giftToFriend(friendId, artistId) {
+      // 204 on success; 403 (not friends) and 404 (artist missing) surface as ApiError.
+      await requestMaybe<null>(`/api/friends/${encodeURIComponent(friendId)}/gift`, {
+        method: 'POST',
+        auth: true,
+        body: { artistId },
+      });
+    },
+
+    notifications(skip, take, signal) {
+      const params = new URLSearchParams({ skip: String(skip), take: String(take) });
+      return request<Notification[]>(`/api/notifications?${params.toString()}`, { auth: true, signal });
+    },
+    async unreadCount(signal) {
+      const body = await request<{ count: number }>('/api/notifications/unread-count', {
+        auth: true,
+        signal,
+      });
+      return body.count;
+    },
+    async markRead(id) {
+      // The endpoint returns 204 No Content; requestMaybe tolerates the empty body.
+      await requestMaybe<null>(`/api/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'POST',
+        auth: true,
+      });
+    },
+    async markAllRead() {
+      const body = await request<{ marked: number }>('/api/notifications/read-all', {
+        method: 'POST',
+        auth: true,
+      });
+      return body.marked;
     },
 
     memoriam(signal) {

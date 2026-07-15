@@ -105,6 +105,10 @@ builder.Services.AddScoped<ArtistDetailBuilder>();
 // path (FriendsController) so the cross is computed in exactly one place.
 builder.Services.AddScoped<GrimoireCrossService>();
 
+// In-app notifications (NOTIFICATIONS wave): writes inbox rows from the friend and gift flows. The
+// inbox is polled, not pushed — the NotificationsController reads these back.
+builder.Services.AddScoped<NotificationService>();
+
 // Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
 // Rabbit Hole and grimoire-graph endpoints.
 builder.Services.AddScoped<LineageGraph>();

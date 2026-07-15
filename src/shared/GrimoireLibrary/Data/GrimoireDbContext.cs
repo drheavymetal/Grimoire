@@ -51,6 +51,8 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Friendship> Friendships => Set<Friendship>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -353,6 +355,34 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.HasOne<GrimoireUser>()
                 .WithMany()
                 .HasForeignKey(f => f.AddresseeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.Type).HasConversion<string>().HasMaxLength(24);
+            entity.Property(n => n.PayloadJson).HasColumnType("jsonb");
+
+            // The inbox lists a user's notifications newest first; the unread count filters on the
+            // same user and read_at IS NULL. The filtered index keeps that count cheap.
+            entity.HasIndex(n => new { n.UserId, n.CreatedAt })
+                .IsDescending(false, true);
+            entity.HasIndex(n => n.UserId)
+                .HasFilter("read_at IS NULL");
+
+            // The recipient's inbox goes when the account goes.
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The actor is a second path from AspNetUsers to this table; PostgreSQL forbids two
+            // cascade paths, so this one is Restrict (and nullable — some notifications have no actor).
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(n => n.ActorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
