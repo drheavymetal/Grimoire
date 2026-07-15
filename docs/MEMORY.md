@@ -237,6 +237,10 @@ Orden y estado. Cada ola = feature COMPLETA, desplegada y verificada (olas por l
 
 **Guardarraíles del bloque social**: el ciego se queda (amigos comparten lo *revelado*, regalar es a ciegas — nada de filtrar por lo que le mola al amigo); rareza inversa premia lo oscuro (encaje perfecto); coste cero (D47); opt-in siempre.
 
+**UX pedidas por Pedro a mitad del roadmap (ambas desplegadas):**
+- **Sidebar lateral (D58)** — top-bar → rail izquierdo agrupado (El Rito / Explorar / Lo tuyo), activo con barra azufre, perfil como área de usuario abajo (handle + Depth Score). Responsive con drawer móvil. `Sidebar.tsx`.
+- **Re-seed desde el perfil (D59)** — «Reelegir tus bandas»: el picker de cold-start del alta (rejilla + Last.fm) en el perfil, con **fresh** (reemplaza) o **add** (une). `POST /api/profile/reseed`. Picker extraído a `useSeedGrid`/`SeedPicker`, compartido con onboarding.
+
 ---
 
 ## 7. Huecos y pendientes

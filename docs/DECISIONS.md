@@ -890,6 +890,23 @@ Backend: `FriendsController`, `HandleValidator`, migración única `AddFriendsAn
 
 ---
 
+## D58 — Navegación en sidebar lateral; el perfil como área de usuario
+`2026-07-15` · vigente · pedido por Pedro (*«el menú, ¿no quedaría mejor en sidebar? y metemos el perfil donde debería»*) · front-only
+
+El top-bar había crecido a ~14 enlaces y se leía apretado. Se sustituye por un **sidebar izquierdo — el lomo del grimorio** — con las rutas **agrupadas** (estructura con significado): **El Rito** (rito/duelo/semanal), **Explorar** (buscar/escenas/sellos/linaje/atlas/explorar/décadas/in-memoriam), **Lo tuyo** (grimorio/espejo/amigos), cada grupo bajo un eyebrow Courier small-caps. **Ruta activa = barra azufre vertical de 3px** en el borde izquierdo (eco de la «I azufre» de la marca, sustituye el subrayado). **Área de usuario abajo** (donde va el perfil): handle (`@handle` o «pon un handle») + **Depth Score** como stat de identidad, enlazando a `/profile`; tema, idioma, salir. Responsive: rail fijo 240px en desktop; en móvil hamburguesa → drawer (scrim, Esc, inert cerrado, reduced-motion). Identidad calcada de DESIGN (Courier, azufre único acento, hairlines), no un sidebar genérico. `Sidebar.tsx` nuevo, `Layout.tsx` reescrito.
+
+## D59 — Reelegir bandas desde el perfil (re-seed), «tú eliges cada vez» — extiende D56
+`2026-07-15` · vigente · pedido por Pedro (*«desde el perfil seleccionar nuevas bandas como al crear cuenta»*) · modelo elegido por Pedro: **fresh o add, cada vez**
+
+El picker de cold-start del alta (rejilla que crece con las relacionadas + import de Last.fm) ahora es alcanzable **desde el perfil** — «Reelegir tus bandas» — sin crear cuenta nueva. `POST /api/profile/reseed {artistIds, mode}`:
+- **`fresh`**: reemplaza las anclas por lo elegido + sobrescribe el gusto con su media (reset limpio, como el alta). `Repulsion` intacta.
+- **`add`**: une lo elegido a las anclas + reconstruye el gusto con la media de todas.
+- Sin banda usable (con embedding) → **400 sin escribir nada**, en ambos modos.
+
+Front: el picker de `ColdStart` se **extrajo** a piezas compartidas (`useSeedGrid`, `SeedPicker`) → onboarding y `ReselectBands` del perfil comparten la MISMA lógica (crece sin rebarajar). Panel expandible; al elegir ≥1 banda → dos botones **«Empezar de cero» / «Añadir estas»** + import de Last.fm (siempre fresh). Se unifica con las anclas de D56: reelegir siembra el vector Y fija las anclas. **Desplegado y verificado**: fresh [2]→anclas 2, add [1]→anclas 3, mode inválido→400.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
