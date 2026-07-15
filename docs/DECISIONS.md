@@ -905,6 +905,8 @@ El picker de cold-start del alta (rejilla que crece con las relacionadas + impor
 
 Front: el picker de `ColdStart` se **extrajo** a piezas compartidas (`useSeedGrid`, `SeedPicker`) → onboarding y `ReselectBands` del perfil comparten la MISMA lógica (crece sin rebarajar). Panel expandible; al elegir ≥1 banda → dos botones **«Empezar de cero» / «Añadir estas»** + import de Last.fm (siempre fresh). Se unifica con las anclas de D56: reelegir siembra el vector Y fija las anclas. **Desplegado y verificado**: fresh [2]→anclas 2, add [1]→anclas 3, mode inválido→400.
 
+**Refinamientos (mismo día, pedidos por Pedro):** (1) **el reseed no tiene límite** — `useSeedGrid(enabled, maxPicks)` configurable; onboarding se queda en 20 (su `/api/rite/seed` capa ahí, `MaxSeedArtists`), reseed pasa `Infinity` (su `/api/profile/reseed` no capa). (2) **buscador dentro del picker** (`SeedSearch`, compartido) — buscas una banda que la rejilla no sacó, la añades, y **sus relacionadas se despliegan debajo** igual que un chip (`pickFromSearch` → mismo `pickAndUnfold` que `toggle`). Reusa `useArtistSearch`.
+
 ---
 
 ## Preguntas abiertas
