@@ -21,8 +21,10 @@ public interface IEnrichmentSource
     bool Enabled { get; }
 
     /// <summary>
-    /// Fetches enrichment for one artist, or <c>null</c> when the source has nothing for
-    /// it. A null result is a legitimate gap, never an error to mask.
+    /// Fetches enrichment for one artist. The result says which of three things happened —
+    /// data found, a definitive "nothing here", or no answer at all — because a caller that
+    /// keeps a resume marker must never stamp the third as if it were the second
+    /// (see <see cref="EnrichmentOutcome"/>). It never throws and never invents data.
     /// </summary>
-    Task<ArtistEnrichment?> FetchAsync(Artist artist, CancellationToken ct);
+    Task<EnrichmentResult> FetchAsync(Artist artist, CancellationToken ct);
 }

@@ -88,7 +88,8 @@ public sealed class EmbeddingJob : WorkerJob
             }
 
             mean = sampleMean;
-            await db.Database.ExecuteSqlRawAsync("UPDATE artists SET embedding = NULL", ct);
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE artists SET embedding = NULL, embedding_fingerprint = NULL", ct);
             // Persist with the sample size as the "catalogue mean exists" marker, so a later resume
             // (after a kill mid-fill) reuses this mean instead of clearing and starting over.
             await PersistMeanAsync(db, mean, MeanSampleTarget, ct);
@@ -101,18 +102,27 @@ public sealed class EmbeddingJob : WorkerJob
             _logger.LogInformation("Resuming embedding pass ({Existing} already centred) with the persisted mean.", embeddedNow);
         }
 
-        // Main loop: keyset-page over the not-yet-embedded rows, embed + centre + SAVE per batch.
-        // Batched saves make this resumable and memory-bounded — a kill loses at most one batch,
-        // and re-running skips everything already centred (embedding IS NULL filters them out).
+        // Main loop: keyset-page over EVERY artist, embed + centre + SAVE per batch. Batched saves
+        // make this resumable and memory-bounded — a kill loses at most one batch.
+        //
+        // The pass walks the whole table, not just `embedding IS NULL`, because a vector being
+        // present never meant it was still true: enrichment keeps rewriting the text underneath it
+        // (Last.fm tags, a Wikipedia biography, a newly-linked member), and under the old filter
+        // those artists were fixed at whatever they looked like the day they were first embedded —
+        // there was no way to ask for a re-embed short of clearing the catalogue. The fingerprint
+        // makes the question cheap and exact: rebuild the text (pure CPU, no Ollama), compare, and
+        // only call the model when it actually moved. A steady-state run over 200k rows costs one
+        // table scan and no inference at all.
         Guid last = Guid.Empty;
         int done = 0;
         int noSignal = 0;
+        int unchanged = 0;
 
         while (!ct.IsCancellationRequested)
         {
             List<Artist> page = await db.Artists
                 .FromSqlInterpolated(
-                    $"SELECT * FROM artists WHERE embedding IS NULL AND id > {last} ORDER BY id LIMIT {BatchSize}")
+                    $"SELECT * FROM artists WHERE id > {last} ORDER BY id LIMIT {BatchSize}")
                 .ToListAsync(ct);
 
             if (page.Count == 0)
@@ -133,19 +143,36 @@ public sealed class EmbeddingJob : WorkerJob
                     continue;
                 }
 
+                string fingerprint = EmbeddingTextBuilder.Fingerprint(text);
+
+                if (artist.Embedding is not null && artist.EmbeddingFingerprint == fingerprint)
+                {
+                    // The stored vector was built from exactly this text: still true, leave it.
+                    unchanged++;
+                    continue;
+                }
+
                 float[]? raw = await _ollama.EmbedAsync(text, ct);
                 if (raw is null || raw.Length != _options.Dimensions)
                 {
                     continue;
                 }
 
+                // Centred on the PERSISTED mean, never a freshly recomputed one. Every user's taste
+                // vector (D33) is an average of vectors centred on that mean, so moving the mean
+                // would silently leave every stored taste and repulsion in a different space than
+                // the catalogue they are compared against — the ring search would quietly go wrong.
+                // The mean is a fixed reference point (D26/D31), not a statistic to keep current.
                 artist.Embedding = new Vector(VectorMath.Subtract(raw, mean));
+                artist.EmbeddingFingerprint = fingerprint;
                 done++;
             }
 
             await db.SaveChangesAsync(ct);
             db.ChangeTracker.Clear();
-            _logger.LogInformation("Embedded {Done} this pass (skipped {NoSignal} no-signal)...", done, noSignal);
+            _logger.LogInformation(
+                "Embedded {Done} this pass ({Unchanged} already current, {NoSignal} no-signal)...",
+                done, unchanged, noSignal);
         }
 
         int finalCount = await db.Artists.CountAsync(a => a.Embedding != null, ct);

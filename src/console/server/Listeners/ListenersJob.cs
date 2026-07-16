@@ -66,25 +66,31 @@ public sealed class ListenersJob : WorkerJob
         // more often than the alphabetical junk drawer (single-release keyboard-mash names), so this
         // front-loads the value and, if the run is ever interrupted, the bands the Rite most needs a
         // rank for are already done. Ties broken by name for a stable, resumable sequence.
-        List<Artist> candidates = await db.Artists
-            .Where(a => a.Tags.Length > 0 || a.Releases.Any())
+        IQueryable<Artist> candidates = db.Artists.Where(a => a.Tags.Length > 0 || a.Releases.Any());
+
+        // Resume marker: ListenersCheckedAt, not a null listener count. Most of the underground is
+        // simply not on Last.fm, so "no count" is the normal, permanent answer for thousands of
+        // bands — using it as the marker meant every run re-asked Last.fm about every one of them
+        // and the pass could never finish (MEMORY §6f). The stamp separates "not asked yet" from
+        // "asked, and the answer was no". Batching by limit lets a run advance without one long sweep.
+        //
+        // Filtered and limited in SQL: the pending set is the tail of the catalogue, and materialising
+        // all ~116k candidate rows — each carrying a 768-dimension embedding — to find it cost
+        // hundreds of megabytes on every run to then discard almost all of them.
+        List<Artist> pending = await candidates
+            .Where(a => a.Listeners == null && a.ListenersCheckedAt == null)
             .OrderByDescending(a => a.Releases.Count())
             .ThenBy(a => a.Name)
+            .Take(_options.Limit)
             .ToListAsync(ct);
 
-        // Resume marker: a still-null listener count is "not yet resolved". Batching by limit
-        // lets a run advance the corpus without one long sweep.
-        List<Artist> pending = candidates
-            .Where(a => a.Listeners is null)
-            .Take(_options.Limit)
-            .ToList();
-
         _logger.LogInformation("{Pending} artists pending listener resolution (of {Total} candidates).",
-            pending.Count, candidates.Count);
+            pending.Count, await candidates.CountAsync(ct));
 
         int resolved = 0;
         int tagged = 0;
         int attempted = 0;
+        int unavailable = 0;
 
         foreach (Artist artist in pending)
         {
@@ -93,18 +99,30 @@ public sealed class ListenersJob : WorkerJob
                 break;
             }
 
-            ArtistEnrichment? enrichment = await _lastFm.FetchAsync(artist, ct);
+            EnrichmentResult result = await _lastFm.FetchAsync(artist, ct);
+
+            if (result.Outcome == EnrichmentOutcome.Unavailable)
+            {
+                // Last.fm did not answer (429, 5xx, timeout). That says nothing about this band, so
+                // leave it UNSTAMPED for a later run. Stamping here would record the outage as
+                // "this band is not on Last.fm" and its rank would stay null forever.
+                unavailable++;
+                continue;
+            }
 
             attempted++;
 
-            bool changed = false;
+            // A definitive answer either way — found or genuinely absent. Stamp it so the next run
+            // moves past it instead of re-asking Last.fm about the same misses in a loop.
+            artist.ListenersCheckedAt = DateTime.UtcNow;
+
+            ArtistEnrichment? enrichment = result.Enrichment;
 
             if (enrichment?.Listeners is int listeners)
             {
                 artist.Listeners = listeners;
                 artist.Rank = RankCalculator.FromListeners(listeners);
                 resolved++;
-                changed = true;
             }
 
             // Backfill genre tags only where the artist has none, so Last.fm never overwrites the
@@ -115,24 +133,23 @@ public sealed class ListenersJob : WorkerJob
             {
                 artist.Tags = [.. enrichment.Tags];
                 tagged++;
-                changed = true;
             }
 
-            if (changed)
-            {
-                await db.SaveChangesAsync(ct);
-            }
+            // Always a write: the stamp itself is the progress this pass makes on a miss.
+            await db.SaveChangesAsync(ct);
 
             if (attempted % 25 == 0)
             {
                 _logger.LogInformation(
-                    "Attempted {Attempted}/{Total}, {Resolved} with a listener count, {Tagged} newly tagged.",
-                    attempted, pending.Count, resolved, tagged);
+                    "Attempted {Attempted}/{Total}, {Resolved} with a listener count, {Tagged} newly tagged, "
+                        + "{Unavailable} deferred (transient).",
+                    attempted, pending.Count, resolved, tagged, unavailable);
             }
         }
 
         _logger.LogInformation(
-            "Listeners batch complete: {Resolved}/{Attempted} resolved a listener count, {Tagged} gained tags. Re-run to continue.",
-            resolved, attempted, tagged);
+            "Listeners batch complete: {Resolved}/{Attempted} resolved a listener count, {Tagged} gained tags, "
+                + "{Unavailable} deferred (transient). Re-run to continue.",
+            resolved, attempted, tagged, unavailable);
     }
 }

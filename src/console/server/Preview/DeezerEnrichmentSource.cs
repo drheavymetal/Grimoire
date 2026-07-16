@@ -33,13 +33,23 @@ public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
 
     public bool Enabled { get; }
 
-    public async Task<ArtistEnrichment?> FetchAsync(Artist artist, CancellationToken ct)
+    public async Task<EnrichmentResult> FetchAsync(Artist artist, CancellationToken ct)
     {
-        DeezerArtist? match = await FindArtistAsync(artist.Name, ct);
+        Fetch<DeezerListResponse<DeezerArtist>> search = await GetAsync<DeezerListResponse<DeezerArtist>>(
+            $"search/artist?q={Uri.EscapeDataString(artist.Name)}&limit=5", artist.Name, ct);
+
+        if (search.Transient)
+        {
+            return EnrichmentResult.Unavailable;
+        }
+
+        DeezerArtist? match = search.Value?.Data
+            .FirstOrDefault(a => a.Name is not null && NameMatch.Matches(a.Name, artist.Name));
 
         if (match is null)
         {
-            return null;
+            // Deezer answered and has no artist under this name: a real gap (D25).
+            return EnrichmentResult.NoData;
         }
 
         Dictionary<string, string> links = new(StringComparer.Ordinal);
@@ -49,30 +59,26 @@ public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
             links[StreamingLinks.DeezerKey] = match.Link;
         }
 
-        string? preview = await FetchTopPreviewAsync(match.Id, ct);
+        Fetch<DeezerListResponse<DeezerTrack>> top = await GetAsync<DeezerListResponse<DeezerTrack>>(
+            $"artist/{match.Id}/top?limit=1", match.Id.ToString(), ct);
 
-        return new ArtistEnrichment { PreviewUrl = preview, Links = links };
+        if (top.Transient)
+        {
+            // We found the artist but could not ask for their audio: do not settle for a
+            // half-answer that would record them as having no preview.
+            return EnrichmentResult.Unavailable;
+        }
+
+        string? preview = top.Value?.Data.FirstOrDefault()?.Preview;
+
+        return EnrichmentResult.Matched(new ArtistEnrichment
+        {
+            PreviewUrl = string.IsNullOrWhiteSpace(preview) ? null : preview,
+            Links = links,
+        });
     }
 
-    private async Task<DeezerArtist?> FindArtistAsync(string name, CancellationToken ct)
-    {
-        string url = $"search/artist?q={Uri.EscapeDataString(name)}&limit=5";
-        DeezerListResponse<DeezerArtist>? response = await GetAsync<DeezerListResponse<DeezerArtist>>(url, name, ct);
-
-        return response?.Data.FirstOrDefault(a => a.Name is not null && NameMatch.Matches(a.Name, name));
-    }
-
-    private async Task<string?> FetchTopPreviewAsync(long artistId, CancellationToken ct)
-    {
-        string url = $"artist/{artistId}/top?limit=1";
-        DeezerListResponse<DeezerTrack>? response = await GetAsync<DeezerListResponse<DeezerTrack>>(url, artistId.ToString(), ct);
-
-        string? preview = response?.Data.FirstOrDefault()?.Preview;
-
-        return string.IsNullOrWhiteSpace(preview) ? null : preview;
-    }
-
-    private async Task<T?> GetAsync<T>(string url, string context, CancellationToken ct)
+    private async Task<Fetch<T>> GetAsync<T>(string url, string context, CancellationToken ct)
         where T : class
     {
         await _limiter.WaitTurnAsync(ct);
@@ -84,17 +90,26 @@ public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
             if (!http.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Deezer request for '{Context}' returned {Status}.", context, (int)http.StatusCode);
-                return null;
+                return new Fetch<T>(HttpOutcome.IsTransient(http.StatusCode), null);
             }
 
-            return await http.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
+            return new Fetch<T>(false, await http.Content.ReadFromJsonAsync<T>(JsonOptions, ct));
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Deezer request for '{Context}' failed.", context);
-            return null;
+            return new Fetch<T>(true, null);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Deezer request for '{Context}' timed out.", context);
+            return new Fetch<T>(true, null);
         }
     }
+
+    /// <summary>One Deezer call: either a body Deezer stands behind, or a transient failure.</summary>
+    private readonly record struct Fetch<T>(bool Transient, T? Value)
+        where T : class;
 
     public void Dispose()
     {

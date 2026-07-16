@@ -1,4 +1,5 @@
 using Grimoire.Library.Data;
+using Grimoire.Library.Enrichment;
 using Grimoire.Library.Models;
 using Grimoire.Library.Services;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,7 @@ public sealed class MetalArchivesJob : WorkerJob
         int matched = 0;
         int withThemes = 0;
         int attempted = 0;
+        int unavailable = 0;
 
         foreach (Artist artist in pending)
         {
@@ -91,14 +93,24 @@ public sealed class MetalArchivesJob : WorkerJob
                 break;
             }
 
-            MetalArchivesBand? band = await _source.ResolveAsync(artist, ct);
+            MetalArchivesResult result = await _source.ResolveAsync(artist, ct);
+
+            if (result.Outcome == EnrichmentOutcome.Unavailable)
+            {
+                // MA did not answer. Leave the band UNSTAMPED so a later run asks again: stamping
+                // here records a timeout of theirs as "this band is not on Metallum", permanently
+                // and invisibly, and no re-run would ever revisit it (MEMORY §6f).
+                unavailable++;
+                continue;
+            }
 
             attempted++;
 
-            // Mark checked either way (matched or a genuine miss) so a re-run never fetches it again.
+            // A definitive answer either way — matched, or MA genuinely has no unambiguous entry.
+            // Stamp it so a re-run never fetches it again (their "don't hammer" terms, D42/D48).
             artist.MetalArchivesCheckedAt = DateTime.UtcNow;
 
-            if (band is not null)
+            if (result.Band is MetalArchivesBand band)
             {
                 artist.MetalArchivesId = band.Id;
                 artist.MetalArchivesGenre = band.Genre;
@@ -116,13 +128,15 @@ public sealed class MetalArchivesJob : WorkerJob
             if (attempted % 25 == 0)
             {
                 _logger.LogInformation(
-                    "Attempted {Attempted}/{Total}, {Matched} matched, {WithThemes} with lyrical themes.",
-                    attempted, pending.Count, matched, withThemes);
+                    "Attempted {Attempted}/{Total}, {Matched} matched, {WithThemes} with lyrical themes, "
+                        + "{Unavailable} deferred (transient).",
+                    attempted, pending.Count, matched, withThemes, unavailable);
             }
         }
 
         _logger.LogInformation(
-            "Metal Archives batch complete: {Matched}/{Attempted} matched, {WithThemes} carried themes. Re-run to continue.",
-            matched, attempted, withThemes);
+            "Metal Archives batch complete: {Matched}/{Attempted} matched, {WithThemes} carried themes, "
+                + "{Unavailable} deferred (transient). Re-run to continue.",
+            matched, attempted, withThemes, unavailable);
     }
 }

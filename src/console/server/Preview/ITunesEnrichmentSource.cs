@@ -32,7 +32,7 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
 
     public bool Enabled { get; }
 
-    public async Task<ArtistEnrichment?> FetchAsync(Artist artist, CancellationToken ct)
+    public async Task<EnrichmentResult> FetchAsync(Artist artist, CancellationToken ct)
     {
         string term = Uri.EscapeDataString(artist.Name);
         string url = $"search?term={term}&entity=song&limit=25";
@@ -48,7 +48,9 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
             if (!http.IsSuccessStatusCode)
             {
                 _logger.LogWarning("iTunes search for '{Name}' returned {Status}.", artist.Name, (int)http.StatusCode);
-                return null;
+                return HttpOutcome.IsTransient(http.StatusCode)
+                    ? EnrichmentResult.Unavailable
+                    : EnrichmentResult.NoData;
             }
 
             response = await http.Content.ReadFromJsonAsync<ITunesSearchResponse>(JsonOptions, ct);
@@ -56,12 +58,18 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "iTunes search for '{Name}' failed.", artist.Name);
-            return null;
+            return EnrichmentResult.Unavailable;
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("iTunes search for '{Name}' timed out.", artist.Name);
+            return EnrichmentResult.Unavailable;
         }
 
         if (response is null)
         {
-            return null;
+            // A 200 with an unreadable body is iTunes hiccuping, not a statement about the band.
+            return EnrichmentResult.Unavailable;
         }
 
         ITunesResult? match = response.Results
@@ -71,7 +79,8 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
 
         if (match is null)
         {
-            return null;
+            // iTunes answered and has no track under this name: genuinely inaudible here (D25).
+            return EnrichmentResult.NoData;
         }
 
         Dictionary<string, string> links = new(StringComparer.Ordinal);
@@ -81,7 +90,7 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
             links[StreamingLinks.AppleMusicKey] = match.ArtistViewUrl;
         }
 
-        return new ArtistEnrichment { PreviewUrl = match.PreviewUrl, Links = links };
+        return EnrichmentResult.Matched(new ArtistEnrichment { PreviewUrl = match.PreviewUrl, Links = links });
     }
 
     public void Dispose()

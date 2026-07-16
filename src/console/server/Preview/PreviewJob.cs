@@ -72,6 +72,7 @@ public sealed class PreviewJob : WorkerJob
 
         int withPreview = 0;
         int attempted = 0;
+        int unavailable = 0;
 
         foreach (Artist artist in pending)
         {
@@ -80,8 +81,24 @@ public sealed class PreviewJob : WorkerJob
                 break;
             }
 
-            ArtistEnrichment? apple = itunes is null ? null : await itunes.FetchAsync(artist, ct);
-            ArtistEnrichment? dz = deezer is null ? null : await deezer.FetchAsync(artist, ct);
+            EnrichmentResult appleResult = itunes is null
+                ? EnrichmentResult.NoData
+                : await itunes.FetchAsync(artist, ct);
+            EnrichmentResult deezerResult = deezer is null
+                ? EnrichmentResult.NoData
+                : await deezer.FetchAsync(artist, ct);
+
+            // Neither source could answer (429s, a network blip): we learned nothing about this
+            // artist, so write nothing. Recording "no preview" here would be recording the outage.
+            if (appleResult.Outcome == EnrichmentOutcome.Unavailable
+                && deezerResult.Outcome == EnrichmentOutcome.Unavailable)
+            {
+                unavailable++;
+                continue;
+            }
+
+            ArtistEnrichment? apple = appleResult.Enrichment;
+            ArtistEnrichment? dz = deezerResult.Enrichment;
 
             // iTunes first, Deezer as complement (D25) — never the reverse.
             string? previewUrl = apple?.PreviewUrl ?? dz?.PreviewUrl;
@@ -111,8 +128,9 @@ public sealed class PreviewJob : WorkerJob
         double pct = attempted == 0 ? 0 : 100.0 * withPreview / attempted;
 
         _logger.LogInformation(
-            "Preview batch complete: {WithPreview}/{Attempted} resolved a preview ({Pct:F1}%). Re-run to continue.",
-            withPreview, attempted, pct);
+            "Preview batch complete: {WithPreview}/{Attempted} resolved a preview ({Pct:F1}%), "
+                + "{Unavailable} skipped (both sources unreachable). Re-run to continue.",
+            withPreview, attempted, pct, unavailable);
     }
 
     private static void MergeLinks(Artist artist, IReadOnlyDictionary<string, string> curated)

@@ -39,6 +39,16 @@ public class Artist
     /// <summary>Last.fm listener count. Null until the Last.fm enrichment pass runs.</summary>
     public int? Listeners { get; set; }
 
+    /// <summary>
+    /// When the Last.fm pass last looked this artist up, matched or not. The resume marker, and the
+    /// reason a null <see cref="Listeners"/> is no longer ambiguous: without it the pass re-asked
+    /// Last.fm for every artist it had already failed to find, forever — the ~2 800 genuine misses
+    /// were re-crawled every twenty minutes for nothing (MEMORY §6f). A non-null stamp means
+    /// "already asked, do not ask again"; it is only ever written on a definitive answer, so a 429
+    /// or a timeout leaves it null and a later run retries.
+    /// </summary>
+    public DateTime? ListenersCheckedAt { get; set; }
+
     public string[] Tags { get; set; } = [];
 
     public string? Abstract { get; set; }
@@ -59,6 +69,17 @@ public class Artist
 
     /// <summary>Text embedding (nomic-embed-text, 768 dims). Null until the embedding pass runs.</summary>
     public Vector? Embedding { get; set; }
+
+    /// <summary>
+    /// Fingerprint of the text <see cref="Embedding"/> was built from (see
+    /// <c>EmbeddingTextBuilder.Fingerprint</c>). It answers the question the embedding pass could
+    /// not otherwise ask: <em>is this vector still true?</em> Enrichment keeps rewriting the source
+    /// text — a band gains Last.fm tags, a Wikipedia biography, another member — and each time, the
+    /// stored vector silently describes a band we no longer have. Comparing this against the text's
+    /// current fingerprint re-embeds exactly what changed and nothing else. Null means "never
+    /// embedded, or embedded before this column existed", both of which want re-embedding.
+    /// </summary>
+    public string? EmbeddingFingerprint { get; set; }
 
     /// <summary>Rarity tier derived from <see cref="Listeners"/>. Null while listeners are unknown.</summary>
     public Rank? Rank { get; set; }

@@ -6,6 +6,55 @@ namespace Grimoire.Tests;
 
 public class EmbeddingTextBuilderTests
 {
+    /// <summary>
+    /// The fingerprint is what tells the embedding pass a stored vector has gone stale. If it did not
+    /// move when the text moves, enrichment (new tags, a new biography) would leave the catalogue
+    /// describing bands as they looked the day they were first embedded.
+    /// </summary>
+    [Fact]
+    public void Fingerprint_IsStableForTheSameText()
+    {
+        Assert.Equal(
+            EmbeddingTextBuilder.Fingerprint("Darkthrone. Genres: black metal."),
+            EmbeddingTextBuilder.Fingerprint("Darkthrone. Genres: black metal."));
+    }
+
+    [Fact]
+    public void Fingerprint_MovesWhenTheTextMoves()
+    {
+        Assert.NotEqual(
+            EmbeddingTextBuilder.Fingerprint("Darkthrone. Genres: black metal."),
+            EmbeddingTextBuilder.Fingerprint("Darkthrone. Genres: black metal, death metal."));
+    }
+
+    [Fact]
+    public void Fingerprint_GainingABiography_ChangesTheFingerprint()
+    {
+        Artist band = new()
+        {
+            Name = "Darkthrone",
+            Kind = ArtistKind.Group,
+            Country = "NO",
+            Tags = ["black metal"],
+        };
+
+        string before = EmbeddingTextBuilder.Fingerprint(EmbeddingTextBuilder.Build(band)!);
+
+        band.Abstract = "Darkthrone is a Norwegian metal band formed in 1986.";
+        string after = EmbeddingTextBuilder.Fingerprint(EmbeddingTextBuilder.Build(band)!);
+
+        Assert.NotEqual(before, after);
+    }
+
+    [Fact]
+    public void Fingerprint_IsThirtyTwoHexCharacters()
+    {
+        string fingerprint = EmbeddingTextBuilder.Fingerprint("Darkthrone.");
+
+        Assert.Equal(32, fingerprint.Length);
+        Assert.Matches("^[0-9a-f]{32}$", fingerprint);
+    }
+
     [Fact]
     public void RichArtist_IncludesNameTagsPlaceAndMembers()
     {

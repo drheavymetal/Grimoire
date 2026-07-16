@@ -172,4 +172,31 @@ public class WikipediaSummaryTests
     {
         Assert.Null(WikipediaSummary.ParseSummary(json, "X"));
     }
+
+    [Fact]
+    public void SummaryPath_EscapesTheTitleIntoOneSegment()
+    {
+        Assert.Equal("api/rest_v1/page/summary/Darkthrone", WikipediaSummary.SummaryPath("Darkthrone"));
+    }
+
+    /// <summary>
+    /// The five real catalogue artists whose Wikipedia titles carry a slash. Unescaped they became
+    /// extra path segments, Wikipedia answered 400, and the pass retried them every run for ever
+    /// (MEMORY §6f). A slash must survive as %2F.
+    /// </summary>
+    [Theory]
+    [InlineData("Fliflet/Hamre", "api/rest_v1/page/summary/Fliflet%2FHamre")]
+    [InlineData("The Yes/No People", "api/rest_v1/page/summary/The%20Yes%2FNo%20People")]
+    [InlineData("Bourne/Davis/Kane", "api/rest_v1/page/summary/Bourne%2FDavis%2FKane")]
+    [InlineData("DAF/DOS", "api/rest_v1/page/summary/DAF%2FDOS")]
+    [InlineData("r.o.r/s", "api/rest_v1/page/summary/r.o.r%2Fs")]
+    public void SummaryPath_SlashInTitle_DoesNotBecomeAPathSegment(string title, string expected)
+    {
+        string path = WikipediaSummary.SummaryPath(title);
+
+        Assert.Equal(expected, path);
+
+        // Four segments, always: the title never splits the path no matter what it contains.
+        Assert.Equal(5, path.Split('/').Length);
+    }
 }

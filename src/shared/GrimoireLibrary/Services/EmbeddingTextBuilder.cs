@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using Grimoire.Library.Models;
 
@@ -73,6 +74,27 @@ public static class EmbeddingTextBuilder
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// A short, stable fingerprint of an embedding text — the value stored in
+    /// <see cref="Artist.EmbeddingFingerprint"/> beside the vector it produced. Comparing it against
+    /// the text's fingerprint today tells the embedding pass whether the stored vector still
+    /// describes this artist, so enrichment (new tags, a new biography, a new member) re-embeds
+    /// exactly the artists whose text moved and leaves the rest alone.
+    /// <para>
+    /// SHA-256 truncated to 128 bits, hex. Truncation is safe here: this is a change detector, not
+    /// a security boundary, and at catalogue scale (~200k rows) a 128-bit collision — which would
+    /// merely leave one artist on a stale vector — is not a thing that happens.
+    /// </para>
+    /// </summary>
+    public static string Fingerprint(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(text));
+
+        return Convert.ToHexStringLower(hash.AsSpan(0, 16));
     }
 
     private static string? FormatPlace(string? city, string? country)

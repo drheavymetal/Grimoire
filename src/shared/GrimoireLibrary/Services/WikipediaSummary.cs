@@ -109,6 +109,20 @@ public static class WikipediaSummary
     }
 
     /// <summary>
+    /// The REST summary path for one article title, with the title escaped into a <b>single</b> path
+    /// segment. Escaping is not cosmetic: Wikipedia titles may contain slashes ("Fliflet/Hamre",
+    /// "The Yes/No People"), and interpolated raw those become extra path segments that the REST API
+    /// rejects with 400 — the artist is never resolved, and if the caller also mistakes that 400 for
+    /// a transient failure it retries the same broken URL for ever (MEMORY §6f).
+    /// </summary>
+    public static string SummaryPath(string title)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+
+        return $"api/rest_v1/page/summary/{Uri.EscapeDataString(title)}";
+    }
+
+    /// <summary>
     /// Reads the extract and canonical desktop URL out of a Wikipedia REST summary response
     /// (<c>api/rest_v1/page/summary/{title}</c>). Returns <c>null</c> when the JSON is malformed, or
     /// the <c>extract</c> is missing or blank — a missing biography is a gap, not an error. The URL

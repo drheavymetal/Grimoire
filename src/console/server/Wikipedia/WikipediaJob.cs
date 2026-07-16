@@ -1,4 +1,5 @@
 using Grimoire.Library.Data;
+using Grimoire.Library.Enrichment;
 using Grimoire.Library.Models;
 using Grimoire.Library.Services;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +94,7 @@ public sealed class WikipediaJob : WorkerJob
 
                 switch (result.Outcome)
                 {
-                    case BiographyOutcome.Matched:
+                    case EnrichmentOutcome.Matched:
                         // A definitive hit: store the biography and stamp it checked.
                         artist.Abstract = result.Biography!.Abstract;
                         artist.AbstractUrl = result.Biography.Url;
@@ -102,13 +103,13 @@ public sealed class WikipediaJob : WorkerJob
                         attempted++;
                         break;
 
-                    case BiographyOutcome.NoArticle:
+                    case EnrichmentOutcome.NoData:
                         // A definitive miss: stamp so a re-run never fetches it again.
                         artist.AbstractCheckedAt = DateTime.UtcNow;
                         attempted++;
                         break;
 
-                    case BiographyOutcome.Unavailable:
+                    case EnrichmentOutcome.Unavailable:
                         // A transient WDQS/Wikipedia failure: leave UNSTAMPED so a later run retries.
                         // Stamping here would record a timeout forever as "this band has no biography".
                         unavailable++;

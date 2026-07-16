@@ -43,26 +43,33 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
     /// <summary>On only when a key is present — no key, no listeners (blocker Q5).</summary>
     public bool Enabled => !string.IsNullOrWhiteSpace(_apiKey);
 
-    public async Task<ArtistEnrichment?> FetchAsync(Artist artist, CancellationToken ct)
+    public async Task<EnrichmentResult> FetchAsync(Artist artist, CancellationToken ct)
     {
         if (!Enabled)
         {
-            return null;
+            // No key is not a statement about this band: never let it stamp the artist checked.
+            return EnrichmentResult.Unavailable;
         }
 
         // 1. Precise: mbid lookup. Last.fm returns exactly our entity, so a same-name collision
         //    (the "Toto"/"Death" problem of D22) cannot happen. No name verification needed.
         if (artist.Mbid != Guid.Empty)
         {
-            LastFmArtistInfoResponse? byId = await GetInfoAsync(
+            InfoFetch byId = await GetInfoAsync(
                 $"2.0/?method=artist.getinfo&mbid={artist.Mbid}&api_key={Uri.EscapeDataString(_apiKey)}&format=json",
                 artist.Name, ct);
 
-            int? listeners = LastFmListeners.ParseListeners(byId);
+            if (byId.Transient)
+            {
+                return EnrichmentResult.Unavailable;
+            }
+
+            int? listeners = LastFmListeners.ParseListeners(byId.Body);
             if (listeners is not null)
             {
                 // Tags ride along in the same body — one call fills both (MEMORY §6b).
-                return new ArtistEnrichment { Listeners = listeners, Tags = LastFmListeners.ParseTags(byId) };
+                return EnrichmentResult.Matched(
+                    new ArtistEnrichment { Listeners = listeners, Tags = LastFmListeners.ParseTags(byId.Body) });
             }
         }
 
@@ -71,18 +78,32 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
         //    them; ResolveByName verifies the returned name matches (so a same-name band can't lend
         //    its count) but accepts a differing mbid. autocorrect=0 keeps Last.fm from silently
         //    redirecting to a different band.
-        LastFmArtistInfoResponse? byName = await GetInfoAsync(
+        InfoFetch byName = await GetInfoAsync(
             $"2.0/?method=artist.getinfo&artist={Uri.EscapeDataString(artist.Name)}"
                 + $"&api_key={Uri.EscapeDataString(_apiKey)}&format=json&autocorrect=0",
             artist.Name, ct);
 
-        int? named = LastFmListeners.ResolveByName(byName, artist.Name);
+        if (byName.Transient)
+        {
+            return EnrichmentResult.Unavailable;
+        }
+
+        int? named = LastFmListeners.ResolveByName(byName.Body, artist.Name);
+
+        // Both lookups answered, neither found our band: a real gap. Last.fm simply does not index
+        // most of the underground, and that is the honest reason a rank stays null (D35, null is
+        // neutral in the engine) — not a failure we papered over.
         return named is null
-            ? null
-            : new ArtistEnrichment { Listeners = named, Tags = LastFmListeners.ParseTags(byName) };
+            ? EnrichmentResult.NoData
+            : EnrichmentResult.Matched(
+                new ArtistEnrichment { Listeners = named, Tags = LastFmListeners.ParseTags(byName.Body) });
     }
 
-    private async Task<LastFmArtistInfoResponse?> GetInfoAsync(string url, string name, CancellationToken ct)
+    /// <summary>
+    /// One <c>artist.getInfo</c> call. <see cref="InfoFetch.Transient"/> separates "Last.fm could not
+    /// answer" from "Last.fm says it has no such artist" — the caller must not stamp the former.
+    /// </summary>
+    private async Task<InfoFetch> GetInfoAsync(string url, string name, CancellationToken ct)
     {
         await _limiter.WaitTurnAsync(ct);
 
@@ -95,22 +116,34 @@ public sealed class LastFmEnrichmentSource : IEnrichmentSource, IDisposable
             if (!http.IsSuccessStatusCode && http.StatusCode != System.Net.HttpStatusCode.NotFound)
             {
                 _logger.LogWarning("Last.fm getInfo for '{Name}' returned {Status}.", name, (int)http.StatusCode);
-                return null;
+                return new InfoFetch(HttpOutcome.IsTransient(http.StatusCode), null);
             }
 
-            return await http.Content.ReadFromJsonAsync<LastFmArtistInfoResponse>(JsonOptions, ct);
+            LastFmArtistInfoResponse? body =
+                await http.Content.ReadFromJsonAsync<LastFmArtistInfoResponse>(JsonOptions, ct);
+            return new InfoFetch(false, body);
         }
         catch (HttpRequestException ex)
         {
+            // A dropped connection tells us nothing about the band: retry it later.
             _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' failed.", name);
-            return null;
+            return new InfoFetch(true, null);
         }
         catch (JsonException ex)
         {
+            // A truncated or garbled body is a Last.fm hiccup, not proof the band is unknown.
             _logger.LogWarning(ex, "Last.fm getInfo for '{Name}' returned unparseable JSON.", name);
-            return null;
+            return new InfoFetch(true, null);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Last.fm getInfo for '{Name}' timed out.", name);
+            return new InfoFetch(true, null);
         }
     }
+
+    /// <summary>One getInfo call's result: either a body Last.fm stands behind, or a transient failure.</summary>
+    private readonly record struct InfoFetch(bool Transient, LastFmArtistInfoResponse? Body);
 
     public void Dispose()
     {
