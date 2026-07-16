@@ -932,6 +932,38 @@ Buzón in-app **sondeado** (no WebPush; el infra VAPID de movimiento VI no se us
 
 ---
 
+## D61 — Un miss no es un fallo: tres desenlaces en el contrato de enriquecimiento, y un marcador por pase
+`2026-07-16` · vigente · pedido por Pedro (*«quiero un sistema de 10»*) · generaliza el fix puntual de `8c6b967` (MEMORY §6e)
+
+**El fallo era de clase, no de pase.** Los tres crawls devolvían `null` tanto para «la fuente dice que no hay nada» como para «la fuente no contestó». Como cada pase guarda un marcador para no re-preguntar, esa ambigüedad se manifestó de tres formas distintas, todas vivas a la vez el 2026-07-16:
+
+| Pase | Marcador | Cómo se manifestó |
+|---|---|---|
+| **Metal Archives** | `metal_archives_checked_at`, sellado **incondicionalmente** | **Envenenamiento silencioso**: cada 5xx/timeout de MA quedó grabado como «no está en Metallum», para siempre e indistinguible de un miss real |
+| **Last.fm** | **ninguno** (`listeners is null`) | **Bucle infinito**: los ~2 833 misses genuinos se re-rastreaban cada ~20 min, 38 reinicios, 0 resueltos |
+| **Wikipedia** | `abstract_checked_at`, ya con tres desenlaces (§6e) | **Bucle infinito** en 5 filas: título con `/` → 400 → clasificado como transitorio → nunca sella. 458 reinicios |
+
+**La decisión**: el desenlace entra en el contrato. `EnrichmentOutcome {Matched, NoData, Unavailable}` + `EnrichmentResult` en `shared/Enrichment`, e `IEnrichmentSource.FetchAsync` devuelve el desenlace en vez de `ArtistEnrichment?`. Regla única en `HttpOutcome.IsTransient`: **408/429/5xx = transitorio; todo lo demás, 404 y el resto de 4xx incluidos, es definitivo**. Un pase solo sella con respuesta definitiva; con `Unavailable` deja la fila sin marcar y otra ejecución la reintenta.
+
+**Asimetría deliberada en Wikidata (WDQS)**: ahí **todo** no-success sigue siendo transitorio. Un 4xx del endpoint SPARQL es un veredicto sobre **nuestra query**, no sobre los artistas del lote — llegaría igual para todos los lotes y sellaría «sin biografía» en el catálogo entero por un bug nuestro. Un pase que gira es un fallo ruidoso; uno que sella una mentira es silencioso. Se prefiere el ruidoso.
+
+**Marcador nuevo `listeners_checked_at`** (migración `AddEnrichmentMarkers`), con backfill `WHERE listeners IS NOT NULL` — una fila resuelta obviamente fue chequeada. Los **misses no se backfillean**: hoy son indistinguibles de «nunca preguntado», que es justo lo que el marcador viene a arreglar, así que se preguntan una vez más y se sellan bien.
+
+**Corolario operativo**: un job batch que termina debe **quedarse** terminado. `restart: unless-stopped` sobre un job que sale con 0 es lo que convirtió «pase seco» en «contenedor girando» (458 y 38 reinicios). Los contenedores de enriquecimiento pasan a `restart: on-failure`.
+
+**Lo que NO se decide aquí**: si re-rastrear los misses de MA envenenados. No hay forma de distinguirlos a posteriori y re-crawlear los ~32k del pool metal-ish son ~3 h de tráfico a un sitio cuyo permiso nos importa (invariante 2, D42/D48). **Queda como Q10 para Pedro.**
+
+## D62 — El vector no era verdad: re-embed por huella del texto
+`2026-07-16` · vigente · cierra el «pendiente: re-embeber» arrastrado desde §6d/§6e
+
+El `EmbeddingJob` seleccionaba `embedding IS NULL`. **Tener vector nunca significó que el vector siguiera siendo cierto**: el enriquecimiento reescribe el texto por debajo (tags de Last.fm, biografía de Wikipedia, un miembro nuevo), y esos artistas quedaban congelados en cómo se veían el día del import D5 — sin más forma de pedir un re-embed que **borrar el catálogo entero**.
+
+`Artist.EmbeddingFingerprint` = SHA-256 (128 bits, hex) del texto que produjo el vector. El pase recorre **toda** la tabla, reconstruye el texto (CPU puro, sin Ollama), compara la huella y **solo invoca el modelo cuando cambió de verdad**. En régimen estacionario: un scan y cero inferencias. Cualquier enriquecimiento futuro dispara el re-embed de exactamente lo que tocó.
+
+**Se reusa la media persistida, NUNCA se recalcula.** Es la parte no obvia: cada `user_taste`/`repulsion` (D33) es un promedio de vectores centrados en **esa** media, así que mover la media dejaría todos los gustos guardados en un espacio distinto del catálogo contra el que se comparan — el motor en anillo se torcería en silencio, sin romper nada visible. La media es un **punto de referencia fijo** (D26/D31), no un estadístico a mantener al día.
+
+---
+
 ## Preguntas abiertas
 
 | | Pregunta | Bloquea |
@@ -941,6 +973,7 @@ Buzón in-app **sondeado** (no WebPush; el infra VAPID de movimiento VI no se us
 | ~~Q9~~ | *(movida a Contestadas)* | |
 | Q5 | Email transaccional gratuito, o v1 sin correos | registro |
 | Q8 | A Gemini le faltan el **SVG**, la **marca hermana para tamaños pequeños** (D27), la paleta con hexes, las tipografías con paquete npm, y el tono de voz | favicon, tokens de `ui/` |
+| Q10 | **¿Re-rastrear los misses de MA envenenados?** (D61) El pase viejo selló los fallos transitorios como «no está en Metallum» y **no hay forma de distinguirlos** de los misses reales a posteriori: los logs del contenedor ya no existen. Resetear `metal_archives_checked_at WHERE metal_archives_id IS NULL` y re-crawlear el pool metal-ish son ~32k requests ≈ **3 h a 3 req/s**. A favor: certeza sobre el dato que solo MA tiene (temática lírica, Q4). En contra: es tráfico real a un sitio cuyo permiso se apoya en «sin martillear» (invariante 2, D42/D48), y la evidencia de D53 (1964/1964 = 200) sugiere que los envenenados son **pocos**. Decisión de Pedro | limpieza de datos de MA |
 
 ### Contestadas
 

@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-15** (ver **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-16** (ver **§6f** — el bug de clase de los tres crawls: `null` confundía «no hay dato» con «no pude preguntar», y con marcador de por medio eso son datos envenenados o bucles infinitos. Contrato de desenlaces D61 + re-embed por huella D62. Antes, **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
 
 ---
 
@@ -255,12 +255,48 @@ Scope metal-ish (D53) **agotado**: `0 bands pending`. Aportó, dato real y rico 
 ### Last.fm `listeners` — SANO, avanzando
 `112 103 / 206 887` = **54%** (salto enorme desde el stall de la letra B de §6b). Contenedor `grimoire-listeners` vivo, 200s fluyendo. Sigue por horas (el underground no está en Last.fm).
 
+> ⚠️ **CORRECCIÓN (2026-07-16, §6f)**: ese «54%» mide contra los 206 887 artistas, pero el job solo persigue **candidatos** (con tags o releases) = 115 845. La cobertura real era ya **97.6%** — el pase estaba **terminado**, no «avanzando»: llevaba horas re-rastreando los mismos 2 833 misses en bucle.
+
 ### Biografías Wikipedia (D54) — ARREGLADO: batch SPARQL + no-envenenar el marcador (commit `8c6b967`)
 **Dos bugs cazados y corregidos:**
 1. **Throughput cráter** — el pase hacía **1 query SPARQL por artista** contra WDQS (Wikidata Query Service público, compartido y throttleado) → `timed out` + `429` → ~**0.4 artistas/s**, 5× por debajo de su propio limitador. **Fix: batch con `VALUES`** — 1 query resuelve ~50 MBIDs (`WikipediaSource.ResolveBatchAsync`, `WikipediaSummary.ParseArticleTitles`, `WikipediaOptions.BatchSize`, env `GRIMOIRE_WIKIPEDIA_BATCH`=50). Verificado en prod: **~8 artistas/s = 20× más rápido**, `0 left for retry`.
 2. **🐛 El marcador se envenenaba** — `WikipediaJob` sellaba `AbstractCheckedAt` **pase lo que pase**, y `ResolveAsync` devolvía `null` igual en miss real, timeout y 429. → un fallo transitorio de WDQS quedaba grabado **para siempre** como «esta banda no tiene bio» y nunca se reintentaba. **Fix: tres desenlaces** `BiographyOutcome.{Matched, NoArticle, Unavailable}` — solo respuestas definitivas sellan; transitorio (timeout/429/5xx en cualquiera de los dos endpoints) deja **sin sellar** para reintento. **Limpieza aplicada en prod**: `UPDATE artists SET abstract_checked_at=NULL WHERE abstract IS NULL AND abstract_checked_at IS NOT NULL` → **5 844** falsos negativos re-encolados, **0 bios perdidas** (el filtro `abstract IS NULL` no toca ninguna biografía guardada). Worker `go2chaindev/grimoire-worker:latest` reconstruido + `docker save|gzip|ssh|load` + contenedor `grimoire-biographies` recreado. Estado tras redesplegar: 195 039 pendientes, bios ~11 900 y subiendo. **Pendiente aún**: re-embeber las bandas que ganen `abstract` (cambia el texto del embedding) + refrescar `corpus_stats` cuando acaben listeners+bios.
 
 **Tests**: 4 nuevos en `WikipediaSummaryTests` (parser batch, case-insensitive MBID, filas incompletas). `audit.sh --strict` verde.
+
+---
+
+## 6f. Sesión 2026-07-16 — el bug de clase de los crawls (D61) y el re-embed por huella (D62)
+
+Pedro pidió el estado del pase de Last.fm; salieron tres bugs de la misma familia. Pidió **«un sistema de 10»** → se arregló la clase, no los síntomas.
+
+### El diagnóstico: Last.fm estaba TERMINADO, y girando
+
+La memoria decía «listeners 54%». Es cierto contra los 206 887 artistas, pero **engañoso**: el job solo persigue **candidatos** (con tags o releases) = 115 845. Real: **113 012 / 115 845 = 97.6%**. Rank vivo: Nameless 39 855 · Forgotten 35 602 · Hidden 25 249 · Obscure 10 371 · Known 1 935. **El pilar de Ranks ya no está ciego.**
+
+Los 2 833 restantes son **misses reales** (Last.fm no indexa el underground). Pero se re-rastreaban **cada ~20 min, 0 resueltos, 38 reinicios** — ~2 833 requests inútiles por vuelta a una API gratuita de la que depende el pilar entero (R10/D47).
+
+### Los tres bugs, una sola causa (D61)
+
+`null` confundía «la fuente dice que no hay nada» con «la fuente no contestó». Cada pase lo manifestó distinto:
+
+1. **Last.fm** — sin marcador (usaba `listeners is null`, que es la respuesta *normal y permanente* de miles de bandas) → bucle infinito.
+2. **Wikipedia** — `WikipediaSource.cs:111` metía el título crudo en el path. Títulos con `/` (**Fliflet/Hamre**, **The Yes/No People**, **Bourne Davis Kane**, **DAF / DOS**, **r.o.r/s**) → segmentos extra → **400** → clasificado como transitorio → nunca sella → **458 reinicios** por 5 filas.
+3. **Metal Archives** — `MetalArchivesJob.cs:99` sellaba **antes** del `if (band is not null)`: **envenenamiento silencioso**, cada 5xx/timeout grabado como «no está en Metallum» y hoy indistinguible de un miss real. → **Q10**.
+
+**El arreglo (D61)**: `EnrichmentOutcome {Matched, NoData, Unavailable}` + `EnrichmentResult` + `HttpOutcome.IsTransient` (408/429/5xx transitorio; **404 y demás 4xx definitivos**) en `shared/Enrichment`. `IEnrichmentSource.FetchAsync` devuelve el desenlace. Los cinco sources (Last.fm, iTunes, Deezer, Wikipedia, MA) clasifican; los jobs **solo sellan con respuesta definitiva**. Marcador nuevo `listeners_checked_at` (migración `AddEnrichmentMarkers`, backfill `WHERE listeners IS NOT NULL`). Excepción deliberada: **en WDQS todo no-success sigue siendo transitorio** — un 4xx ahí es veredicto sobre *nuestra* query, y sellaría el catálogo entero por un bug nuestro.
+
+De regalo: `ListenersJob` materializaba **115 845 filas enteras** (con embeddings de 768 dims) para filtrar en LINQ → empujado a SQL.
+
+### Re-embed por huella (D62) — cierra el pendiente arrastrado de §6d/§6e
+
+`EmbeddingJob` filtraba `embedding IS NULL`, así que **tener vector nunca significó que fuera cierto**: los artistas que ganaron tags/bio quedaron congelados en el import D5, sin forma de re-embeberlos salvo borrar el catálogo. Ahora `Artist.EmbeddingFingerprint` (SHA-256/128 del texto) → el pase recorre toda la tabla, reconstruye el texto (CPU puro) y **solo llama a Ollama si la huella cambió**. **Reusa la media persistida, nunca la recalcula** — moverla dejaría todos los `user_taste` (D33) en otro espacio y el motor en anillo se torcería en silencio (D26/D31: la media es referencia fija, no estadístico).
+
+### Operativo
+
+Un job batch que acaba debe **quedarse** acabado: `restart: unless-stopped` sobre un job que sale con 0 es lo que convirtió «pase seco» en «contenedor girando». Los contenedores de enriquecimiento pasan a **`restart: on-failure`**.
+
+**Tests**: `HttpOutcomeTests` (transitorio vs definitivo), `WikipediaSummary.SummaryPath` (extraída a shared para que el bug quede bajo test — los 5 títulos reales), huella en `EmbeddingTextBuilderTests`. `audit.sh --strict` verde, 0 violaciones.
 
 ---
 
