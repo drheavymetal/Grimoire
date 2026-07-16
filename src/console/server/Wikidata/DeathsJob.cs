@@ -78,6 +78,7 @@ public sealed class DeathsJob : WorkerJob
         int withDate = 0;
         int withPlace = 0;
         int batches = 0;
+        int deferred = 0;
 
         for (int i = 0; i < qids.Count; i += BatchSize)
         {
@@ -87,10 +88,19 @@ public sealed class DeathsJob : WorkerJob
             }
 
             IEnumerable<string> batch = qids.Skip(i).Take(BatchSize);
-            SparqlResponse? response = await _client.QueryAsync(WikidataQueries.Deaths(batch), ct);
+            WikidataQueryResult result = await _client.QueryAsync(WikidataQueries.Deaths(batch), ct);
             batches++;
 
-            foreach (WikidataDeaths.Death death in WikidataDeaths.Parse(response))
+            if (!result.Answered)
+            {
+                // WDQS did not answer for these people. Nothing is written and nothing is stamped, so
+                // a later run sweeps them again — an outage must never read as "nobody here died"
+                // (D61). Counted so a run that quietly covered half the catalogue says so.
+                deferred++;
+                continue;
+            }
+
+            foreach (WikidataDeaths.Death death in WikidataDeaths.Parse(result.Response))
             {
                 if (!byQid.TryGetValue(death.Qid, out Artist? artist))
                 {
@@ -114,7 +124,15 @@ public sealed class DeathsJob : WorkerJob
         }
 
         _logger.LogInformation(
-            "Deaths complete: {Batches} batches, {WithDate} death dates and {WithPlace} places written.",
-            batches, withDate, withPlace);
+            "Deaths complete: {Batches} batches, {WithDate} death dates and {WithPlace} places written, "
+                + "{Deferred} batches deferred (no answer).",
+            batches, withDate, withPlace, deferred);
+
+        if (deferred > 0)
+        {
+            _logger.LogWarning(
+                "{Deferred} batches went unanswered. Re-run to sweep them.",
+                deferred);
+        }
     }
 }

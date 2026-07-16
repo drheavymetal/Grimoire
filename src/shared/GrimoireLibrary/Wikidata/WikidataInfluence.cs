@@ -78,4 +78,31 @@ public static class WikidataInfluence
 
         return edges;
     }
+
+    /// <summary>
+    /// The subset of <paramref name="edges"/> that is not in the graph yet, given
+    /// <paramref name="known"/> — the (from, to) keys of every influence edge already stored. Each
+    /// edge returned is added to <paramref name="known"/>, so a caller sweeping batch after batch
+    /// keeps one running picture of the graph and proposes no edge twice, within a run or across
+    /// runs.
+    /// <para>
+    /// This is what makes the pass idempotent above the database. The unique index on
+    /// (from, to, kind) is the backstop that makes it true; this is what stops the pass from
+    /// walking into it.
+    /// </para>
+    /// </summary>
+    public static List<Edge> NewEdges(IEnumerable<Edge> edges, ISet<(Guid, Guid)> known)
+    {
+        List<Edge> fresh = [];
+
+        foreach (Edge edge in edges)
+        {
+            if (known.Add((edge.FromId, edge.ToId)))
+            {
+                fresh.Add(edge);
+            }
+        }
+
+        return fresh;
+    }
 }
