@@ -312,16 +312,23 @@ La primera versión de `AddEnrichmentMarkers` traía un backfill `UPDATE artists
 
 **Y el backfill no hacía falta**: «chequeado» se lee como `listeners IS NOT NULL OR listeners_checked_at IS NOT NULL` — tener contador **es** la prueba de que preguntamos. El marcador solo debe desambiguar el caso null. Cero filas selladas, misma información.
 
-### Estado al cierre (2026-07-16 ~12:05)
+### El verbo `stats` era O(n²) — D63
+
+Al ir a verificar D62 salió otra de la misma familia: `StatsJob` recorría cada artista contra **todos** (176 014² = 31 000 millones de distancias, monohilo). Medido: **25 min con un core al 104 %, sin escribir una línea**, camino de ~5-8 h. Reescrito con muestreo (1 500 probes × 15 000 vecinos, semilla fija, exacto por debajo de 2 000 vectores, progreso cada 100): **11 s**. Ver D63.
+
+### Estado al cierre (2026-07-16, todo TERMINADO y verificado)
 
 | | |
 |---|---|
 | **API / front** | 200/200. Migración `AddEnrichmentMarkers` aplicada, sin queries colgadas |
-| **Biografías** | **TERMINADO**: 34 581 bios, **0 pendientes**. Los **5 atascados eran biografías reales** — el escape los rescató (Fliflet/Hamre, DAF/DOS, r.o.r/s, The Yes/No People, Bourne Davis Kane). Contenedor `Exited (0)`, sin reinicios |
-| **Last.fm** | Drenando los 2 833 misses **de una vez y para siempre** (~2/s, ~20 min). Confirmado: **0 resueltos** — esa cola genuinamente no está en Last.fm. Al acabar, el pase queda cerrado (97.6% de 115 845 candidatos) |
-| **Re-embed (D62)** | Corriendo. `Resuming ... with the persisted mean` ✅ (los `user_taste` a salvo). **~16/s → ~3 h** para ~174k. Load 2.58 sobre 12 cores |
+| **Biografías** | **TERMINADO**: 34 581 bios, **0 pendientes**. Los **5 atascados eran biografías reales** — el escape los rescató (Fliflet/Hamre, DAF/DOS, r.o.r/s, The Yes/No People, Bourne Davis Kane). `Exited (0)`, sin reinicios |
+| **Last.fm** | **CERRADO**: `0/2833 resolved, 0 deferred` → los 2 833 eran misses reales, ahora **sellados**; el pase no volverá a preguntar. Cobertura final **113 012 / 115 845 = 97.6 %** de candidatos. `Exited (0)` |
+| **Re-embed (D62)** | **TERMINADO**: 3h07 (12:00:34 → 15:08:01), exit 0. **176 014 vectores / 176 014 huellas** = cobertura total. Subió desde 174 495: **+1 519** bandas que ganaron tags/bio ahora tienen señal donde antes no la tenían. `Resuming ... with the persisted mean` ✅ — los `user_taste` intactos |
+| **`stats` (D63)** | **HEALTHY**: p10 **0.8298** · p50 **1.0015** · p90 **1.1430** · **spread 0.3133**. Los tres divergen y el spread **mejoró** sobre el 0.29 histórico (que era de 309 vectores). El motor en anillo sano tras el re-embed |
 
-**Pendiente tras el re-embed**: correr el verbo `stats` — **p10/p50/p90 deben seguir divergiendo** (D26); si convergen, el motor en anillo está roto. Y **Q10**: decidir si se re-rastrean los misses envenenados de MA.
+**Los tres contenedores paran solos** (`on-failure:3`) — se acabaron los 458 y 38 reinicios. Régimen estacionario: re-correr cualquiera de los pases cuesta un scan y cero llamadas externas.
+
+**Lo que queda**: **Q10** (¿re-rastrear los misses envenenados de MA?, decisión de Pedro) y el verbo **`atlas`**, que sigue con la misma enfermedad O(n²) que se le curó a `stats` (§7).
 
 ---
 
@@ -331,9 +338,9 @@ La primera versión de `AddEnrichmentMarkers` traía un backfill `UPDATE artists
 - **B5** tracklist en la ficha (título + duración), **C7** eje de duración (media excluyendo null), **C21** minería de títulos (léxico cerrado es/en, marcado como aproximación — D17), **C10** grafo de versiones (cover_versions cross-artist), **C26** deriva cromática (el proxy de portadas añade CORS → paleta en cliente sin taint). Todas **desplegadas y verificadas en producción**.
 - **C19** eje tímbrico — **hueco declarado**: sin toolchain de audio (numpy/scipy/librosa/pip ausentes; ffmpeg sí, pero sin FFT solo saldría loudness/crest, un stub). D25 ya lo degradó a opcional (rescata 7%). No se finge.
 
-**Tech-debt menor**: el verbo `atlas` de consola es lento a escala (los xy de producción se poblaron con un script rápido de muestra+proyección SQL; el verbo debería adoptarlo para futuros refrescos).
+**Tech-debt — verbos O(n²) a escala**: el verbo `atlas` de consola sigue siendo lento (los xy de producción se poblaron con un script rápido de muestra+proyección SQL; el verbo debería adoptarlo para futuros refrescos). El verbo `stats` tenía la **misma enfermedad** y ya está curado por muestreo (**D63**, §6f): es el patrón a copiar para `atlas`.
 
-**Enriquecimiento perezoso** (no es código, corre solo): `listeners` recorre Last.fm por horas (la mayoría del underground no está allí); `preview_url` crece al usar el Rito.
+**Enriquecimiento — ya NO es perezoso, está CERRADO (§6f)**: `listeners` **terminado** (97.6 % de los 115 845 candidatos; el resto no está en Last.fm y ya está **sellado**, no se re-pregunta), biografías **terminado** (0 pendientes), MA **terminado** (scope metal-ish agotado), embeddings **al día** (huella por artista, D62 — re-correr cuesta un scan y cero inferencias). Lo único que sigue creciendo solo es `preview_url`, al usar el Rito (JIT, D40).
 
 **Decisiones pendientes de Pedro**: respuesta de Metal Archives (Q4, temática lírica); revocabilidad de refresh tokens (D28) antes de abrir a más gente; push de las imágenes al registro `go2chaindev/*` (necesita credenciales).
 

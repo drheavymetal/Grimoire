@@ -962,6 +962,22 @@ El `EmbeddingJob` seleccionaba `embedding IS NULL`. **Tener vector nunca signifi
 
 **Se reusa la media persistida, NUNCA se recalcula.** Es la parte no obvia: cada `user_taste`/`repulsion` (D33) es un promedio de vectores centrados en **esa** media, así que mover la media dejaría todos los gustos guardados en un espacio distinto del catálogo contra el que se comparan — el motor en anillo se torcería en silencio, sin romper nada visible. La media es un **punto de referencia fijo** (D26/D31), no un estadístico a mantener al día.
 
+## D63 — El verbo `stats` estima por muestreo (y con semilla fija)
+`2026-07-16` · vigente · salió al verificar D62
+
+`StatsJob` recorría **cada artista contra todos los demás**: a escala de catálogo son 176 014² = **31 000 millones** de distancias coseno de 768 dims, monohilo. Medido en prod: **25 min con un core al 104 %, 2.67 GB de RAM y ni una línea escrita** — camino de ~5-8 h, e indistinguible de un proceso colgado.
+
+Y era trabajo tirado. Lo que reporta es **la media, sobre artistas, de un percentil**: un estadístico que se estima con una muestra. Los percentiles de las distancias a 15 000 vecinos al azar estiman los percentiles contra los 176k; la media sobre 1 500 probes estima la media sobre todos. Y el veredicto que importa —**¿divergen los tres, o no?**— se juega en diferencias de orden 0.3, muy por encima del error de muestreo.
+
+- **1 500 probes × 15 000 vecinos** (~22M distancias) → **11 s** en vez de horas.
+- **Exacto por debajo de 2 000 vectores**, para que los números de dev de `CLAUDE.md` sigan comparables.
+- **Semilla fija (26)**: una medición que no puedes reproducir no es una medición — dos ejecuciones del mismo catálogo dan el mismo número, y si cambia es porque cambió el catálogo, no los dados.
+- **Log de progreso** cada 100 probes: el pase viejo no permitía ni estimar cuánto le faltaba.
+
+**Resultado sobre los 176 014 vectores re-embebidos (D62)**: p10 **0.8298** · p50 **1.0015** · p90 **1.1430** · spread **0.3133** → **HEALTHY**. El spread incluso **mejoró** frente al 0.29 histórico (que era sobre 309 vectores). El re-embed no degradó el motor en anillo.
+
+**Sigue pendiente la misma enfermedad en el verbo `atlas`** (ya anotada en `MEMORY.md §7`): los xy de producción se poblaron con un script de muestra+proyección SQL, y el verbo debería adoptarlo.
+
 ---
 
 ## Preguntas abiertas
