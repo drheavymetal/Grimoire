@@ -294,9 +294,34 @@ De regalo: `ListenersJob` materializaba **115 845 filas enteras** (con embedding
 
 ### Operativo
 
-Un job batch que acaba debe **quedarse** acabado: `restart: unless-stopped` sobre un job que sale con 0 es lo que convirtió «pase seco» en «contenedor girando». Los contenedores de enriquecimiento pasan a **`restart: on-failure`**.
+Un job batch que acaba debe **quedarse** acabado: `restart: unless-stopped` sobre un job que sale con 0 es lo que convirtió «pase seco» en «contenedor girando». Los contenedores de enriquecimiento pasan a **`restart: on-failure:3`**. Verificado: `grimoire-biographies` acabó → `Exited (0)`, `Restarts=0`.
 
-**Tests**: `HttpOutcomeTests` (transitorio vs definitivo), `WikipediaSummary.SummaryPath` (extraída a shared para que el bug quede bajo test — los 5 títulos reales), huella en `EmbeddingTextBuilderTests`. `audit.sh --strict` verde, 0 violaciones.
+**Tests**: `HttpOutcomeTests` (transitorio vs definitivo), `WikipediaSummary.SummaryPath` (extraída a shared para que el bug quede bajo test — los 5 títulos reales), huella en `EmbeddingTextBuilderTests`. `audit.sh --strict` verde, 0 violaciones. 525 tests en verde.
+
+### 🔥 INCIDENTE durante el despliegue — la migración tumbó la API (leer antes de escribir otra)
+
+La primera versión de `AddEnrichmentMarkers` traía un backfill `UPDATE artists SET listeners_checked_at = now() WHERE listeners IS NOT NULL` (113k filas). **Tumbó la API en producción**, y el modo de fallo merece recordarse porque no es obvio:
+
+1. Esas filas llevan un **embedding de 768 dims** y viven en un **índice HNSW** → el UPDATE reescribe cientos de MB y churnea el índice. Tardó **minutos**, no segundos.
+2. Superó el `CommandTimeout` de 30 s → EF abortó y **revirtió** la migración… **pero Postgres siguió ejecutando el UPDATE** (el cliente se rinde, el servidor no).
+3. Ese backend huérfano retenía el **lock exclusivo de `__EFMigrationsHistory`** (EF 9+ lo toma durante toda la migración) → cada arranque de la API se bloqueaba **leyendo el historial**, timeout a los 30 s, crash, reinicio, y **otro UPDATE a la cola**. Cascada. `front:200`, `api:502`.
+
+**Diagnóstico**: `select pid, state, wait_event_type, now()-query_start, query from pg_stat_activity` — mostró el UPDATE huérfano a 3m15s y dos SELECT del historial en `Lock: relation`. **Remedio**: parar la API (deja de reencolar) → `pg_terminate_backend` del huérfano → quitar el backfill de la migración → rebuild + redeploy → **200 al primer intento**.
+
+**Lecciones**: (a) **las migraciones mueven esquema; el movimiento masivo de datos es un paso operativo**, fuera de banda; (b) un `UPDATE` sobre filas con vector+HNSW no es «un update más»; (c) el `ALTER TABLE ... ADD COLUMN NULL` sí es instantáneo — el DDL nunca fue el problema.
+
+**Y el backfill no hacía falta**: «chequeado» se lee como `listeners IS NOT NULL OR listeners_checked_at IS NOT NULL` — tener contador **es** la prueba de que preguntamos. El marcador solo debe desambiguar el caso null. Cero filas selladas, misma información.
+
+### Estado al cierre (2026-07-16 ~12:05)
+
+| | |
+|---|---|
+| **API / front** | 200/200. Migración `AddEnrichmentMarkers` aplicada, sin queries colgadas |
+| **Biografías** | **TERMINADO**: 34 581 bios, **0 pendientes**. Los **5 atascados eran biografías reales** — el escape los rescató (Fliflet/Hamre, DAF/DOS, r.o.r/s, The Yes/No People, Bourne Davis Kane). Contenedor `Exited (0)`, sin reinicios |
+| **Last.fm** | Drenando los 2 833 misses **de una vez y para siempre** (~2/s, ~20 min). Confirmado: **0 resueltos** — esa cola genuinamente no está en Last.fm. Al acabar, el pase queda cerrado (97.6% de 115 845 candidatos) |
+| **Re-embed (D62)** | Corriendo. `Resuming ... with the persisted mean` ✅ (los `user_taste` a salvo). **~16/s → ~3 h** para ~174k. Load 2.58 sobre 12 cores |
+
+**Pendiente tras el re-embed**: correr el verbo `stats` — **p10/p50/p90 deben seguir divergiendo** (D26); si convergen, el motor en anillo está roto. Y **Q10**: decidir si se re-rastrean los misses envenenados de MA.
 
 ---
 
