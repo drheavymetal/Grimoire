@@ -1,6 +1,7 @@
 using System.Net;
 using Grimoire.Library.Data;
 using Grimoire.Library.Enrichment;
+using Grimoire.Library.Services;
 using Grimoire.Worker;
 using Grimoire.Worker.Credits;
 using Grimoire.Worker.Embedding;
@@ -351,18 +352,38 @@ static MetalArchivesOptions BuildMetalArchivesOptions(HostApplicationBuilder bui
 
 static void ConfigureWikipedia(HostApplicationBuilder builder)
 {
-    builder.Services.AddSingleton(BuildWikipediaOptions(builder));
+    WikipediaOptions options = BuildWikipediaOptions(builder);
+    builder.Services.AddSingleton(options);
 
-    // Two free public endpoints: Wikidata SPARQL (the accurate MusicBrainz-id match) and the
-    // Wikipedia REST summary. Both carry the identifiable User-Agent Grimoire uses everywhere and a
-    // light backoff on 429/503; the ~250 ms pacing lives in WikipediaSource's rate limiter, not here.
+    // Free public endpoints: Wikidata SPARQL (the accurate MusicBrainz-id match) and one Wikipedia
+    // REST host per edition — each wiki serves its own (es.wikipedia.org, no.wikipedia.org), so a
+    // single client could only ever answer in one language. All carry the identifiable User-Agent
+    // Grimoire uses everywhere and a light backoff on 429/503; the ~250 ms pacing lives in
+    // WikipediaSource's rate limiter, not here.
     AddPoliteHttpClient(builder, WikipediaSource.WikidataClientName, "https://query.wikidata.org/");
-    AddPoliteHttpClient(builder, WikipediaSource.WikipediaClientName, "https://en.wikipedia.org/");
 
-    builder.Services.AddSingleton(sp => new WikipediaSource(
-        sp.GetRequiredService<IHttpClientFactory>().CreateClient(WikipediaSource.WikidataClientName),
-        sp.GetRequiredService<IHttpClientFactory>().CreateClient(WikipediaSource.WikipediaClientName),
-        sp.GetRequiredService<ILogger<WikipediaSource>>()));
+    foreach (string language in options.Languages)
+    {
+        AddPoliteHttpClient(
+            builder,
+            WikipediaSource.RestClientName(language),
+            WikipediaSummary.SiteUrl(language));
+    }
+
+    builder.Services.AddSingleton(sp =>
+    {
+        IHttpClientFactory factory = sp.GetRequiredService<IHttpClientFactory>();
+
+        Dictionary<string, HttpClient> byLanguage = options.Languages.ToDictionary(
+            language => language,
+            language => factory.CreateClient(WikipediaSource.RestClientName(language)),
+            StringComparer.OrdinalIgnoreCase);
+
+        return new WikipediaSource(
+            factory.CreateClient(WikipediaSource.WikidataClientName),
+            byLanguage,
+            sp.GetRequiredService<ILogger<WikipediaSource>>());
+    });
 
     builder.Services.AddHostedService<WikipediaJob>();
 }
@@ -383,7 +404,37 @@ static WikipediaOptions BuildWikipediaOptions(HostApplicationBuilder builder)
         batchSize = envBatch;
     }
 
-    return new WikipediaOptions { Limit = limit, BatchSize = batchSize };
+    return new WikipediaOptions
+    {
+        Limit = limit,
+        BatchSize = batchSize,
+        Languages = BuildWikipediaLanguages(builder),
+    };
+}
+
+// The editions to resolve, from Wikipedia:Languages or GRIMOIRE_WIKIPEDIA_LANGUAGES ("en,es,no").
+// Normalised here, once, so the rest of the pass can compare codes against the lower-case values
+// stored in artist_biographies without guessing at casing or stray whitespace. Adding a language is
+// meant to be exactly this: one list, no schema, no code.
+static string[] BuildWikipediaLanguages(HostApplicationBuilder builder)
+{
+    string[] configured = builder.Configuration.GetSection("Wikipedia:Languages").Get<string[]>()
+        ?? [ArtistBiographies.English, "es"];
+
+    string? fromEnv = Environment.GetEnvironmentVariable("GRIMOIRE_WIKIPEDIA_LANGUAGES");
+
+    if (!string.IsNullOrWhiteSpace(fromEnv))
+    {
+        configured = fromEnv.Split(',');
+    }
+
+    string[] languages = configured
+        .Select(l => l.Trim().ToLowerInvariant())
+        .Where(l => l.Length > 0)
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+
+    return languages.Length > 0 ? languages : [ArtistBiographies.English];
 }
 
 // A named HTTP client with a light retry on 429/503 — polite to public, key-less APIs.

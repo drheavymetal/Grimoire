@@ -1,4 +1,5 @@
 using Grimoire.Library.Models;
+using Grimoire.Library.Services;
 
 namespace Grimoire.Server.Dtos;
 
@@ -49,8 +50,12 @@ public record ArtistDetailDto(
     int? Listeners,
     Rank? Rank,
     string[] Tags,
-    string? Abstract,
-    string? AbstractUrl,
+    // Every Wikipedia biography this band actually has text for, English first then by language code
+    // (Services.ArtistBiographies.Merge). A list rather than an abstract/abstractUrl pair because the
+    // reader's language is the client's to pick: a Spanish reader gets eswiki when it exists, English
+    // when it does not — labelled, never translated (Invariant 1: no paid service; Invariant 5: no
+    // invented text). Empty is the common case and an honest gap.
+    IReadOnlyList<ArtistBiographyView> Biographies,
     string? ImageUrl,
     Dictionary<string, string>? Links,
     IReadOnlyList<ReleaseDto> Releases,

@@ -23,6 +23,8 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Artist> Artists => Set<Artist>();
 
+    public DbSet<ArtistBiography> ArtistBiographies => Set<ArtistBiography>();
+
     public DbSet<ArtistEdge> ArtistEdges => Set<ArtistEdge>();
 
     public DbSet<Release> Releases => Set<Release>();
@@ -91,6 +93,23 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.HasIndex(a => a.Embedding)
                 .HasMethod("hnsw")
                 .HasOperators("vector_cosine_ops");
+        });
+
+        builder.Entity<ArtistBiography>(entity =>
+        {
+            entity.ToTable("artist_biographies");
+
+            // One row per (band, language): the composite key makes a re-run's write idempotent and
+            // IS the resume marker — a row means "already searched in this edition", matched or not.
+            entity.HasKey(b => new { b.ArtistId, b.Language });
+
+            // A bare language code ("es", "no", "fi"): the leading label of the article host.
+            entity.Property(b => b.Language).HasMaxLength(16);
+
+            entity.HasOne<Artist>()
+                .WithMany(a => a.Biographies)
+                .HasForeignKey(b => b.ArtistId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ArtistEdge>(entity =>

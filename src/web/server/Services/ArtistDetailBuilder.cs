@@ -1,5 +1,6 @@
 using Grimoire.Library.Data;
 using Grimoire.Library.Models;
+using Grimoire.Library.Services;
 using Grimoire.Server.Dtos;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,7 @@ public sealed class ArtistDetailBuilder
         Artist? artist = await _db.Artists
             .AsNoTracking()
             .Include(a => a.Releases)
+            .Include(a => a.Biographies)
             .FirstOrDefaultAsync(a => a.Id == id, ct);
 
         if (artist is null)
@@ -80,8 +82,7 @@ public sealed class ArtistDetailBuilder
             artist.Listeners,
             artist.Rank,
             artist.Tags,
-            artist.Abstract,
-            artist.AbstractUrl,
+            ArtistBiographies.Merge(artist),
             artist.ImageUrl,
             artist.Links,
             releases,

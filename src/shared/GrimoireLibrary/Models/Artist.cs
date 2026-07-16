@@ -57,6 +57,20 @@ public class Artist
 
     public string[] Tags { get; set; } = [];
 
+    /// <summary>
+    /// The <b>English</b> Wikipedia biography. Every other language lives in
+    /// <see cref="Biographies"/>; this one is here, and stays here, because it is the text
+    /// <c>EmbeddingTextBuilder</c> builds the vector from. Moving it into the child table would
+    /// change every <see cref="EmbeddingFingerprint"/> (D62) and force a three-hour re-embed of the
+    /// catalogue for no gain. Read English and the rest together through
+    /// <c>Services.ArtistBiographies.Merge</c> rather than reaching for this field directly.
+    /// <para>
+    /// Only English feeds the embedding, and deliberately: <c>nomic-embed-text</c> is trained on
+    /// English, so mixing a Spanish or Norwegian abstract into that text would move the band across
+    /// the map for a linguistic reason rather than a musical one — the ring engine would quietly
+    /// start recommending by what language a band's Wikipedians write in.
+    /// </para>
+    /// </summary>
     public string? Abstract { get; set; }
 
     /// <summary>
@@ -67,11 +81,24 @@ public class Artist
     public string? AbstractUrl { get; set; }
 
     /// <summary>
-    /// When the Wikipedia biography pass last looked this artist up, matched or not. The resume
-    /// marker: a non-null value means "already checked, do not fetch again" so a re-run never
-    /// re-queries an artist Wikidata/Wikipedia has no article for (a gap, never a guess).
+    /// When the Wikipedia biography pass last looked this artist up <b>in English</b>, matched or
+    /// not. The resume marker: a non-null value means "already checked, do not fetch again" so a
+    /// re-run never re-queries an artist enwiki has no article for (a gap, never a guess).
+    /// <para>
+    /// It is English's marker alone. Every other language keeps its own — the presence of its row in
+    /// <see cref="Biographies"/> — because this column is already stamped on 206 882 rows: a pass in
+    /// any new language that consulted it would conclude the whole catalogue was done and visit
+    /// nobody.
+    /// </para>
     /// </summary>
     public DateTime? AbstractCheckedAt { get; set; }
+
+    /// <summary>
+    /// Wikipedia biographies in every language <b>except English</b> (which lives in
+    /// <see cref="Abstract"/> — see <see cref="ArtistBiography"/> for why the two are split).
+    /// Empty until the biography pass runs in some other language.
+    /// </summary>
+    public List<ArtistBiography> Biographies { get; set; } = [];
 
     /// <summary>Text embedding (nomic-embed-text, 768 dims). Null until the embedding pass runs.</summary>
     public Vector? Embedding { get; set; }

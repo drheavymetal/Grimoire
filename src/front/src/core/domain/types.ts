@@ -46,6 +46,16 @@ export interface ArtistEdge {
   counterpartKind: ArtistKind;
 }
 
+// One Wikipedia biography, in the language it was written in. `url` is the article the text came
+// from and is what CC BY-SA attribution must point at — never rebuilt from the title, or a Spanish
+// biography would end up crediting an English article.
+export interface Biography {
+  // A bare language code as Wikipedia names its editions: 'en', 'es'.
+  language: string;
+  abstract: string;
+  url: string | null;
+}
+
 export interface ArtistDetail {
   id: string;
   name: string;
@@ -58,8 +68,10 @@ export interface ArtistDetail {
   listeners: number | null;
   rank: Rank | null;
   tags: string[];
-  abstract: string | null;
-  abstractUrl: string | null;
+  // Every Wikipedia biography this band has, one per language, English first then by language code.
+  // The reader's language is picked client-side (chooseBiography) because only the client knows the
+  // active i18next language. Usually empty — most of the underground has no article anywhere.
+  biographies: Biography[];
   imageUrl: string | null;
   links: Record<string, string> | null;
   // The real lyrical subject matter, as Metal Archives records it (not the C21 title-mining
