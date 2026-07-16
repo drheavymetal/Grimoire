@@ -418,8 +418,9 @@ check_gates() {
     # Front
     if [ -f src/front/package.json ]; then
         if [ ! -d src/front/node_modules ]; then
-            skip "gates pnpm-lint/pnpm-build: src/front/node_modules missing — run 'pnpm install' in src/front first"
+            skip "gates pnpm-lint/pnpm-build/pnpm-test: src/front/node_modules missing — run 'pnpm install' in src/front first"
             skip "gate pnpm-build: (same cause)"
+            skip "gate pnpm-test: (same cause)"
         else
             if $GREP -q '"lint"[[:space:]]*:' src/front/package.json; then
                 run_gate "pnpm-lint" src/front pnpm lint
@@ -431,10 +432,20 @@ check_gates() {
             else
                 skip "gate pnpm-build: no 'build' script in src/front/package.json"
             fi
+            # The C# tests have always been a gate; the front's were not, and a stale riteClient
+            # expectation sat broken on main for days because of it — the gate reported PASS while
+            # `pnpm test` reported a failure nobody was running. A test suite outside the gate is a
+            # suite nobody is obliged to keep green.
+            if $GREP -q '"test"[[:space:]]*:' src/front/package.json; then
+                run_gate "pnpm-test" src/front pnpm test
+            else
+                skip "gate pnpm-test: no 'test' script in src/front/package.json"
+            fi
         fi
     else
         skip "gate pnpm-lint: src/front/package.json does not exist yet"
         skip "gate pnpm-build: src/front/package.json does not exist yet"
+        skip "gate pnpm-test: src/front/package.json does not exist yet"
     fi
 }
 

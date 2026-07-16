@@ -68,6 +68,8 @@ describe('rite client contract', () => {
       country: 'NO',
       decadeFrom: 1990,
       decadeTo: null,
+      // Sent since the Rite gained an optional genre (D52): absent means "no genre", not "omit".
+      genre: null,
     });
   });
 
