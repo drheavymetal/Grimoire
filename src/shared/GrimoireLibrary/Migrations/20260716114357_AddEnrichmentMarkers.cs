@@ -23,16 +23,21 @@ namespace Grimoire.Library.Migrations
                 type: "timestamp with time zone",
                 nullable: true);
 
-            // Backfill the marker for everything Last.fm already answered about: a row carrying a
-            // listener count was, self-evidently, checked. Without this the new marker would read
-            // "never asked" for all ~113k resolved artists and a future refresh pass would re-crawl
-            // the entire catalogue to learn what it already knows.
+            // No backfill, deliberately. "Checked" is `listeners IS NOT NULL OR listeners_checked_at
+            // IS NOT NULL`: a row carrying a listener count proves on its own that we asked. The
+            // column exists only to disambiguate the NULL case — "not asked yet" from "asked, and
+            // Last.fm has no such artist" — so stamping the ~113k resolved rows would add no
+            // information at all.
             //
-            // The misses are deliberately NOT backfilled. They are indistinguishable, today, from
-            // artists the pass never reached — the whole reason this column exists (MEMORY §6f) —
-            // so they stay unstamped and the next run asks Last.fm once, properly, and stamps them.
-            migrationBuilder.Sql(
-                "UPDATE artists SET listeners_checked_at = now() WHERE listeners IS NOT NULL;");
+            // It would also not be free. Postgres rewrites every updated row, and these rows carry
+            // a 768-dimension embedding and sit in an HNSW index: an UPDATE of that shape moves
+            // hundreds of megabytes and churns the index. An earlier revision of this migration did
+            // exactly that, blew past the 30s command timeout, and rolled back mid-flight — while
+            // the server-side UPDATE kept running and held EF's exclusive lock on
+            // __EFMigrationsHistory, so every subsequent API boot blocked on reading it, timed out,
+            // crashed, and restarted into the same wall. It took the production API down.
+            //
+            // Migrations move schema. Bulk data movement is an operational step, run out of band.
         }
 
         /// <inheritdoc />

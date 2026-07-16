@@ -40,12 +40,18 @@ public class Artist
     public int? Listeners { get; set; }
 
     /// <summary>
-    /// When the Last.fm pass last looked this artist up, matched or not. The resume marker, and the
-    /// reason a null <see cref="Listeners"/> is no longer ambiguous: without it the pass re-asked
-    /// Last.fm for every artist it had already failed to find, forever — the ~2 800 genuine misses
-    /// were re-crawled every twenty minutes for nothing (MEMORY §6f). A non-null stamp means
-    /// "already asked, do not ask again"; it is only ever written on a definitive answer, so a 429
-    /// or a timeout leaves it null and a later run retries.
+    /// When the Last.fm pass last looked this artist up, matched or not. It exists to disambiguate a
+    /// null <see cref="Listeners"/>, which on its own cannot tell "not asked yet" apart from "asked,
+    /// and Last.fm has no such artist" — and most of the underground is the latter. Without it the
+    /// pass re-crawled its ~2 800 genuine misses every twenty minutes, forever, resolving none of
+    /// them (MEMORY §6f).
+    /// <para>
+    /// Read "checked" as <c>Listeners is not null || ListenersCheckedAt is not null</c>: a listener
+    /// count is its own proof that we asked, which is why the ~113k rows resolved before this column
+    /// existed carry no stamp and were deliberately not backfilled (the migration says why). Only
+    /// ever written on a definitive answer, so a 429 or a timeout leaves it null and a later run
+    /// retries.
+    /// </para>
     /// </summary>
     public DateTime? ListenersCheckedAt { get; set; }
 
