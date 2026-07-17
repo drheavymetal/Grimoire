@@ -373,6 +373,16 @@ Lección: el radio de daño del doble escape es la intersección de (a) tener it
 
 `"test": "vitest run"` existía en `package.json` desde siempre y **el gate nunca lo llamaba** — solo `lint` y `build`. Por eso un test caduco (`riteClient.test.ts`, esperaba el body del Rito sin `genre`, anterior a D52) llevaba días en rojo en `main` mientras el gate obligatorio decía PASS. El test estaba caduco, el código bien. Cableado como quinto gate.
 
+### Juego entre dos: «¿Lo invocaste o lo desterraste?» (D66) — desplegado, apagado
+
+Pedro pidió juego entre dos. Se descartó «adivina la banda» genérico (premia el canon → invierte el pilar de Ranks) a favor de **adivinar el veredicto del amigo sobre una banda de su grimorio, a ciegas**. Asíncrono vía el buzón de D60.
+
+**Lo que destapó**: los destierros **no los veía nadie** hoy (verificado: solo el Espejo y el motor, ambos solo-para-uno-mismo; ningún endpoint de amigos los toca; ni el vector `repulsion` sale de su dueño). El juego es exposición nueva → **opt-in explícito, apagado por defecto** (decisión de Pedro sobre la variante de destierro ciego). Verificado en prod: **0 activado, 3 nunca preguntado** → se desplegó muerto. Rutas vivas y protegidas (401; una ruta inventada da 404, como control).
+
+`VerdictGameOptIn` **nullable**: «nunca preguntado» ≠ «dijo que no» — D61 aplicado a un consentimiento.
+
+**Arranca vacío**: 10 Summoned / 3 Banished en toda la prod. La munición la genera jugar al Rito.
+
 ### Deuda detectada, no atacada
 
 - **`DeathsJob` tiene la misma enfermedad de escala**: materializa **98 250 entidades `Artist` completas** (66 554 con vector de 768 dims, cientos de MB) para usar 21 773. Misma familia que `ListenersJob` (D61) e `InfluenceJob` (D65).

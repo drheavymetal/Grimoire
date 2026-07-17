@@ -1010,6 +1010,35 @@ La app es bilingüe (invariante 7) pero sus biografías eran solo enwiki. Ahora 
 
 **En producción: 69 → 1 953 aristas (28×), en 90 segundos.** Y la disciplina D61 visible en vivo: `2 batches went unanswered and were NOT recorded as 'no influences'. Re-run to sweep them.` → el re-run barrió los 2 y añadió 60 aristas, con 1 893 ya presentes (idempotente).
 
+## D66 — «¿Lo invocaste o lo desterraste?»: el juego entre dos, y la primera exposición de los destierros
+`2026-07-17` · vigente · pedido por Pedro (*«podemos meterle algo de juego entre dos jugadores?»*)
+
+45 s **a ciegas** de una banda del grimorio de un amigo; adivinas si él la **invocó o la desterró**. Asíncrono, por turnos, **vía el buzón de D60** (tu puntuación llega a sus notificaciones y esa es la invitación a devolvértela). **Ni sockets, ni push, ni nada instantáneo** — la decisión de D60 sigue en pie.
+
+**Por qué este juego y no «adivina la banda» genérico**: adivinar nombres solo funciona con lo que ya conoces → premia el canon → **invierte el pilar de Ranks** (descubrir Metallica no vale nada) y es el mismo reflejo que rechaza D43. Este prueba **cuánto conoces el oído del otro**, no tu cultura musical. («Adivina la banda» sí se hará, pero **acotado al propio grimorio** — ver la ola siguiente.)
+
+### La exposición: los destierros no los veía NADIE
+
+Verificado sobre el código, no supuesto: `RiteState.Banished` se lee hoy en **dos sitios, ambos solo-para-uno-mismo** — el Espejo (C20, `CurrentUserId()`) y el motor en anillo excluyendo tu propio anillo. **Ningún endpoint de amigos lo toca**: `{id}/grimoire`, `{id}/crossed`, `leaderboard`, `{id}/duel` son todos solo-invocados. Ni siquiera el vector `repulsion` —que se **construye** de los destierros— sale jamás de su dueño.
+
+Así que el juego es **exposición nueva, y de la clase negativa** (un juicio negativo sobre una banda). **Decisión de Pedro: opt-in explícito con revelación completa** (se le ofreció la variante «el destierro sigue ciego»). Guardarraíl del bloque social respetado: **apagado por defecto, se despliega muerto** hasta que alguien lo encienda.
+
+`GrimoireUser.VerdictGameOptIn` es **nullable a propósito**: «nunca preguntado» **≠** «preguntado y dijo que no». Los dos rechazan, pero solo uno es una decisión — es la lección de D61 aplicada a un consentimiento. El consentimiento se **re-comprueba en la escritura**, nunca se fía de la llamada de disponibilidad.
+
+**Fuga conocida y aceptada**: quien reconozca la banda de oído puede mirar el grimorio público del amigo — si no está, la desterró. Es inherente a que D57 ya exponga el grimorio, y cuesta nombrar la banda, que es justo la habilidad que la app celebra.
+
+### Detalles que importan
+
+- **El ciego tiene un único punto de estrangulamiento** (`GameView.Round`): una ronda sin responder devuelve `null` en todo, **incluido el `artistId`** — ese id **solo** ya gana el juego vía el grimorio público del amigo, así que filtrarlo importa más que filtrar el veredicto.
+- **El reparto garantiza una ronda de cada veredicto.** Los grimorios reales son asimétricos (todo el mundo invoca más de lo que destierra), así que 5 rondas al azar salen todas-invocadas la mayoría de las veces y «di siempre invocó» saca pleno. Coste admitido: quien sepa la regla sabe que hay ≥1 destierro. Peor es un juego que deja de medir nada en silencio.
+- **`Truth` se congela al repartir**, no se relee de `rites` — la puntuación no puede moverse bajo los pies del jugador a mitad de partida.
+- **Esquema pensado para el segundo juego desde la fila uno**: `Kind`, `OpponentId` nullable (→ modo solo sale gratis) y `Difficulty` nullable. Añadir el discriminador después obligaría a **backfillear cada fila ya desplegada**, que es la única cosa que las migraciones aquí no pueden hacer (§6f).
+- **Partida de una sola dirección**, no máquina de estados a dos bandas: con 3 destierros en toda la producción, un ida-y-vuelta se atascaría en cuanto el pool del otro fuera flaco. **El buzón ES la estructura de turnos.**
+
+**Realidad de los datos**: 10 Summoned / 3 Banished en toda la prod → el juego **arranca vacío** y su munición la genera jugar al Rito. Estados vacíos honestos por bloqueador (`too-few-verdicts` / `no-banishments` / `no-summons` / `not-enough-audible` / `opponent-has-not-opted-in`), no un botón gris.
+
+**53 tests nuevos** (637 total), 17 de ellos end-to-end contra Postgres y HTTP reales. El agente los **mutation-testeó** en vez de fiarse de que pasaran a la primera: quitando el gate del ciego → 4 fallos, incluido el que lee el **cuerpo crudo** de la respuesta buscando `"truth":"Summoned"`.
+
 ---
 
 ## Preguntas abiertas
