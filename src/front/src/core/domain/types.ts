@@ -457,8 +457,9 @@ export interface Atlas {
 }
 
 // ---------------------------------------------------------------------------
-// Movement V — Scenes (B20/C11): a city + decade + tag cluster of bands. Not a
-// country map (D17) — the local scene is the unit.
+// Movement V — Scenes (B20/C11): a city + decade + sound family cluster of bands.
+// Not a country map (D17) — the local scene is the unit. Ranked by lift, not by
+// headcount: headcount only ever finds the biggest city wearing the vaguest tag.
 // ---------------------------------------------------------------------------
 
 export interface SceneBand {
@@ -470,8 +471,12 @@ export interface SceneBand {
 export interface Scene {
   city: string;
   decade: number;
-  tag: string;
+  // The sound family (Black Metal, Stoner…). Universal English names, not translated.
+  family: string;
   size: number;
+  // How many times its usual catalogue-wide share this family holds here. 1 = as
+  // common as anywhere; 10 = ten times over.
+  lift: number;
   bands: SceneBand[];
 }
 

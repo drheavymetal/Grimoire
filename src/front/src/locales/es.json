@@ -337,10 +337,11 @@
   },
   "scenes": {
     "heading": "Escenas",
-    "intro": "El metal crece en escenas, no en países. Una ciudad, una década y un sonido juntos — Gotemburgo en los 90, Tampa a finales de los 80. No es un mapa de bandas por país.",
+    "intro": "Una ciudad, una década y un sonido que allí pesó mucho más de lo que pesa en todo el catálogo. No ordena por cuántas bandas hay — eso solo encuentra ciudades grandes — sino por cuánto se aparta de la media. Las escenas del canon no tienen por qué salir: lo que ya es común en todas partes no distingue a nadie.",
     "loading": "Reuniendo las escenas…",
     "error": "Las escenas no se cargaron. Inténtalo de nuevo.",
     "empty": "Ninguna escena tiene bastantes bandas todavía. El catálogo es escaso aquí — el margen está callado.",
+    "lift": "×{{lift}} más que la media del catálogo",
     "decadeLabel": "años {{decade}}",
     "bandCount_one": "{{count}} banda",
     "bandCount_other": "{{count}} bandas",

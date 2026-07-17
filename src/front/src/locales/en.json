@@ -337,10 +337,11 @@
   },
   "scenes": {
     "heading": "Scenes",
-    "intro": "Metal grows in scenes, not countries. A city, a decade and a sound taken together — Gothenburg in the 90s, Tampa in the late 80s. Not a map of bands by country.",
+    "intro": "A city, a decade and a sound that weighed far more there than it weighs across the catalogue. It does not rank by how many bands are in a place — that only ever finds big cities — but by how far the place departs from the average. The scenes of the canon need not appear: what is common everywhere distinguishes nobody.",
     "loading": "Gathering the scenes…",
     "error": "The scenes would not load. Try again.",
     "empty": "No scene has enough bands yet. The catalogue is thin here — the margin is quiet.",
+    "lift": "×{{lift}} its usual share of the catalogue",
     "decadeLabel": "{{decade}}s",
     "bandCount_one": "{{count}} band",
     "bandCount_other": "{{count}} bands",
