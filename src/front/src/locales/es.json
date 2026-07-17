@@ -807,7 +807,8 @@
     "openGift": "Abrir el regalo",
     "unreadAria": "{{count}} sin leer",
     "verdictGamePlayed": "{{handle}} adivinó tus veredictos: {{correct}}/{{total}}",
-    "openGames": "Jugar la vuelta"
+    "openGames": "Jugar la vuelta",
+    "guessGamePlayed": "{{handle}} ha acertado {{correct}} de {{total}} bandas de su propio grimorio. ¿Le ganas con el tuyo?"
   },
   "games": {
     "eyebrow": "Dos jugadores, un oído",
@@ -869,6 +870,64 @@
     "consentOff": "Dejar que te adivinen",
     "consentNeverAsked": "Aún no lo has decidido.",
     "consentAllowed": "Tus amigos pueden jugar esto contra tu grimorio.",
-    "consentDeclined": "Lo has apagado."
+    "consentDeclined": "Lo has apagado.",
+    "verdictHeading": "¿La invocó o la desterró?",
+    "verdictLead": "El otro juego, y el contrario: una banda del grimorio de un amigo, a ciegas, y adivinas cómo la juzgó ÉL. Mide cuánto conoces el oído de una persona."
+  },
+  "guess": {
+    "eyebrow": "Ya la elegiste una vez",
+    "heading": "Adivina la banda",
+    "lead": "Las invocaste a ciegas: sin nombre, sin portada, sin género. Solo tu oído y 45 segundos. Ahora: ¿tienes la más remota idea de quiénes eran?",
+    "difficultyTitle": "Dificultad",
+    "normalTitle": "Cuatro nombres",
+    "normalBody": "Uno es el correcto. Los otros tres también son tuyos, y son los que más se le parecen. Ahí está la trampa.",
+    "hardTitle": "Escríbelo",
+    "hardBody": "Sin nombres, sin lista. Vale el triple, porque en un campo en blanco no hay nada regalado.",
+    "opponentTitle": "Solo, o contra un amigo",
+    "opponentLabel": "Contra quién juegas",
+    "solo": "Tú solo",
+    "soloExplain": "Contra tu propio récord. No se entera nadie.",
+    "challengeExplain": "Le llega tu puntuación y responde con su propio grimorio.",
+    "summonsAvailable": "{{count}} invocaciones de donde tirar",
+    "blocked": {
+      "too-few-summons": "Has invocado {{count}} bandas. Este juego es tu grimorio, así que todavía no hay mucho que jugar.",
+      "not-enough-choices": "Tienes {{count}} invocaciones: suficientes para escribir, no para poner cuatro nombres en pantalla. Prueba la difícil, o ve a invocar otra.",
+      "not-enough-audible": "Hay muy pocas bandas tuyas que puedan sonar ahora mismo. Cerca de la mitad del underground no tiene audio ninguno, y eso no lo arregla esta app."
+    },
+    "blockedCure": "El único remedio es el Rito. Ve a invocar unas cuantas más.",
+    "roundCounter": "Ronda {{current}} de {{total}}",
+    "runningScore": "{{points}} puntos",
+    "prompt": "Esta la invocaste tú. ¿Quién es?",
+    "typePlaceholder": "El nombre de la banda",
+    "typeLabel": "Escribe el nombre de la banda",
+    "typeForgiving": "Se perdonan tildes, mayúsculas y una letra bailada. El nombre de otra banda, no.",
+    "submitName": "Esa es mi respuesta",
+    "right": "La conocías",
+    "rightBody": "La amaste a ciegas y sabes perfectamente quién era.",
+    "wrong": "Ni idea",
+    "wrongBody": "Esta te gustó lo bastante como para invocarla, y su nombre nunca se te quedó. De eso va el chiste, y no va contra ti.",
+    "markerWasYours": "Esta la invocaste tú",
+    "nextRound": "Siguiente ronda",
+    "seeResult": "Ver el resultado",
+    "resultEyebrow": "Tu propio grimorio",
+    "finalScore": "{{correct}}/{{total}}",
+    "finalPoints": "{{points}} puntos",
+    "grade": {
+      "perfect": "Todas. No solo las amas: las conoces.",
+      "strong": "Casi todas. Vas prestando atención por el camino.",
+      "half": "Más o menos la mitad. La otra mitad la amas sin saber nada de ella.",
+      "poor": "Casi ninguna. Que es, sinceramente, el resultado más Grimoire posible: elegiste todas y cada una solo con el oído."
+    },
+    "turnHandedOver": "{{handle}} ya sabe cómo te ha ido. El turno es suyo: juega su propio grimorio, y las puntuaciones se encuentran en esta página.",
+    "soloClosing": "No se ha enterado nadie. Esta era entre tú y tu propio récord.",
+    "aFriend": "un amigo",
+    "backToGames": "Volver a los juegos",
+    "answerError": "Esa respuesta no ha llegado. Inténtalo otra vez.",
+    "historyTitle": "Adivinadas",
+    "historySolo": "Tú solo",
+    "historyMine": "Jugaste tú, {{handle}} se enteró",
+    "historyTheirs": "{{handle}} jugó su grimorio",
+    "historyScore": "{{correct}}/{{total}} · {{points}} puntos",
+    "historyUnfinished": "sin terminar · {{answered}}/{{total}} respondidas"
   }
 }

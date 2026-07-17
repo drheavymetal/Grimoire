@@ -1,3 +1,5 @@
+using Grimoire.Library.Services;
+
 namespace Grimoire.Library.Enrichment;
 
 /// <summary>
@@ -12,6 +14,18 @@ public sealed class ArtistEnrichment
     /// for this artist. Null is a real gap (the band is inaudible), not a failure.
     /// </summary>
     public string? PreviewUrl { get; init; }
+
+    /// <summary>
+    /// Every clip this source matched to the artist, best first — including the one promoted to
+    /// <see cref="PreviewUrl"/>, which is simply the first of these. Empty when the source had no
+    /// audio, and empty for sources that are not about audio at all.
+    /// <para>
+    /// These cost nothing: the lookups already ask iTunes for 25 tracks and always did, and we kept
+    /// one and dropped the rest (DECISIONS D67). Carrying them here rather than one URL is what lets
+    /// a band be heard twice without asking anyone a second time.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<PreviewCandidate> Previews { get; init; } = [];
 
     /// <summary>
     /// Last.fm listener count for this artist, or null when the source could not resolve it

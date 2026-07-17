@@ -25,6 +25,15 @@ public static class NotificationPayload
     /// </summary>
     public record VerdictGamePlayed(Guid GameId, int Correct, int Total);
 
+    /// <summary>
+    /// A friend played "guess the band" over their own grimoire and sent you the score (D67). The same
+    /// turn hand-off as <see cref="VerdictGamePlayed"/>, and it reuses the same three fields on
+    /// purpose: the difficulty and the points belong on the games page, where both scores can be read
+    /// side by side, and an inbox line that tried to carry the whole comparison would be a scoreboard
+    /// in a notification. This one says who, and how many of their own bands they could name.
+    /// </summary>
+    public record GuessGamePlayed(Guid GameId, int Correct, int Total);
+
     /// <summary>The payload fields flattened for a <see cref="Dtos.NotificationDto"/> — all nullable, present by type.</summary>
     public record Flattened(
         Guid? FriendshipId,
@@ -75,6 +84,12 @@ public static class NotificationPayload
                     return played is null
                         ? Flattened.Empty
                         : new Flattened(null, null, null, played.GameId, played.Correct, played.Total);
+
+                case NotificationType.GuessGamePlayed:
+                    GuessGamePlayed? guessed = JsonSerializer.Deserialize<GuessGamePlayed>(payloadJson);
+                    return guessed is null
+                        ? Flattened.Empty
+                        : new Flattened(null, null, null, guessed.GameId, guessed.Correct, guessed.Total);
 
                 default:
                     return Flattened.Empty;

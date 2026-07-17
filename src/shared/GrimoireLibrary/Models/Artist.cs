@@ -138,8 +138,37 @@ public class Artist
     /// Null when neither source has audio for this artist: roughly half the underground is
     /// genuinely inaudible, so null is a real gap, never invented. The Rite pool is filtered
     /// on <c>preview_url IS NOT NULL</c>.
+    /// <para>
+    /// <b>This is The Rite's cut, and it is not one of many.</b> <see cref="Previews"/> holds the
+    /// alternates that the same lookups always returned and that we used to throw away (D67); it does
+    /// not supersede this column and must never empty it. Every draw the engine makes filters on
+    /// <c>preview_url IS NOT NULL</c>, so migrating this into the child table would silence the app.
+    /// </para>
     /// </summary>
     public string? PreviewUrl { get; set; }
+
+    /// <summary>
+    /// The alternate clips of this artist — every match the preview lookups returned beyond the one
+    /// kept in <see cref="PreviewUrl"/> (see <see cref="ArtistPreview"/>). Empty until the harvest
+    /// reaches this artist, and empty is ordinary: roughly half the underground has no audio at all,
+    /// and a band can honestly have exactly one clip.
+    /// </summary>
+    public List<ArtistPreview> Previews { get; set; } = [];
+
+    /// <summary>
+    /// When the preview pass last harvested this artist's alternate clips, whether it found any or not.
+    /// The resume marker for <see cref="Previews"/>, and it has to be its own: <see cref="PreviewUrl"/>
+    /// cannot double as one (a band with one clip and a band never harvested look identical through it)
+    /// and neither can the <c>listen:</c> marker in <see cref="Links"/>, which is already set on every
+    /// band The Rite ever resolved just-in-time — a harvest reading it would find them all done and
+    /// collect nothing, for ever.
+    /// <para>
+    /// Only ever stamped when every enabled source answered definitively, so a 429 or a timeout leaves
+    /// it null and a later run retries (D61). Never backfilled: the bands resolved before this column
+    /// existed carry no stamp precisely so the harvest visits them once.
+    /// </para>
+    /// </summary>
+    public DateTime? PreviewsCheckedAt { get; set; }
 
     public string? ImageUrl { get; set; }
 

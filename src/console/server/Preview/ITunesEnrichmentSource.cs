@@ -12,6 +12,11 @@ namespace Grimoire.Worker.Preview;
 /// iTunes covers 41 %, more than double Deezer's 19 %). No API key; paced to ~20 req/min.
 /// A result counts only when its artist name matches exactly (<see cref="NameMatch"/>), so a
 /// wrong band never lends its audio. Feature-flagged via <c>Sources:ITunes:Enabled</c> (D9).
+/// <para>
+/// One request returns up to 25 tracks and every matching one is kept (DECISIONS D67): the first
+/// becomes <c>artists.preview_url</c> — The Rite's cut, unchanged — and the rest become the artist's
+/// alternate clips. They were always in this response; they were simply dropped on the floor.
+/// </para>
 /// </summary>
 public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
 {
@@ -72,16 +77,25 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
             return EnrichmentResult.Unavailable;
         }
 
-        ITunesResult? match = response.Results
-            .FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.PreviewUrl)
+        // Every clip of the right band, not just the first. The 25 results were always paid for and 24
+        // of them always thrown away (DECISIONS D67); keeping them costs no request. The match stays as
+        // conservative as it ever was (D25/D22) — a wrong band never lends its audio, and D46 is what
+        // that rule looks like when it slips.
+        List<ITunesResult> matches = response.Results
+            .Where(r => !string.IsNullOrWhiteSpace(r.PreviewUrl)
                 && r.ArtistName is not null
-                && NameMatch.Matches(r.ArtistName, artist.Name));
+                && NameMatch.Matches(r.ArtistName, artist.Name))
+            .ToList();
 
-        if (match is null)
+        if (matches.Count == 0)
         {
             // iTunes answered and has no track under this name: genuinely inaudible here (D25).
             return EnrichmentResult.NoData;
         }
+
+        // The first match, exactly as before: PreviewUrl is The Rite's cut and its meaning does not
+        // change because alternates now travel beside it.
+        ITunesResult match = matches[0];
 
         Dictionary<string, string> links = new(StringComparer.Ordinal);
 
@@ -90,7 +104,14 @@ public sealed class ITunesEnrichmentSource : IEnrichmentSource, IDisposable
             links[StreamingLinks.AppleMusicKey] = match.ArtistViewUrl;
         }
 
-        return EnrichmentResult.Matched(new ArtistEnrichment { PreviewUrl = match.PreviewUrl, Links = links });
+        return EnrichmentResult.Matched(new ArtistEnrichment
+        {
+            PreviewUrl = match.PreviewUrl,
+            Links = links,
+            Previews = matches
+                .Select(r => new PreviewCandidate(r.PreviewUrl!, Name, r.TrackName))
+                .ToList(),
+        });
     }
 
     public void Dispose()

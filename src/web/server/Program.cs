@@ -117,6 +117,13 @@ builder.Services.AddScoped<FriendshipGuard>();
 // "audible" mean exactly one thing. Scoped: it resolves against the request's tracked artist rows.
 builder.Services.AddScoped<PreviewProbe>();
 
+// Where "guess the band" gets its audio (D67). The game wants a clip the player has NOT heard —
+// otherwise it measures memory of the one cut The Rite served them, not knowledge of the band — and
+// the alternate clips are harvested by a separate pass. This registration IS the seam: until those
+// rows exist, RiteClipSource honestly serves the Rite's own cut and reports that it is not a new
+// track, so the game runs degraded rather than not at all (Invariant 5).
+builder.Services.AddScoped<IGuessPreviewSource, RiteClipSource>();
+
 // Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
 // Rabbit Hole and grimoire-graph endpoints.
 builder.Services.AddScoped<LineageGraph>();

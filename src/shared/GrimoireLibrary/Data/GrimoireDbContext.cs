@@ -25,6 +25,8 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<ArtistBiography> ArtistBiographies => Set<ArtistBiography>();
 
+    public DbSet<ArtistPreview> ArtistPreviews => Set<ArtistPreview>();
+
     public DbSet<ArtistEdge> ArtistEdges => Set<ArtistEdge>();
 
     public DbSet<Release> Releases => Set<Release>();
@@ -113,6 +115,27 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
             entity.HasOne<Artist>()
                 .WithMany(a => a.Biographies)
                 .HasForeignKey(b => b.ArtistId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ArtistPreview>(entity =>
+        {
+            entity.ToTable("artist_previews");
+
+            // One row per (band, clip): the URL is the clip's identity, so the composite key makes a
+            // re-run's write a find-or-insert and a duplicate impossible at the database, not merely
+            // unlikely in the pass. Capped so the key stays inside the btree entry limit.
+            entity.HasKey(p => new { p.ArtistId, p.Url });
+
+            // Fully qualified: the DbSet property above shadows the service's name inside this class.
+            entity.Property(p => p.Url).HasMaxLength(Services.ArtistPreviews.MaxUrlLength);
+
+            // The IEnrichmentSource.Name that returned the clip ("iTunes", "Deezer").
+            entity.Property(p => p.Source).HasMaxLength(16);
+
+            entity.HasOne<Artist>()
+                .WithMany(a => a.Previews)
+                .HasForeignKey(p => p.ArtistId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

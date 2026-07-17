@@ -20,6 +20,10 @@ public sealed class ITunesResult
     [JsonPropertyName("previewUrl")]
     public string? PreviewUrl { get; set; }
 
+    /// <summary>The track this preview is a clip of. Stored per clip (DECISIONS D67 / ArtistPreview).</summary>
+    [JsonPropertyName("trackName")]
+    public string? TrackName { get; set; }
+
     /// <summary>Apple Music artist page — the exact link kept in artists.links (D10).</summary>
     [JsonPropertyName("artistViewUrl")]
     public string? ArtistViewUrl { get; set; }

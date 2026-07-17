@@ -28,6 +28,14 @@
   <ItemGroup>
     <ProjectReference Include="../../shared/GrimoireLibrary/GrimoireLibrary.csproj" />
     <ProjectReference Include="../server/Grimoire.Server.csproj" />
+
+    <!--
+      The ETL worker. Its enrichment sources decide what the catalogue is allowed to believe about a
+      band — including which audio is that band's (DECISIONS D25/D46) — and until now nothing here
+      could reach them: every worker test had to go through logic first extracted into shared, so the
+      sources themselves were the untested half of the pass. See PreviewSourceClipsTests.
+    -->
+    <ProjectReference Include="../../console/server/Grimoire.Worker.csproj" />
   </ItemGroup>
 
 </Project>

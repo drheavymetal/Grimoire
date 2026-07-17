@@ -897,7 +897,11 @@ export type NotificationType =
   | 'DuelChallenge'
   // A friend finished guessing which of your bands you summoned and which you banished (GAMES wave).
   // Carries their score, and IS the turn hand-off: it links to the games page to play back.
-  | 'VerdictGamePlayed';
+  | 'VerdictGamePlayed'
+  // A friend played "guess the band" over THEIR OWN grimoire and sent you the score to beat (D67).
+  // The same turn hand-off, over a game where each side plays their own summons — so this says
+  // nothing about your grimoire, only how many of their own bands they could name.
+  | 'GuessGamePlayed';
 
 // One inbox event. `actorHandle` is the listener who caused it (null when they have no handle).
 // `friendshipId` links a friend event to the Friends page; `giftToken` links a gift to the blind
@@ -1011,6 +1015,107 @@ export interface VerdictGameSummary {
 // shows as an open question, not as a setting already answered "no".
 export interface VerdictGameConsent {
   optIn: boolean | null;
+}
+
+// ---------------------------------------------------------------------------
+// Guess the band (D67) — "you loved it blind; do you even know who it is?"
+//
+// Played over your OWN summons, and that bound is the whole game. A general name quiz only measures
+// the canon you arrived knowing, which inverts the Ranks pillar this app exists to argue with (D43,
+// D66) — and most of the catalogue is Nameless bands with no biography, so there would be nothing to
+// know. Over your own grimoire the question turns around: your ears already answered it once.
+//
+// There is no consent flag here, unlike the verdict game, and the absence is the point: this reads
+// nothing of anybody else's. A challenge sends a score, it does not borrow a grimoire.
+// ---------------------------------------------------------------------------
+
+// The two modes. `normal` shows four names — the wrong three drawn from your own grimoire, and the
+// nearest to the answer it has in the embedding map, which is what makes it hard. `hard` shows no
+// names at all: you type it, and it pays triple.
+export type GuessDifficulty = 'normal' | 'hard';
+
+// Why your grimoire cannot make a game. A stable key the UI translates — each is a different, honest
+// fact about your own data, and the only cure for all of them is playing The Rite.
+export type GuessGameBlockReason =
+  // You have summoned fewer bands than a game needs. This game IS your grimoire.
+  | 'too-few-summons'
+  // Enough to type, not enough to fill a four-name multiple choice. Hard is still playable.
+  | 'not-enough-choices'
+  // The summons are there but too few of the bands can be made to sound right now.
+  | 'not-enough-audible';
+
+// Whether your grimoire is playable at a difficulty, and if not, why. `summonsAvailable` is the
+// honest number behind it — and the number that only grows by playing The Rite.
+export interface GuessGameAvailability {
+  playable: boolean;
+  reason: GuessGameBlockReason | null;
+  summonsAvailable: number;
+}
+
+// One name on offer in `normal`. Four reach you, one is true, and they are identical in shape on
+// purpose: any field only the answer could fill would let the payload be read instead of heard.
+export interface GuessChoice {
+  artistId: string;
+  name: string;
+}
+
+// One round. `artist` and `correct` are null until it is ANSWERED — the blind contract, enforced
+// server-side (GameView). Here the band IS the answer, so this is stricter than the verdict game:
+// the only identity on the wire is `choices`, four names in an order that is a pure function of the
+// round's id. `choices` is null in `hard` — nothing is offered, you type it.
+export interface GuessRound {
+  token: string;
+  ordinal: number;
+  audioUrl: string;
+  choices: GuessChoice[] | null;
+  artist: ArtistSummary | null;
+  correct: boolean | null;
+}
+
+// A guess game's score. The first three mean what they do everywhere (an unanswered round is not a
+// wrong one). `points` is what it is worth — carried from the server rather than multiplied here,
+// because two clients doing their own arithmetic will eventually disagree about a score two friends
+// are comparing.
+export interface GuessScore {
+  correct: number;
+  answered: number;
+  total: number;
+  points: number;
+  pointsPerRound: number;
+}
+
+export interface GuessGame {
+  id: string;
+  difficulty: 'Normal' | 'Hard';
+  // The challenged friend, or null when solo. Their grimoire was never read.
+  opponentId: string | null;
+  opponentHandle: string | null;
+  status: 'InProgress' | 'Finished';
+  createdAt: string;
+  finishedAt: string | null;
+  rounds: GuessRound[];
+  score: GuessScore;
+}
+
+// The outcome of one round: right or wrong, and the band at last.
+export interface AnswerGuessRoundResult {
+  correct: boolean;
+  reveal: ArtistDetail | null;
+  score: GuessScore;
+  finished: boolean;
+}
+
+// A game in the history. `playedByMe` separates the two sides of the turn; `difficulty` is here
+// because comparing two scores without it would be comparing nothing.
+export interface GuessGameSummary {
+  id: string;
+  playedByMe: boolean;
+  difficulty: 'Normal' | 'Hard';
+  otherUserId: string | null;
+  otherHandle: string | null;
+  status: 'InProgress' | 'Finished';
+  createdAt: string;
+  score: GuessScore;
 }
 
 // ---------------------------------------------------------------------------

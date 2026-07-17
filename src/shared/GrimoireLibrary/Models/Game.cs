@@ -22,15 +22,26 @@ public class Game
     public Guid PlayerId { get; set; }
 
     /// <summary>
-    /// The friend whose verdicts are being guessed. Null for a game played against nobody — the
-    /// solo mode the second game needs, which falls out of a nullable column rather than a table.
+    /// The other side of the match, or null for a game played against nobody — the solo mode, which
+    /// fell out of a nullable column rather than a table, exactly as intended.
+    ///
+    /// <para>
+    /// What "the other side" means is the kind's business, and the two kinds differ:
+    /// <see cref="GameKind.Verdict"/> reads the opponent's grimoire (they ARE the subject — the rounds
+    /// are their verdicts), while <see cref="GameKind.GuessBand"/> never touches it. There, both
+    /// players play their OWN summons and only the scores meet (D67): the column names who the score
+    /// is sent to, not whose data was read. That is why guess-the-band needs no consent gate — nothing
+    /// of the opponent's is exposed by it, which is the entire reason D66 needed one.
+    /// </para>
     /// </summary>
     public Guid? OpponentId { get; set; }
 
     /// <summary>
     /// The difficulty this game was dealt at, when its kind has difficulties. Null when the kind has
     /// none — the verdict game does not: "summoned or banished" is one binary question, and a
-    /// difficulty knob over a coin flip would be decoration.
+    /// difficulty knob over a coin flip would be decoration. Guess-the-band sets it, and it is
+    /// SNAPSHOT here for the same reason <see cref="GameRound.Truth"/> is: it decides what a round is
+    /// worth, so re-reading it from anywhere else would let a score move under a finished game.
     /// </summary>
     public GameDifficulty? Difficulty { get; set; }
 
@@ -62,7 +73,16 @@ public class GameRound
     /// <summary>Position in the deal, 0-based — the order the rounds are played and displayed in.</summary>
     public int Ordinal { get; set; }
 
-    /// <summary>The band being played, blind. NEVER leaves the server until the round is answered.</summary>
+    /// <summary>
+    /// The band being played, blind. NEVER leaves the server until the round is answered.
+    ///
+    /// <para>
+    /// In <see cref="GameKind.GuessBand"/> this id IS the answer, so it leaks the round outright — and
+    /// there it leaks even harder than in the verdict game, where the id merely lets you look the band
+    /// up in your friend's public grimoire. The multiple-choice mode is the one place it goes out at
+    /// all, and only ever shuffled in among three decoys that are shaped identically (D67).
+    /// </para>
+    /// </summary>
     public Guid ArtistId { get; set; }
 
     /// <summary>
@@ -73,10 +93,26 @@ public class GameRound
     /// </summary>
     public RiteState? Truth { get; set; }
 
-    /// <summary>What the player answered. Null until they do — and the round's DTO stays blind while it is.</summary>
+    /// <summary>
+    /// What the player answered. Null until they do — and the round's DTO stays blind while it is.
+    ///
+    /// <para>
+    /// This column is the verdict game's, and only its: a verdict is one of two words and fits. A
+    /// guess-the-band answer is a band — an id or a typed name — and neither fits in sixteen
+    /// characters, so that kind leaves this null and keeps only <see cref="Correct"/>, which is
+    /// decided server-side at answer time against the real name and is what the score is built from.
+    /// The cost is real and small: a reviewed round can say what the band was and whether you got it,
+    /// but not what you typed. Truncating a name to fit here would store a different fact under this
+    /// field's name, and a lie in a column is worse than a gap (Invariant 5).
+    /// </para>
+    /// </summary>
     public RiteState? Answer { get; set; }
 
-    /// <summary>Whether <see cref="Answer"/> matched <see cref="Truth"/>. Null until answered.</summary>
+    /// <summary>
+    /// Whether the player got the round right. For the verdict game, whether <see cref="Answer"/>
+    /// matched <see cref="Truth"/>; for guess-the-band, whether the name they gave resolved to
+    /// <see cref="ArtistId"/> (see <c>GuessMatch</c>). Null until answered.
+    /// </summary>
     public bool? Correct { get; set; }
 
     public DateTimeOffset? AnsweredAt { get; set; }

@@ -10,9 +10,14 @@ namespace Grimoire.Worker.Preview;
 /// <summary>
 /// Resolves the exact Deezer link and, as a complement to iTunes, a preview (DECISIONS D25:
 /// Deezer covers 19 %, adding ~11 points iTunes lacks). No auth. Two calls per artist: a name
-/// search for the exact artist link and id, then the artist's top track for a preview. Matches
+/// search for the exact artist link and id, then the artist's top tracks for previews. Matches
 /// exactly (<see cref="NameMatch"/>) so a wrong artist never contributes. Feature-flagged via
 /// <c>Sources:Deezer:Enabled</c> (D9).
+/// <para>
+/// The top-tracks call asks for five (DECISIONS D67), still one request: the first playable one is the
+/// preview Deezer contributes to <c>artists.preview_url</c> exactly as before, and the rest become
+/// alternate clips.
+/// </para>
 /// </summary>
 public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
 {
@@ -59,8 +64,13 @@ public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
             links[StreamingLinks.DeezerKey] = match.Link;
         }
 
+        // Five, not one. The old limit=1 was the stingiest form of the same waste iTunes had: we asked
+        // for exactly one clip of a band we had already spent a search on, so a second clip was
+        // impossible by construction rather than by any limit of Deezer's (DECISIONS D67). Widening it
+        // is one number and no extra request. Five, and not the maximum, because these are alternates
+        // for a guessing game, not an index of the band (Invariant 4).
         Fetch<DeezerListResponse<DeezerTrack>> top = await GetAsync<DeezerListResponse<DeezerTrack>>(
-            $"artist/{match.Id}/top?limit=1", match.Id.ToString(), ct);
+            $"artist/{match.Id}/top?limit=5", match.Id.ToString(), ct);
 
         if (top.Transient)
         {
@@ -69,12 +79,21 @@ public sealed class DeezerEnrichmentSource : IEnrichmentSource, IDisposable
             return EnrichmentResult.Unavailable;
         }
 
-        string? preview = top.Value?.Data.FirstOrDefault()?.Preview;
+        // The artist id came from an exact name match (or from Deezer's own top list for it), so every
+        // track here is that band's — no per-track name check to make.
+        List<DeezerTrack> tracks = top.Value?.Data
+            .Where(t => !string.IsNullOrWhiteSpace(t.Preview))
+            .ToList() ?? [];
+
+        string? preview = tracks.FirstOrDefault()?.Preview;
 
         return EnrichmentResult.Matched(new ArtistEnrichment
         {
             PreviewUrl = string.IsNullOrWhiteSpace(preview) ? null : preview,
             Links = links,
+            Previews = tracks
+                .Select(t => new PreviewCandidate(t.Preview!, Name, t.Title))
+                .ToList(),
         });
     }
 

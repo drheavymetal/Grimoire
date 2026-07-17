@@ -57,6 +57,11 @@ import type {
   Session,
   SemanticHit,
   ServedRite,
+  AnswerGuessRoundResult,
+  GuessDifficulty,
+  GuessGame,
+  GuessGameAvailability,
+  GuessGameSummary,
   ServeFilters,
   TasteStatus,
   ThemeKind,
@@ -320,6 +325,20 @@ export interface GrimoireClient {
   verdictGames(signal?: AbortSignal): Promise<VerdictGameSummary[]>;
   /** Answers a round: `summon` or `banish`. Reveals the band and returns the running score. */
   answerVerdictRound(token: string, verdict: VerdictGuess): Promise<AnswerRoundResult>;
+
+  // --- Guess the band (D67): "you loved it blind — do you even know who it is?" ---
+  /** Whether the CALLER'S OWN grimoire can make a game at this difficulty, and the honest reason when not. */
+  guessGameAvailability(difficulty: GuessDifficulty, signal?: AbortSignal): Promise<GuessGameAvailability>;
+  /** Deals a game over the caller's own summons. `opponentId` null is the solo game; a friend gets the score. */
+  startGuessGame(difficulty: GuessDifficulty, opponentId: string | null): Promise<GuessGame>;
+  /** Reads one of the caller's games. Unanswered rounds stay blind, and their choices come back in the same order. */
+  guessGame(gameId: string, signal?: AbortSignal): Promise<GuessGame>;
+  /** The caller's guess games, newest first: played by them, and challenges sent to them. */
+  guessGames(signal?: AbortSignal): Promise<GuessGameSummary[]>;
+  /** Answers a `normal` round by picking one of its four names. */
+  answerGuessRoundByChoice(token: string, artistId: string): Promise<AnswerGuessRoundResult>;
+  /** Answers a `hard` round by typing the band's name. Accents and a slip are forgiven; another band is not. */
+  answerGuessRoundByName(token: string, name: string): Promise<AnswerGuessRoundResult>;
 
   // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
   /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
@@ -892,6 +911,41 @@ export function createGrimoireClient(
       return request<AnswerRoundResult>(
         `/api/games/rounds/${encodeURIComponent(token)}/answer`,
         { method: 'POST', auth: true, body: { verdict } },
+      );
+    },
+
+    guessGameAvailability(difficulty, signal) {
+      return request<GuessGameAvailability>(
+        `/api/games/guess/availability?difficulty=${encodeURIComponent(difficulty)}`,
+        { auth: true, signal },
+      );
+    },
+    startGuessGame(difficulty, opponentId) {
+      return request<GuessGame>('/api/games/guess', {
+        method: 'POST',
+        auth: true,
+        body: { difficulty, opponentId },
+      });
+    },
+    guessGame(gameId, signal) {
+      return request<GuessGame>(`/api/games/guess/${encodeURIComponent(gameId)}`, {
+        auth: true,
+        signal,
+      });
+    },
+    guessGames(signal) {
+      return request<GuessGameSummary[]>('/api/games/guess', { auth: true, signal });
+    },
+    answerGuessRoundByChoice(token, artistId) {
+      return request<AnswerGuessRoundResult>(
+        `/api/games/guess/rounds/${encodeURIComponent(token)}/answer`,
+        { method: 'POST', auth: true, body: { artistId } },
+      );
+    },
+    answerGuessRoundByName(token, name) {
+      return request<AnswerGuessRoundResult>(
+        `/api/games/guess/rounds/${encodeURIComponent(token)}/answer`,
+        { method: 'POST', auth: true, body: { name } },
       );
     },
 

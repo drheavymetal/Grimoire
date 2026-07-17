@@ -336,9 +336,14 @@ public class GamesController : ControllerBase
     [HttpGet("rounds/{token:guid}/audio")]
     public async Task<IActionResult> Audio(Guid token, CancellationToken ct)
     {
+        // Scoped to this kind's rounds. The second game (D67) picks its clip by a different rule — it
+        // wants a track the listener has NOT heard — and a token redeemed across the two would quietly
+        // serve the wrong one, at the one endpoint whose whole job is to serve the right one.
         string? previewUrl = await _db.GameRounds
             .Where(r => r.Id == token)
-            .Join(_db.Artists, r => r.ArtistId, a => a.Id, (r, a) => a.PreviewUrl)
+            .Join(_db.Games, r => r.GameId, g => g.Id, (r, g) => new { r.ArtistId, g.Kind })
+            .Where(x => x.Kind == GameKind.Verdict)
+            .Join(_db.Artists, x => x.ArtistId, a => a.Id, (x, a) => a.PreviewUrl)
             .FirstOrDefaultAsync(ct);
 
         if (string.IsNullOrEmpty(previewUrl))
@@ -535,9 +540,12 @@ public class GamesController : ControllerBase
     /// </summary>
     private async Task<VerdictGameDto?> GameDtoAsync(Guid gameId, Guid me, CancellationToken ct)
     {
+        // Kind is filtered, not assumed. Since the second game (D67) shares these tables, "a game of
+        // this user's" stopped being the same thing as "a verdict game of this user's" — and a
+        // guess-the-band game read through here would come back shaped as something it is not.
         Game? game = await _db.Games
             .AsNoTracking()
-            .FirstOrDefaultAsync(g => g.Id == gameId && g.PlayerId == me, ct);
+            .FirstOrDefaultAsync(g => g.Id == gameId && g.PlayerId == me && g.Kind == GameKind.Verdict, ct);
 
         if (game is null || game.OpponentId is null)
         {

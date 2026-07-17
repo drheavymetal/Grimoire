@@ -807,7 +807,8 @@
     "openGift": "Open the gift",
     "unreadAria": "{{count}} unread",
     "verdictGamePlayed": "{{handle}} guessed your verdicts: {{correct}}/{{total}}",
-    "openGames": "Play them back"
+    "openGames": "Play them back",
+    "guessGamePlayed": "{{handle}} named {{correct}} of {{total}} bands from their own grimoire. Can you beat that on yours?"
   },
   "games": {
     "eyebrow": "Two players, one ear",
@@ -869,6 +870,64 @@
     "consentOff": "Let friends guess you",
     "consentNeverAsked": "You have not decided yet.",
     "consentAllowed": "Your friends can play this against your grimoire.",
-    "consentDeclined": "You have turned this off."
+    "consentDeclined": "You have turned this off.",
+    "verdictHeading": "Did they summon it, or banish it?",
+    "verdictLead": "The other game, and the opposite one: a band from a friend's grimoire, blind, and you call which way THEY judged it. It tests how well you know one person's ear."
+  },
+  "guess": {
+    "eyebrow": "You chose it once",
+    "heading": "Guess the band",
+    "lead": "You summoned these blind — no name, no cover, no genre. Just an ear and 45 seconds. Now: do you have the faintest idea who any of them were?",
+    "difficultyTitle": "How hard",
+    "normalTitle": "Four names",
+    "normalBody": "One of them is right. The other three are also yours, and they are the ones that sound most like it — that is the trick.",
+    "hardTitle": "Type it",
+    "hardBody": "No names, no list. Worth three times as much, because nothing is free on a blank field.",
+    "opponentTitle": "Alone, or against a friend",
+    "opponentLabel": "Who you are playing against",
+    "solo": "On your own",
+    "soloExplain": "Against your own record. Nobody is told.",
+    "challengeExplain": "They get your score, and play their own grimoire back.",
+    "summonsAvailable": "{{count}} summons to draw from",
+    "blocked": {
+      "too-few-summons": "You have summoned {{count}} bands. This game is your grimoire, so there is not much of one to play yet.",
+      "not-enough-choices": "You have {{count}} summons — enough to type, not enough to put four names on a screen. Try the hard one, or go summon another.",
+      "not-enough-audible": "Too few of the bands you summoned can be played right now. Roughly half the underground has no audio at all, and that is not something this app can fix."
+    },
+    "blockedCure": "The only cure is The Rite. Go and summon a few more.",
+    "roundCounter": "Round {{current}} of {{total}}",
+    "runningScore": "{{points}} points",
+    "prompt": "You summoned this one. Who is it?",
+    "typePlaceholder": "The band’s name",
+    "typeLabel": "Type the band’s name",
+    "typeForgiving": "Accents, capitals and a slipped letter are all forgiven. Another band’s name is not.",
+    "submitName": "That is my answer",
+    "right": "You knew it",
+    "rightBody": "You loved it blind and you know exactly who it was.",
+    "wrong": "Not a clue",
+    "wrongBody": "You loved this one enough to summon it, and its name never stuck. That is the whole joke, and it is not on you.",
+    "markerWasYours": "You summoned this",
+    "nextRound": "Next round",
+    "seeResult": "See the result",
+    "resultEyebrow": "Your own grimoire",
+    "finalScore": "{{correct}}/{{total}}",
+    "finalPoints": "{{points}} points",
+    "grade": {
+      "perfect": "Every one. You do not just love them — you know them.",
+      "strong": "Most of them. You have been paying attention on the way in.",
+      "half": "About half. The other half you love without knowing a thing about.",
+      "poor": "Almost none. Which is, honestly, the most Grimoire result there is: you picked every one of them with your ears alone."
+    },
+    "turnHandedOver": "{{handle}} has been told how you did. The turn is theirs: they play their own grimoire, and the scores meet on this page.",
+    "soloClosing": "Nobody was told. This one was between you and your own record.",
+    "aFriend": "a friend",
+    "backToGames": "Back to games",
+    "answerError": "That answer did not go through. Try again.",
+    "historyTitle": "Guessed",
+    "historySolo": "On your own",
+    "historyMine": "You played, {{handle}} was told",
+    "historyTheirs": "{{handle}} played their own",
+    "historyScore": "{{correct}}/{{total}} · {{points}} points",
+    "historyUnfinished": "unfinished · {{answered}}/{{total}} answered"
   }
 }

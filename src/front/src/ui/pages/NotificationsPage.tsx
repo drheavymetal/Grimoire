@@ -106,14 +106,22 @@ function NotificationRow({ notification }: { notification: Notification }) {
                   correct: notification.scoreCorrect ?? 0,
                   total: notification.scoreTotal ?? 0,
                 })
-              : t('notifications.giftReceived', { handle });
+              : notification.type === 'GuessGamePlayed'
+                ? // They named their OWN bands, over their OWN grimoire — this says nothing about
+                  // yours. The score is the invitation to go and beat it on your own.
+                  t('notifications.guessGamePlayed', {
+                    handle,
+                    correct: notification.scoreCorrect ?? 0,
+                    total: notification.scoreTotal ?? 0,
+                  })
+                : t('notifications.giftReceived', { handle });
 
   const action =
     notification.type === 'GiftReceived'
       ? notification.giftToken !== null
         ? t('notifications.openGift')
         : null
-      : notification.type === 'VerdictGamePlayed'
+      : notification.type === 'VerdictGamePlayed' || notification.type === 'GuessGamePlayed'
         ? t('notifications.openGames')
         : t('notifications.openFriends');
 
@@ -164,9 +172,9 @@ function NotificationRow({ notification }: { notification: Notification }) {
     );
   }
 
-  // A played verdict game hands the turn over: it links to the games page, where the reply is a
-  // game started back against them.
-  if (notification.type === 'VerdictGamePlayed') {
+  // A played game of either kind hands the turn over: both link to the games page, where the reply
+  // is a game started back — their rounds for the verdict game, your own grimoire for the other.
+  if (notification.type === 'VerdictGamePlayed' || notification.type === 'GuessGamePlayed') {
     return (
       <li>
         <Link to="/games" onClick={markIfUnread} className={`${rowClass} block hover:bg-panel`}>

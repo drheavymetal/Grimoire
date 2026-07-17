@@ -26,4 +26,8 @@ public sealed class DeezerTrack
 {
     [JsonPropertyName("preview")]
     public string? Preview { get; set; }
+
+    /// <summary>The track this preview is a clip of. Stored per clip (DECISIONS D67 / ArtistPreview).</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
 }
