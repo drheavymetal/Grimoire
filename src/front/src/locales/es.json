@@ -368,7 +368,9 @@
   },
   "explore": {
     "heading": "Explorar",
-    "intro": "El catálogo del revés, mirado desde ángulos raros: un muro de portadas, dos bandas comparadas, los instrumentos raros, las bandas de un solo álbum, las incansables y la red de splits.",
+    "intro": "El catálogo del revés, mirado desde ángulos raros: un muro de portadas, dos bandas comparadas, el eje de la duración, los instrumentos raros, las bandas de un solo álbum, las incansables y la red de splits. Despliega solo lo que quieras — una sección plegada no lee nada.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
     "loading": "Leyendo el catálogo…",
     "error": "Eso no se cargó. Inténtalo de nuevo.",
     "rareTitle": "Instrumentos raros",

@@ -4,23 +4,29 @@ import { useTranslation } from 'react-i18next';
 import { useDurationAxis } from '../../core/hooks/useRecordings';
 import { formatAverageLength } from '../../core/domain/recordings';
 import { RankedName } from '../RankedName';
-import { SectionHead } from '../SectionHead';
+import { CollapsibleSection } from '../CollapsibleSection';
 
 // C7 — the duration axis: bands ranked by mean track length, the pole no genre tag captures. One end
 // is the funeral-doom crawl, the other the grindcore burst. A toggle picks the end. The average is
 // over each band's timed recordings only (nulls are absences, not zeros — computed honestly on the
 // server). Reads real data through a core/ hook and degrades to a designed empty state. It is an
 // axis of curiosity, not a claim of genre — the hint says so.
-export function DurationAxis() {
+//
+// The Explore hub owns whether this section is unfolded and passes it in. The component stays
+// mounted either way, so the chosen pole survives a fold; `open` is what gates the query.
+export function DurationAxis({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { t } = useTranslation();
   const [pole, setPole] = useState<'long' | 'short'>('long');
-  const { data, isLoading, isError } = useDurationAxis(pole, 20);
+  const { data, isLoading, isError } = useDurationAxis(pole, 20, open);
   const bands = data ?? [];
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.durationTitle')} hint={t('explore.durationHint')} />
-
+    <CollapsibleSection
+      title={t('explore.durationTitle')}
+      hint={t('explore.durationHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       <div className="mt-3 flex items-center gap-3 font-mono text-xs uppercase">
         <button
           type="button"
@@ -67,6 +73,6 @@ export function DurationAxis() {
           ))}
         </ol>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }

@@ -10,16 +10,42 @@ import { GraphCanvas } from '../graph/GraphCanvas';
 import { GraphErrorBoundary } from '../GraphErrorBoundary';
 import { Cover } from '../Cover';
 import { PageHeader } from '../PageHeader';
-import { SectionHead } from '../SectionHead';
+import { CollapsibleSection } from '../CollapsibleSection';
 import { DurationAxis } from '../recordings/DurationAxis';
+import { readExploreSections, writeExploreSections } from '../../platform/exploreSections.web';
+import type { ExploreSectionId } from '../../core/domain/exploreSections';
 
-// Movement V — the Explore hub: the catalogue turned over and looked at from odd angles. The wall of
-// covers (C6), comparing two bands (B24), the one-album bands (C24), the hyperprolific (C25), and
-// the split network (C9). Every section reads real data through a core/ hook and degrades to a
-// designed empty state.
+// Movement V — the Explore hub: the catalogue turned over and looked at from odd angles. Seven
+// sections — the wall of covers (C6), comparing two bands (B24), the duration axis (C7), the rare
+// instruments (C15), the one-album bands (C24), the hyperprolific (C25), and the split network (C9).
+// Every section reads real data through a core/ hook and degrades to a designed empty state.
+//
+// Every section also folds, and folding is not cosmetic. Mounting the page used to fire six queries
+// and forty-eight cover images at once for a page nobody reads end to end — a reader called it
+// "inmenso". Now each section owns its query but passes `open` down as `enabled`, so a folded
+// section costs zero requests, and the fold state persists per reader. The section components stay
+// mounted while folded on purpose: that is what keeps a picked band or a chosen pole alive across a
+// fold, which unmounting the whole section would throw away.
+
+// How many covers the wall opens with. The wall is the only section open by default, so this number
+// IS the page's load: measured 2026-07-17, 48 of the 56 requests at mount were covers, one per
+// release group. Folding every query away only moved the total from 54 to 49 while this stayed at
+// 48. Twelve fills the grid two rows deep and costs a quarter of that.
+const WALL_COVERS = 12;
 
 export function ExplorePage() {
   const { t } = useTranslation();
+  // Read once on mount, from the reader's last visit. Corrupt or absent state falls back to the
+  // default (wall open, the rest folded) rather than breaking the page.
+  const [sections, setSections] = useState(readExploreSections);
+
+  function toggle(id: ExploreSectionId) {
+    setSections((current) => {
+      const next = { ...current, [id]: !current[id] };
+      writeExploreSections(next);
+      return next;
+    });
+  }
 
   return (
     <section>
@@ -29,27 +55,33 @@ export function ExplorePage() {
         lead={<p className="font-mono text-xs text-muted">{t('explore.intro')}</p>}
       />
 
-      <CoverWallSection />
-      <CompareSection />
-      <DurationAxis />
-      <RareInstrumentsSection />
-      <OneAlbumSection />
-      <HyperprolificSection />
-      <SplitsSection />
+      <CoverWallSection open={sections.wall} onToggle={() => toggle('wall')} />
+      <CompareSection open={sections.compare} onToggle={() => toggle('compare')} />
+      <DurationAxis open={sections.duration} onToggle={() => toggle('duration')} />
+      <RareInstrumentsSection open={sections.rare} onToggle={() => toggle('rare')} />
+      <OneAlbumSection open={sections.oneAlbum} onToggle={() => toggle('oneAlbum')} />
+      <HyperprolificSection open={sections.prolific} onToggle={() => toggle('prolific')} />
+      <SplitsSection open={sections.splits} onToggle={() => toggle('splits')} />
     </section>
   );
 }
 
+// Every section takes the same pair: whether it is unfolded, and how to flip that.
+type SectionProps = { open: boolean; onToggle: () => void };
+
 // C15 — rare instruments: the folk/orchestral colour outside the standard rock kit, and who plays it.
-function RareInstrumentsSection() {
+function RareInstrumentsSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useRareInstruments();
+  const { data, isLoading, isError } = useRareInstruments(open);
   const instruments = data ?? [];
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.rareTitle')} hint={t('explore.rareHint')} />
-
+    <CollapsibleSection
+      title={t('explore.rareTitle')}
+      hint={t('explore.rareHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
       {!isLoading && !isError && instruments.length === 0 ? (
@@ -63,7 +95,7 @@ function RareInstrumentsSection() {
           ))}
         </div>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -102,16 +134,22 @@ function RareInstrumentCard({ instrument }: { instrument: RareInstrument }) {
   );
 }
 
-// C6 — the wall of covers.
-function CoverWallSection() {
+// C6 — the wall of covers. The one section Explore opens by default, so it is also the page's whole
+// load cost: it takes the hook's twelve-cover default rather than asking for the old forty-eight.
+// Twelve fills the grid two rows deep and gives the page something to look at without spending
+// forty-eight image requests before the reader has asked for anything.
+function CoverWallSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useCoverWall(48);
+  const { data, isLoading, isError } = useCoverWall(WALL_COVERS, open);
   const items = data ?? [];
 
   return (
-    <div className="mt-10">
-      <SectionHead title={t('explore.wallTitle')} hint={t('explore.wallHint')} />
-
+    <CollapsibleSection
+      title={t('explore.wallTitle')}
+      hint={t('explore.wallHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
       {!isLoading && !isError && items.length === 0 ? (
@@ -136,12 +174,14 @@ function CoverWallSection() {
           ))}
         </div>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }
 
-// B24 — compare two bands.
-function CompareSection() {
+// B24 — compare two bands. This one was already lazy by nature — useCompare stays disabled until two
+// distinct bands are picked — so folding it costs it nothing. The picked bands live here rather than
+// inside the fold, so collapsing the section and opening it again does not lose the pair.
+function CompareSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
   const [a, setA] = useState<ArtistSummary | null>(null);
   const [b, setB] = useState<ArtistSummary | null>(null);
@@ -150,9 +190,12 @@ function CompareSection() {
   const ready = a !== null && b !== null && a.id !== b.id;
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.compareTitle')} hint={t('explore.compareHint')} />
-
+    <CollapsibleSection
+      title={t('explore.compareTitle')}
+      hint={t('explore.compareHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <ArtistPicker label={t('explore.bandA')} selected={a} onSelect={setA} />
         <ArtistPicker label={t('explore.bandB')} selected={b} onSelect={setB} />
@@ -208,20 +251,23 @@ function CompareSection() {
           </dl>
         </div>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }
 
 // C24 — the one-album bands.
-function OneAlbumSection() {
+function OneAlbumSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useOneAlbumBands();
+  const { data, isLoading, isError } = useOneAlbumBands(open);
   const bands = data ?? [];
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.oneAlbumTitle')} hint={t('explore.oneAlbumHint')} />
-
+    <CollapsibleSection
+      title={t('explore.oneAlbumTitle')}
+      hint={t('explore.oneAlbumHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
       {!isLoading && !isError && bands.length === 0 ? (
@@ -247,20 +293,23 @@ function OneAlbumSection() {
           ))}
         </ul>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }
 
 // C25 — the hyperprolific.
-function HyperprolificSection() {
+function HyperprolificSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useHyperprolific();
+  const { data, isLoading, isError } = useHyperprolific(open);
   const bands = data ?? [];
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.prolificTitle')} hint={t('explore.prolificHint')} />
-
+    <CollapsibleSection
+      title={t('explore.prolificTitle')}
+      hint={t('explore.prolificHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
       {!isLoading && !isError && bands.length === 0 ? (
@@ -285,19 +334,22 @@ function HyperprolificSection() {
           ))}
         </ul>
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }
 
 // C9 — the split network.
-function SplitsSection() {
+function SplitsSection({ open, onToggle }: SectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, isError } = useSplits();
+  const { data, isLoading, isError } = useSplits(open);
 
   return (
-    <div className="mt-12">
-      <SectionHead title={t('explore.splitsTitle')} hint={t('explore.splitsHint')} />
-
+    <CollapsibleSection
+      title={t('explore.splitsTitle')}
+      hint={t('explore.splitsHint')}
+      open={open}
+      onToggle={onToggle}
+    >
       {isLoading ? <p className="mt-3 font-mono text-sm text-muted">{t('explore.loading')}</p> : null}
       {isError ? <p className="mt-3 font-mono text-sm text-danger">{t('explore.error')}</p> : null}
 
@@ -312,6 +364,6 @@ function SplitsSection() {
           </GraphErrorBoundary>
         )
       ) : null}
-    </div>
+    </CollapsibleSection>
   );
 }

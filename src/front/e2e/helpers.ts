@@ -82,3 +82,21 @@ export async function signedIn(page: Page, request: APIRequestContext): Promise<
   await injectAuth(page, account.tokens);
   return account;
 }
+
+// Unfolds a collapsible section of a hub page (Explore) and returns its container. The section's
+// title IS the disclosure button, nested inside the h2 — so the heading stays a direct child of the
+// section and `.locator('..')` still resolves the section, as the rest of the suite assumes.
+// Returns the section scope so callers can chain queries into it. Idempotent-ish by design: it only
+// clicks when the section is folded, so a test can call it without knowing the persisted default.
+export async function unfoldSection(page: Page, title: string) {
+  const heading = page.getByRole('heading', { name: title, exact: true });
+  const toggle = heading.getByRole('button');
+  await expect(toggle).toBeVisible();
+
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+    await toggle.click();
+  }
+
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  return heading.locator('..');
+}

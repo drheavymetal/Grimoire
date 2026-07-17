@@ -368,7 +368,9 @@
   },
   "explore": {
     "heading": "Explore",
-    "intro": "The catalogue turned over and looked at from odd angles: a wall of covers, two bands compared, the rare instruments, the one-album bands, the relentless, and the split network.",
+    "intro": "The catalogue turned over and looked at from odd angles: a wall of covers, two bands compared, the duration axis, the rare instruments, the one-album bands, the relentless, and the split network. Unfold only what you want — a folded section reads nothing.",
+    "show": "Show",
+    "hide": "Hide",
     "loading": "Reading the catalogue…",
     "error": "That would not load. Try again.",
     "rareTitle": "Rare instruments",

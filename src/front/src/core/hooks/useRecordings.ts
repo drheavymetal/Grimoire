@@ -42,11 +42,13 @@ export function useArtistVersions(id: string) {
 }
 
 // C7 — bands ranked by mean track length toward one pole (long = funeral doom, short = grindcore).
-export function useDurationAxis(pole: 'long' | 'short', limit: number) {
+// `enabled` (default true) lets the Explore hub hold the section folded and pay nothing for it.
+export function useDurationAxis(pole: 'long' | 'short', limit: number, enabled = true) {
   const client = useGrimoireClient();
 
   return useQuery<ArtistDuration[]>({
     queryKey: ['recordings', 'duration-axis', pole, limit],
     queryFn: ({ signal }) => client.durationAxis(pole, limit, signal),
+    enabled,
   });
 }
