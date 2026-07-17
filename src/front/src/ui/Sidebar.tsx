@@ -62,6 +62,7 @@ export function Sidebar({ theme, onToggleTheme, language, onToggleLanguage, onNa
           <NavItem to="/grimoire" label={t('nav.grimoire')} onNavigate={onNavigate} />
           <NavItem to="/mirror" label={t('nav.mirror')} onNavigate={onNavigate} />
           <NavItem to="/friends" label={t('nav.friends')} onNavigate={onNavigate} />
+          <NavItem to="/games" label={t('nav.games')} onNavigate={onNavigate} />
         </NavGroup>
       </nav>
 

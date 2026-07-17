@@ -1,4 +1,5 @@
 import type {
+  AnswerRoundResult,
   AntiRec,
   ArtistDetail,
   ArtistDuration,
@@ -61,6 +62,11 @@ import type {
   ThemeKind,
   Track,
   Trajectory,
+  VerdictGame,
+  VerdictGameAvailability,
+  VerdictGameConsent,
+  VerdictGameSummary,
+  VerdictGuess,
   VersionGraph,
   WeeklyRite,
 } from '../domain/types';
@@ -298,6 +304,22 @@ export interface GrimoireClient {
   markRead(id: string): Promise<void>;
   /** Marks every notification as read; returns how many were marked. */
   markAllRead(): Promise<number>;
+
+  // --- The GAMES wave: "did you summon it, or banish it?" ---
+  /** Whether the caller lets friends play the verdict game against their grimoire (null = never asked). */
+  verdictGameConsent(signal?: AbortSignal): Promise<VerdictGameConsent>;
+  /** Sets that consent. Returns 204. */
+  setVerdictGameConsent(optIn: boolean): Promise<void>;
+  /** Whether a friend can be played right now, and the honest reason when not. 403 when not friends. */
+  verdictGameAvailability(friendId: string, signal?: AbortSignal): Promise<VerdictGameAvailability>;
+  /** Deals a new verdict game against a friend. 403 when not friends or not opted in; 409 when their grimoire cannot make one. */
+  startVerdictGame(opponentId: string): Promise<VerdictGame>;
+  /** Reads one of the caller's games — how the console resumes after a reload. Rounds stay blind until answered. */
+  verdictGame(gameId: string, signal?: AbortSignal): Promise<VerdictGame>;
+  /** The caller's games, newest first: the ones they played and the ones played against them. */
+  verdictGames(signal?: AbortSignal): Promise<VerdictGameSummary[]>;
+  /** Answers a round: `summon` or `banish`. Reveals the band and returns the running score. */
+  answerVerdictRound(token: string, verdict: VerdictGuess): Promise<AnswerRoundResult>;
 
   // --- Movement III — In Memoriam (C12) and rare instruments (C15) ---
   /** The musicians in the grimoire who have died, chronological, with their bands (C12). */
@@ -833,6 +855,46 @@ export function createGrimoireClient(
         auth: true,
       });
     },
+    verdictGameConsent(signal) {
+      return request<VerdictGameConsent>('/api/games/verdict/consent', { auth: true, signal });
+    },
+    async setVerdictGameConsent(optIn) {
+      // 204 on success; requestMaybe tolerates the empty body.
+      await requestMaybe<null>('/api/games/verdict/consent', {
+        method: 'PUT',
+        auth: true,
+        body: { optIn },
+      });
+    },
+    verdictGameAvailability(friendId, signal) {
+      return request<VerdictGameAvailability>(
+        `/api/games/verdict/availability/${encodeURIComponent(friendId)}`,
+        { auth: true, signal },
+      );
+    },
+    startVerdictGame(opponentId) {
+      return request<VerdictGame>('/api/games/verdict', {
+        method: 'POST',
+        auth: true,
+        body: { opponentId },
+      });
+    },
+    verdictGame(gameId, signal) {
+      return request<VerdictGame>(`/api/games/verdict/${encodeURIComponent(gameId)}`, {
+        auth: true,
+        signal,
+      });
+    },
+    verdictGames(signal) {
+      return request<VerdictGameSummary[]>('/api/games/verdict', { auth: true, signal });
+    },
+    answerVerdictRound(token, verdict) {
+      return request<AnswerRoundResult>(
+        `/api/games/rounds/${encodeURIComponent(token)}/answer`,
+        { method: 'POST', auth: true, body: { verdict } },
+      );
+    },
+
     async markAllRead() {
       const body = await request<{ marked: number }>('/api/notifications/read-all', {
         method: 'POST',

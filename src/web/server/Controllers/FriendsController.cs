@@ -28,6 +28,7 @@ public class FriendsController : ControllerBase
     private readonly GrimoireCrossService _cross;
     private readonly AtlasProjector _projector;
     private readonly NotificationService _notifications;
+    private readonly FriendshipGuard _guard;
     private readonly IDataProtector _giftProtector;
 
     public FriendsController(
@@ -35,12 +36,14 @@ public class FriendsController : ControllerBase
         GrimoireCrossService cross,
         AtlasProjector projector,
         NotificationService notifications,
+        FriendshipGuard guard,
         IDataProtectionProvider protection)
     {
         _db = db;
         _cross = cross;
         _projector = projector;
         _notifications = notifications;
+        _guard = guard;
         _giftProtector = protection.CreateProtector(GiftToken.Purpose);
     }
 
@@ -594,12 +597,10 @@ public class FriendsController : ControllerBase
             .ToListAsync(ct);
     }
 
+    /// <summary>Delegates to the shared guard: one definition of "accepted friends" for every caller.</summary>
     private async Task<bool> AreAcceptedFriendsAsync(Guid a, Guid b, CancellationToken ct)
     {
-        return await _db.Friendships.AnyAsync(
-            f => f.Status == FriendshipStatus.Accepted
-                && ((f.RequesterId == a && f.AddresseeId == b) || (f.RequesterId == b && f.AddresseeId == a)),
-            ct);
+        return await _guard.AreAcceptedFriendsAsync(a, b, ct);
     }
 
     /// <summary>Public handles for a set of user ids (missing ids simply absent from the map).</summary>

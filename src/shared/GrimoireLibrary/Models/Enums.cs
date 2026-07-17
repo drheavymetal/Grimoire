@@ -66,8 +66,10 @@ public enum RiteState
 /// accept); a <see cref="GiftReceived"/> when a friend sends you a band face-down (C22); a
 /// <see cref="RaritySurpassed"/> when a friend's summon pushes their Depth Score above yours (they
 /// just went deeper than you); a <see cref="DuelChallenge"/> when a friend invites you to a taste
-/// face-off. Stored as a string, like the other enums. The type also decides which payload fields
-/// are present.
+/// face-off; a <see cref="VerdictGamePlayed"/> when a friend finished guessing which of your bands
+/// you summoned and which you banished (the GAMES wave) — it carries their score and is the
+/// invitation to play back, which is what makes that game turn-based with no realtime at all.
+/// Stored as a string, like the other enums. The type also decides which payload fields are present.
 /// </summary>
 public enum NotificationType
 {
@@ -76,6 +78,42 @@ public enum NotificationType
     GiftReceived,
     RaritySurpassed,
     DuelChallenge,
+    VerdictGamePlayed,
+}
+
+/// <summary>
+/// Which game a <see cref="Game"/> row is (the GAMES wave). <see cref="Verdict"/> is "did your
+/// friend summon this band, or banish it?" — 45 blind seconds from their resolved rites, scored on
+/// how well you know their ear. Stored as a string, like the other enums, so the second game (guess
+/// the band) is a new member and not a migration. The discriminator exists from the first row on
+/// purpose: adding it later would mean backfilling every row that already shipped.
+/// </summary>
+public enum GameKind
+{
+    Verdict,
+}
+
+/// <summary>
+/// Lifecycle of a <see cref="Game"/> (the GAMES wave). A game is dealt whole and starts
+/// <see cref="InProgress"/>; answering the last round makes it <see cref="Finished"/> and notifies
+/// the opponent. There is no "abandoned": an unfinished game is simply resumable, because its rounds
+/// were already dealt and nothing about them expires.
+/// </summary>
+public enum GameStatus
+{
+    InProgress,
+    Finished,
+}
+
+/// <summary>
+/// How hard a <see cref="Game"/> was dealt, for the kinds that have difficulties (the second game,
+/// guess the band, has two). Modelled now so the column exists before the rows do; the verdict game
+/// leaves it null.
+/// </summary>
+public enum GameDifficulty
+{
+    Normal,
+    Hard,
 }
 
 /// <summary>

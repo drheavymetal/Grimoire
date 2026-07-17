@@ -55,6 +55,10 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
 
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    public DbSet<Game> Games => Set<Game>();
+
+    public DbSet<GameRound> GameRounds => Set<GameRound>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -403,6 +407,54 @@ public class GrimoireDbContext : IdentityDbContext<GrimoireUser, IdentityRole<Gu
                 .WithMany()
                 .HasForeignKey(n => n.ActorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Game>(entity =>
+        {
+            entity.ToTable("games");
+            entity.HasKey(g => g.Id);
+            entity.Property(g => g.Kind).HasConversion<string>().HasMaxLength(24);
+            entity.Property(g => g.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(g => g.Difficulty).HasConversion<string>().HasMaxLength(16);
+
+            // The two lists the games page reads: the games I played, and the games played against
+            // me (how a "your turn" reply is found). Both are newest-first.
+            entity.HasIndex(g => new { g.PlayerId, g.CreatedAt }).IsDescending(false, true);
+            entity.HasIndex(g => new { g.OpponentId, g.CreatedAt }).IsDescending(false, true);
+
+            // My games go when my account goes.
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(g => g.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The opponent is a second path from AspNetUsers to this table, and PostgreSQL allows
+            // only one cascade path — the same wall Friendship and Notification hit. Restrict.
+            entity.HasOne<GrimoireUser>()
+                .WithMany()
+                .HasForeignKey(g => g.OpponentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<GameRound>(entity =>
+        {
+            entity.ToTable("game_rounds");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Truth).HasConversion<string>().HasMaxLength(16);
+            entity.Property(r => r.Answer).HasConversion<string>().HasMaxLength(16);
+
+            // The rounds of a game, in deal order; one row per position, so a re-deal cannot double up.
+            entity.HasIndex(r => new { r.GameId, r.Ordinal }).IsUnique();
+
+            entity.HasOne<Game>()
+                .WithMany()
+                .HasForeignKey(r => r.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Artist>()
+                .WithMany()
+                .HasForeignKey(r => r.ArtistId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

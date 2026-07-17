@@ -109,6 +109,14 @@ builder.Services.AddScoped<GrimoireCrossService>();
 // inbox is polled, not pushed — the NotificationsController reads these back.
 builder.Services.AddScoped<NotificationService>();
 
+// "Are these two accepted friends?" (FRIENDS wave, D57) — the one authorisation rule every
+// friend-scoped endpoint asks, kept in one place so it cannot answer differently in two.
+builder.Services.AddScoped<FriendshipGuard>();
+
+// Just-in-time preview audibility (D25/D19/D40), shared by The Rite and the games so "probed" and
+// "audible" mean exactly one thing. Scoped: it resolves against the request's tracked artist rows.
+builder.Services.AddScoped<PreviewProbe>();
+
 // Lineage (movement IV): loads the artist graph for the Bloodline, Six Degrees, diaspora,
 // Rabbit Hole and grimoire-graph endpoints.
 builder.Services.AddScoped<LineageGraph>();

@@ -894,12 +894,16 @@ export type NotificationType =
   // A friend passed you on the rarity leaderboard (links to Friends, where the leaderboard lives).
   | 'RaritySurpassed'
   // A friend challenged you to a taste duel (links to Friends, to open the duel with them).
-  | 'DuelChallenge';
+  | 'DuelChallenge'
+  // A friend finished guessing which of your bands you summoned and which you banished (GAMES wave).
+  // Carries their score, and IS the turn hand-off: it links to the games page to play back.
+  | 'VerdictGamePlayed';
 
 // One inbox event. `actorHandle` is the listener who caused it (null when they have no handle).
 // `friendshipId` links a friend event to the Friends page; `giftToken` links a gift to the blind
 // gift flow. `artistName` is present on the wire but MUST stay hidden for GiftReceived — the gift is
-// blind until opened (contract 2026-07-15).
+// blind until opened (contract 2026-07-15). `gameId`/`scoreCorrect`/`scoreTotal` carry a played
+// verdict game's result.
 export interface Notification {
   id: string;
   type: NotificationType;
@@ -910,6 +914,103 @@ export interface Notification {
   friendshipId: string | null;
   giftToken: string | null;
   artistName: string | null;
+  gameId: string | null;
+  scoreCorrect: number | null;
+  scoreTotal: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// The GAMES wave — "did you summon it, or banish it?"
+//
+// A game between two friends, played blind and asynchronously through the inbox. You hear 45 seconds
+// of a band from your friend's grimoire and call which way they judged it. It does not test whether
+// you can name bands — naming rewards the canon, which is what the app argues with — it tests how
+// well you know one person's ear.
+// ---------------------------------------------------------------------------
+
+// The player's verdict on a round, and the truth it is scored against. Only the two real verdicts:
+// `again` is a skip in The Rite, not a judgement, so it is neither in the pool nor an answer.
+export type VerdictGuess = 'summon' | 'banish';
+
+// Why a game cannot be dealt. A stable key the UI translates — each one is a different, honest
+// sentence about real data, never a generic error.
+export type VerdictGameBlockReason =
+  // The friend has not allowed this game. Their choice — the game reveals what they BANISHED.
+  | 'opponent-has-not-opted-in'
+  // They have resolved too few rites. Served and Again are not verdicts and do not count.
+  | 'too-few-verdicts'
+  // They have never banished anything: every answer would be "summoned", so the game tests nothing.
+  | 'no-banishments'
+  // The mirror case: they have only banished.
+  | 'no-summons'
+  // The verdicts exist but too few of the bands can be made to sound right now.
+  | 'not-enough-audible';
+
+// Whether a friend is playable, and if not, why. `verdictsAvailable` is the honest count behind it.
+export interface VerdictGameAvailability {
+  playable: boolean;
+  reason: VerdictGameBlockReason | null;
+  verdictsAvailable: number;
+}
+
+// One round. Everything but the token, the position and the audio is null until it is ANSWERED —
+// that is the blind contract, enforced server-side (GameView). `artist` in particular: a friend's
+// summons are readable at /api/friends/{id}/grimoire, so knowing the band before answering would be
+// knowing the answer.
+export interface GameRound {
+  token: string;
+  ordinal: number;
+  audioUrl: string;
+  artist: ArtistSummary | null;
+  truth: RiteState | null;
+  answer: RiteState | null;
+  correct: boolean | null;
+}
+
+// A game's score. `correct` of `answered`, out of `total` dealt — an unanswered round is not a wrong
+// one, so the three numbers stay separate.
+export interface GameScore {
+  correct: number;
+  answered: number;
+  total: number;
+}
+
+export interface VerdictGame {
+  id: string;
+  opponentId: string;
+  opponentHandle: string | null;
+  status: 'InProgress' | 'Finished';
+  createdAt: string;
+  finishedAt: string | null;
+  rounds: GameRound[];
+  score: GameScore;
+}
+
+// The outcome of one answer: right or wrong, what the friend actually did, and the band at last.
+export interface AnswerRoundResult {
+  correct: boolean;
+  truth: RiteState;
+  reveal: ArtistDetail | null;
+  score: GameScore;
+  finished: boolean;
+}
+
+// A game in the history. `playedByMe` separates the two sides of the turn: the games you played and
+// the ones played against you (which are what you reply to).
+export interface VerdictGameSummary {
+  id: string;
+  playedByMe: boolean;
+  otherUserId: string;
+  otherHandle: string | null;
+  status: 'InProgress' | 'Finished';
+  createdAt: string;
+  score: GameScore;
+}
+
+// Whether you let friends play this against your grimoire. `null` means never asked — which the UI
+// shows as an open question, not as a setting already answered "no".
+export interface VerdictGameConsent {
+  optIn: boolean | null;
 }
 
 // ---------------------------------------------------------------------------

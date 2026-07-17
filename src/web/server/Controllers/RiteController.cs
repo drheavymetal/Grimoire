@@ -38,7 +38,7 @@ public class RiteController : ControllerBase
     private readonly RiteEngine _engine;
     private readonly ArtistDetailBuilder _details;
     private readonly PreviewAudioProxy _audio;
-    private readonly PreviewResolver _previews;
+    private readonly PreviewProbe _probe;
     private readonly IColdStartImport _lastFm;
     private readonly GrimoireCrossService _cross;
     private readonly NotificationService _notifications;
@@ -49,7 +49,7 @@ public class RiteController : ControllerBase
         RiteEngine engine,
         ArtistDetailBuilder details,
         PreviewAudioProxy audio,
-        PreviewResolver previews,
+        PreviewProbe probe,
         IColdStartImport lastFm,
         GrimoireCrossService cross,
         NotificationService notifications,
@@ -59,7 +59,7 @@ public class RiteController : ControllerBase
         _engine = engine;
         _details = details;
         _audio = audio;
-        _previews = previews;
+        _probe = probe;
         _lastFm = lastFm;
         _cross = cross;
         _notifications = notifications;
@@ -890,14 +890,10 @@ public class RiteController : ControllerBase
 
     /// <summary>
     /// Walks the drawn ring candidates in order and returns up to <paramref name="needed"/> that can
-    /// actually sound (SPEC §5.3, DECISIONS D25/D19). A band is audible when its cached
-    /// <c>preview_url</c> is a streamable, allow-listed URL; when it has none and was never probed, the
-    /// preview is resolved just-in-time (<see cref="PreviewResolver"/>), the result cached on the row,
-    /// and later streamed through the existing proxy. A band that resolves to nothing — or to a host
-    /// outside the proxy allow-list — is marked probed so a later ring does not re-resolve it every
-    /// time (negative cache via the streaming-link marker; no <c>preview_url</c> is invented,
-    /// Invariant 5). The artist rows are tracked; the cache writes are saved here so the work survives
-    /// even a round that ends 204.
+    /// actually sound (SPEC §5.3, DECISIONS D25/D19). The audibility rules themselves — cached URL,
+    /// negative cache, just-in-time resolution — live in <see cref="PreviewProbe"/>, shared with the
+    /// games, so "probed" and "audible" have exactly one definition. The artist rows are tracked; the
+    /// cache writes are saved here so the work survives even a round that ends 204.
     /// </summary>
     private async Task<List<RiteCandidate>> SelectAudibleAsync(
         IReadOnlyList<RiteCandidate> candidates,
@@ -925,35 +921,12 @@ public class RiteController : ControllerBase
                 continue;
             }
 
-            // Already audible: a cached, streamable preview URL.
-            if (PreviewAudioProxy.IsAllowed(artist.PreviewUrl))
+            ProbeOutcome outcome = await _probe.EnsureAudibleAsync(artist, ct);
+            mutated |= PreviewProbe.Mutated(outcome);
+
+            if (PreviewProbe.IsAudible(outcome))
             {
                 audible.Add(candidate);
-                continue;
-            }
-
-            // Already probed and found inaudible: skip it without another network call (negative cache).
-            if (WasProbed(artist.Links))
-            {
-                continue;
-            }
-
-            // Never probed and no usable cached URL: resolve online, iTunes first (DECISIONS D25).
-            PreviewResolution? resolution = await _previews.ResolveAsync(artist.Name, artist.Links, ct);
-            mutated = true;
-
-            if (resolution is not null && PreviewAudioProxy.IsAllowed(resolution.Url))
-            {
-                artist.PreviewUrl = resolution.Url;
-                MarkProbed(artist);
-                audible.Add(candidate);
-
-                _logger.LogInformation("Served band resolved a preview just-in-time from {Source}.", resolution.Source);
-            }
-            else
-            {
-                // Nothing streamable came back: cache the negative so the next ring skips it.
-                MarkProbed(artist);
             }
         }
 
@@ -963,42 +936,6 @@ public class RiteController : ControllerBase
         }
 
         return audible;
-    }
-
-    /// <summary>
-    /// True once an artist has been probed for a preview, whether or not one was found: it carries at
-    /// least one curated <c>listen:</c> link (the same marker the ETL's preview pass leaves). A probed
-    /// band with a null <c>preview_url</c> is genuinely inaudible and is not re-resolved every ring.
-    /// </summary>
-    private static bool WasProbed(IReadOnlyDictionary<string, string>? links)
-    {
-        return links is not null
-            && links.Keys.Any(k => k.StartsWith(StreamingLinks.Prefix, StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    /// Records that an artist was probed by merging the curated search links into <c>links</c> (the
-    /// ETL's convention, reused here). This is the negative-cache marker AND supplies the reveal's
-    /// outbound streaming links. A new dictionary instance makes the change detectable to EF; the raw
-    /// MusicBrainz url-rels already in the column are preserved.
-    /// </summary>
-    private static void MarkProbed(Artist artist)
-    {
-        if (string.IsNullOrWhiteSpace(artist.Name))
-        {
-            return;
-        }
-
-        Dictionary<string, string> merged = artist.Links is null
-            ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new Dictionary<string, string>(artist.Links, StringComparer.Ordinal);
-
-        foreach (KeyValuePair<string, string> link in StreamingLinks.Build(artist.Name, null, null))
-        {
-            merged[link.Key] = link.Value;
-        }
-
-        artist.Links = merged;
     }
 
     private async Task<RiteRevealDto?> BuildRevealAsync(

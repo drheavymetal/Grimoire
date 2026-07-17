@@ -20,6 +20,7 @@ import { MirrorPage } from './pages/MirrorPage';
 import { MemoriamPage } from './pages/MemoriamPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { FriendsPage } from './pages/FriendsPage';
+import { GamesPage } from './pages/GamesPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 
 const rootRoute = createRootRoute({
@@ -147,6 +148,12 @@ const friendsRoute = createRoute({
   component: FriendsPage,
 });
 
+const gamesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/games',
+  component: GamesPage,
+});
+
 const notificationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/notifications',
@@ -219,6 +226,7 @@ const routeTree = rootRoute.addChildren([
   memoriamRoute,
   profileRoute,
   friendsRoute,
+  gamesRoute,
   notificationsRoute,
   browseTagRoute,
   browseThemeRoute,

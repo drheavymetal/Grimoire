@@ -82,7 +82,10 @@ public class NotificationsController : ControllerBase
                     n.ReadAt is not null,
                     payload.FriendshipId,
                     payload.GiftToken,
-                    payload.ArtistName);
+                    payload.ArtistName,
+                    payload.GameId,
+                    payload.ScoreCorrect,
+                    payload.ScoreTotal);
             })
             .ToList();
 

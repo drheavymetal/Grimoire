@@ -99,14 +99,23 @@ function NotificationRow({ notification }: { notification: Notification }) {
           ? t('notifications.raritySurpassed', { handle })
           : notification.type === 'DuelChallenge'
             ? t('notifications.duelChallenge', { handle })
-            : t('notifications.giftReceived', { handle });
+            : notification.type === 'VerdictGamePlayed'
+              ? // Their score is the message: it is the invitation to play back.
+                t('notifications.verdictGamePlayed', {
+                  handle,
+                  correct: notification.scoreCorrect ?? 0,
+                  total: notification.scoreTotal ?? 0,
+                })
+              : t('notifications.giftReceived', { handle });
 
   const action =
     notification.type === 'GiftReceived'
       ? notification.giftToken !== null
         ? t('notifications.openGift')
         : null
-      : t('notifications.openFriends');
+      : notification.type === 'VerdictGamePlayed'
+        ? t('notifications.openGames')
+        : t('notifications.openFriends');
 
   function markIfUnread() {
     if (!notification.read) {
@@ -149,6 +158,18 @@ function NotificationRow({ notification }: { notification: Notification }) {
           onClick={markIfUnread}
           className={`${rowClass} block hover:bg-panel`}
         >
+          {body}
+        </Link>
+      </li>
+    );
+  }
+
+  // A played verdict game hands the turn over: it links to the games page, where the reply is a
+  // game started back against them.
+  if (notification.type === 'VerdictGamePlayed') {
+    return (
+      <li>
+        <Link to="/games" onClick={markIfUnread} className={`${rowClass} block hover:bg-panel`}>
           {body}
         </Link>
       </li>
