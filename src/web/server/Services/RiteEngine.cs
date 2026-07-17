@@ -16,6 +16,13 @@ public sealed class RiteEngineOptions
     public double RingWidthPct { get; set; } = 0.20;
 
     /// <summary>
+    /// Exponent bending the slider's travel toward the low percentiles (DECISIONS D68). See
+    /// <see cref="RingResolver.DefaultReachCurve"/> — 1.0 restores the linear map whose midpoint
+    /// measurably served random bands.
+    /// </summary>
+    public double ReachCurve { get; set; } = RingResolver.DefaultReachCurve;
+
+    /// <summary>
     /// Fraction of the corpus nearest the repulsion centroid to push out of the pool (DECISIONS D4).
     /// </summary>
     public double RepulsionNearPct { get; set; } = 0.20;
@@ -216,8 +223,8 @@ public sealed class RiteEngine
             return ([], (Percentile(comfort).Lo + Percentile(comfort).Hi) / 2.0);
         }
 
-        (double rLo, double rHi) = RingResolver.ResolveRadii(comfort, sample, _options.RingWidthPct);
-        (double loPct, double hiPct) = RingResolver.Percentiles(comfort, _options.RingWidthPct);
+        (double rLo, double rHi) = RingResolver.ResolveRadii(comfort, sample, _options.RingWidthPct, _options.ReachCurve);
+        (double loPct, double hiPct) = RingResolver.Percentiles(comfort, _options.RingWidthPct, _options.ReachCurve);
         double riskPercentile = (loPct + hiPct) / 2.0;
 
         // 2. If the user has banished anything, compute the safe radius around the repulsion
@@ -288,9 +295,12 @@ public sealed class RiteEngine
         return (ring, riskPercentile);
     }
 
-    private static (double Lo, double Hi) Percentile(double comfort)
+    // The band for a comfort value, honouring the configured window and curve. Reads the options
+    // rather than RingResolver's defaults: the empty-pool fallback must report the same risk the
+    // real path would have reported, or the number shown to the user drifts from the engine's.
+    private (double Lo, double Hi) Percentile(double comfort)
     {
-        return RingResolver.Percentiles(comfort, RingResolver.DefaultWidthPct);
+        return RingResolver.Percentiles(comfort, _options.RingWidthPct, _options.ReachCurve);
     }
 
     /// <summary>

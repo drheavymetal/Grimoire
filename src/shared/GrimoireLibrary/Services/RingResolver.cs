@@ -22,21 +22,55 @@ public static class RingResolver
     public const double DefaultWidthPct = 0.20;
 
     /// <summary>
+    /// Exponent that bends the slider's travel toward the low percentiles (DECISIONS D68).
+    /// <para>
+    /// A linear slider (curve 1.0) is a trap that percentiles set for us: the median distance to
+    /// your taste <b>is</b> the median distance of the corpus, by definition, so a slider at its
+    /// midpoint necessarily serves the typical band — which is a band drawn at random. Measured on
+    /// production (2026-07-17): at comfort 0.5 the linear map served bands matching the listener's
+    /// genres 52.7% of the time against a coin-flip baseline of 50.5%, and the whole upper half of
+    /// the travel sat at or below chance. The engine was doing nothing the whole way.
+    /// </para>
+    /// <para>
+    /// The signal is not spread evenly across the percentiles — it is packed into the bottom fifth
+    /// (measured: 95.7% on-target below the 20th percentile, 35% by the 60th). Squaring the slider
+    /// spends most of its travel where the signal actually lives, without capping the reach: the
+    /// abyss is still reachable at 1.0. This is calibration, not a new mechanism — the percentile
+    /// ring of D26 is intact and still adapts per listener.
+    /// </para>
+    /// </summary>
+    public const double DefaultReachCurve = 2.0;
+
+    /// <summary>
     /// Maps the Comfort ↔ Abyss slider to a percentile window. <paramref name="comfort"/> is in
     /// [0, 1]: 0 is Comfort (nearest neighbours, the bands most like you), 1 is Abyss (the
     /// farthest bands that still fall inside your tolerance). The window of width
     /// <paramref name="widthPct"/> slides from the low end of the distribution to the high end,
     /// so the slider always selects a genuine ring, never the whole corpus.
+    /// <para>
+    /// The travel is bent by <paramref name="reachCurve"/> (see <see cref="DefaultReachCurve"/>):
+    /// the window's position is <c>comfort^curve</c>, not <c>comfort</c>. Both ends are fixed
+    /// points — comfort 0 and comfort 1 land exactly where they did — so only the distribution of
+    /// the middle changes.
+    /// </para>
     /// </summary>
-    public static (double LoPct, double HiPct) Percentiles(double comfort, double widthPct = DefaultWidthPct)
+    public static (double LoPct, double HiPct) Percentiles(
+        double comfort,
+        double widthPct = DefaultWidthPct,
+        double reachCurve = DefaultReachCurve)
     {
         if (widthPct is <= 0 or >= 1)
         {
             throw new ArgumentOutOfRangeException(nameof(widthPct), widthPct, "Window width must be in (0, 1).");
         }
 
+        if (reachCurve <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(reachCurve), reachCurve, "Reach curve must be positive.");
+        }
+
         double c = Math.Clamp(comfort, 0.0, 1.0);
-        double lo = c * (1.0 - widthPct);
+        double lo = Math.Pow(c, reachCurve) * (1.0 - widthPct);
         double hi = lo + widthPct;
 
         return (lo, hi);
@@ -50,9 +84,10 @@ public static class RingResolver
     public static (double RLo, double RHi) ResolveRadii(
         double comfort,
         IReadOnlyList<double> sampleDistances,
-        double widthPct = DefaultWidthPct)
+        double widthPct = DefaultWidthPct,
+        double reachCurve = DefaultReachCurve)
     {
-        (double loPct, double hiPct) = Percentiles(comfort, widthPct);
+        (double loPct, double hiPct) = Percentiles(comfort, widthPct, reachCurve);
 
         double rLo = NeighborStats.Percentile(sampleDistances, loPct);
         double rHi = NeighborStats.Percentile(sampleDistances, hiPct);

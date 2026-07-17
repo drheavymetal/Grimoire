@@ -1143,3 +1143,82 @@ Consecuencia para D42/D45: **aceptar los datos de MA no cuesta ninguna libertad 
 **R6 — `Redaction` puede no estar disponible como paquete.** Toda la firma tipográfica de D14/`DESIGN.md` se apoya en tener cortes de corrosión progresiva reales, no simulados. Si no existe en npm/fontsource, el fallback (`Archivo` como display, sin corrosión) es una degradación seria de la identidad visual propuesta. Sin verificar — ver Q6.
 
 **R7 — El eje tímbrico puede no valer su coste incluso en su versión perezosa.** D19 solo reduce el coste, no lo elimina, y la pregunta de fondo (¿hace falta audio si el texto ya cubre casi todo?) sigue sin dato. No se escribe una línea de código de C19 hasta que el spike v2 conteste Q7.
+
+---
+
+## D68 — El slider del Rito era lineal, y su punto medio servía bandas al azar
+
+`2026-07-17` · vigente · **corrige el mapeo de D4/D26** (no el mecanismo: el anillo por percentiles sigue intacto) · lo reportó Carlitos, de oído
+
+Carlitos, probando la app: *«el percentil central es muy loco… no sé cómo de grande es el espacio pero es mierda XD»*. Tenía razón, y era peor de lo que sonaba.
+
+### La medición (contra producción, gusto real de un usuario real)
+
+El grimorio del usuario es metal y punk (melodeath, viking, thrash, power, NWOBHM, d-beat). Midiendo qué fracción de las bandas de cada tramo de distancia lleva un tag metal/punk, sobre 40 000 bandas muestreadas del pool descubrible:
+
+| distancia | % en diana |
+|---|---|
+| 0.47–0.60 | 100 % |
+| 0.65–0.70 | 95.7 % |
+| 0.70–0.75 | 86.8 % |
+| 0.80–0.85 | 53.0 % |
+| 0.90–0.95 | 19.9 % |
+| 1.00–1.05 | 5.0 % |
+
+**El espacio de embeddings funciona perfectamente**: la distancia predice el acierto con una curva monótona y limpia. El problema nunca fue el motor.
+
+**La referencia que lo decide todo: sacar una banda al azar del catálogo acierta el 50.5 %** (el catálogo es mayoritariamente metal/punk — es la app).
+
+Y ahora el slider, con el mapeo lineal `lo = comfort × 0.8`:
+
+| slider | banda de percentiles | % en diana |
+|---|---|---|
+| 0 | [0, 20] | 97.5 % |
+| 0.25 | [20, 40] | 82.0 % |
+| **0.5 (default)** | **[40, 60]** | **52.7 %** ← el azar |
+| 0.75 | [60, 80] | 21.0 % ← **peor** que el azar |
+| 1.0 | [80, 100] | 3.0 % |
+
+**El slider por defecto era indistinguible de `ORDER BY random()`.** Todo el aparato —embeddings, vector de gusto, muestreo, anillo, HNSW, rareza Gumbel— entregaba en su posición por defecto exactamente lo que habría dado sacar una banda a voleo. Y media manivela (0.5→1.0) estaba en el azar o por debajo.
+
+### Por qué no fue mala suerte: los percentiles se lo hacen a sí mismos
+
+**El percentil 50 de «distancia a tu gusto» es, por definición, la banda típica del corpus.** No es una calibración desafortunada: **cualquier** slider lineal sobre percentiles tiene su punto medio clavado en el azar, siempre, por construcción. D26 eligió percentiles por una razón excelente y sigue siendo la correcta —los radios coseno absolutos no son interpretables y se adaptan solos a cada oyente—, pero nadie miró qué había en el medio del recorrido.
+
+La señal no está repartida por igual entre los percentiles: **está empaquetada en el quinto inferior** (95.7 % en diana por debajo del percentil 20; 35 % ya en el 60).
+
+### La decisión
+
+`lo = comfort^curve × (1 − width)`, con `curve = 2.0` (`RingResolver.DefaultReachCurve`, opción `Rite:ReachCurve`).
+
+Es **calibración, no mecanismo nuevo**: el anillo por percentiles de D26 queda igual, y **los dos extremos son puntos fijos** — comfort 0 sigue siendo el quinto más cercano y comfort 1 el más lejano. Solo se redistribuye el medio, hacia donde está la señal.
+
+| slider | lineal (antes) | curva 2 (ahora) |
+|---|---|---|
+| 0 | 97.5 % | 97.5 % |
+| 0.25 | 82.0 % | 95.2 % |
+| **0.5** | **52.7 %** | **82.0 %** |
+| 0.75 | 21.0 % | 44.9 % |
+| 1.0 | 3.0 % | 3.0 % |
+
+Se descartó `curve = 3` (default 92.3 %): desperdicia la primera mitad del recorrido en plano (97.5 → 97.0 → 92.3) y luego se despeña. La 2 reparte: cada cuarto de vuelta cambia algo.
+
+El default del slider **se queda en 0.5** — con la curva ya cae en zona buena, y no hay que mentirle al usuario sobre dónde está el centro.
+
+### Lo que esto NO arregla (medido, no supuesto)
+
+Un segundo usuario de producción da una curva **mucho más plana**: 67.1 % en el mejor tramo (slider 0), 54.6 % → 61.5 % en el default con la curva. Su techo es 67.1 %, no 97.5 %. Su grimorio explica por qué: **Alice in Chains (grunge) + Forgotten Realm (power metal) + Asphyx (death/doom)**. Un gusto **multimodal**, y `user_taste.embedding` es **un solo vector**: promediar tres polos apunta al centroide, que está cerca de la media del corpus, que es genérico.
+
+**Es un problema distinto y más hondo que este**, y la curva no lo toca: no se puede recuperar con ninguna calibración del slider lo que el vector de gusto no sabe. El perfil ya tiene anclas (D56, `taste_anchors`) pero el Rito no las usa para servir. Queda como **Q11**.
+
+⚠️ Ese usuario tiene 3 invocaciones y 10 ritos: su vector apenas está entrenado. La lectura «el gusto multimodal colapsa» es **direccionalmente sólida pero con n pequeño** — no se toma como medida hasta remedirla con un grimorio grande.
+
+### Deuda que esto añade
+
+La constante de la curva vive ahora en **cuatro sitios sincronizados a mano** (`RingResolver.DefaultReachCurve`, `RiteEngineOptions.ReachCurve`, `rite.ts:RING_REACH_CURVE`, y el ancho 0.20 ya iba por su cuenta en tres). El front **espeja** la aritmética para poder enseñar bajo el slider la banda de percentiles que el motor va a buscar: si las constantes divergen, **ese número pasa a ser mentira sin romper ningún build**. Hay un test que lo pilla (`mirrors the backend curve exactly`), pero es una prueba de que las constantes coinciden, no una fuente única.
+
+### Por qué vivió tanto
+
+Los tests del mapeo (`RingResolverTests`, `rite.test.ts`) **pinaban solo los extremos** — 0 y 1 —, que son puntos fijos bajo cualquier curva positiva. **Ni un solo test miraba el medio del slider**, que es exactamente donde estaba el bug y donde está el default. Los tests nuevos pinan el medio, y se verificaron **rompiendo el código a propósito**: con `curve = 1.0`, `Percentiles_MidSlider_StaysOutOfTheCorpusMedian` cae.
+
+Y `stats` decía **HEALTHY** (spread 0.3133, §6f) — y no mentía: mide que el corpus no esté degenerado, y no lo está. **Nunca midió qué recibe el usuario en el default.** Un diagnóstico verde sobre la geometría del corpus no dice nada sobre la calibración del mando.
