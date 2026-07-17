@@ -978,6 +978,38 @@ Y era trabajo tirado. Lo que reporta es **la media, sobre artistas, de un percen
 
 **Sigue pendiente la misma enfermedad en el verbo `atlas`** (ya anotada en `MEMORY.md §7`): los xy de producción se poblaron con un script de muestra+proyección SQL, y el verbo debería adoptarlo.
 
+## D64 — Biografías en varios idiomas: tabla hija, marcador por idioma, y solo el inglés al vector
+`2026-07-17` · vigente · pedido por Pedro · extiende D54
+
+La app es bilingüe (invariante 7) pero sus biografías eran solo enwiki. Ahora un lector en español ve el artículo en español cuando eswiki lo tiene.
+
+**Pedro descartó traducir** (se le ofrecieron LibreTranslate autohospedado y un LLM en Ollama): se muestra **el original, etiquetando el idioma**, prioridad idioma activo → inglés → cualquiera. Traducir chocaba con el invariante 1 (nada de pago) y solo cabía autohospedado, con calidad mediocre; y texto de máquina presentado como biografía roza el invariante 5.
+
+**Almacenamiento: tabla hija `artist_biographies` `(artist_id, language)`.** No `abstract_es`, no jsonb. Las dos razones son cicatrices:
+- **jsonb no se filtra en SQL** en este stack → la query de pendientes tendría que materializar 206 887 filas, **cada una con su vector de 768 dims**, para leer una clave. Es el bug exacto que D61 encontró en `ListenersJob`.
+- **Escribir en `artists` es un UPDATE sobre filas con índice HNSW** — la forma exacta de la migración que tumbó la API (§6f). INSERTs en una tabla ligera no tocan nada de eso.
+- Añadir `no`/`sv`/`fi` es **una lista de configuración**, no una migración.
+
+**El inglés se queda en `Artist.Abstract`** porque es lo que alimenta el embedding; moverlo cambiaría todas las huellas (D62) y forzaría un re-embed de 3 h a cambio de nada. **Solo el inglés entra al vector, deliberadamente**: `nomic-embed-text` está entrenado en inglés, así que mezclar un abstract español movería la banda por el mapa por un motivo **lingüístico, no musical** — el motor recomendaría según en qué idioma escriben los wikipedistas de cada banda.
+
+**Marcador por idioma.** El inglés conserva `abstract_checked_at`; cada otro idioma **es su fila**. Reusar el marcador inglés habría sido silencioso: ya está sellado en 206 882 filas, así que un pase en español lo habría consultado, concluido que el catálogo estaba hecho, y **no visitar a nadie**. Verificado en vivo: `[en: 0 matched, 0 checked] [es: 206 887 checked]` — cero peticiones inútiles a enwiki.
+
+**Resultado**: 13 461 biografías en español, 206 887 chequeados. Cobertura ~6.5 % — el español premia la cabeza del catálogo (90 % de match en las más escuchadas) y no toca el hueco del underground (§6f).
+
+## D65 — La influencia del Bloodline nunca se guardó: 69 → 1 953 aristas
+`2026-07-17` · vigente · corrige el «ROI bajo» de `MEMORY.md`
+
+`Bloodline` es **uno de los tres pilares** (miembros + influencia P737) y tenía 195 014 aristas de miembro contra **69** de influencia. La memoria lo achacaba a que *«Wikidata bulk lo tumba con 502/429 — facet menor, ROI bajo»*. **El diagnóstico era falso por partida doble.**
+
+- **Los datos estaban ahí.** Spike medido antes de tocar código: de 300 QIDs reales del pool, **90 (30 %) tienen P737**, con 1 003 aristas; de los 508 destinos distintos, **397 (78 %) caen dentro de nuestro catálogo**. Y un barrido completo de los 46 229 QIDs: **24/24 peticiones HTTP 200, cero fallos**.
+- **Las 69 aristas son un fósil de la era semilla.** Pertenecen a 26 artistas canon repartidos en 25 de los 925 lotes que tendría un barrido a escala, y en los lotes que comparten con otras bandas con P737, **solo el canónico tiene aristas**. Ningún lote a escala aterrizó nunca.
+
+**La causa raíz**: `WriteAsync` se llamaba **una sola vez, tras los 925 lotes** (~31 min de consultas paceadas). El gestor de tareas de fondo mata los procesos largos a los 10-15 min → el pase **no escribía nada, jamás**, sin marcador ni progreso parcial. Y `QueryAsync` devolvía `null` ante cualquier fallo → `Parse(null)` → lista vacía → **el pase reportaba éxito igual**.
+
+**Arreglado**: escritura **por lote**; `WikidataClient` hace **POST** en vez de GET (un GET de 1 000 QIDs es **414 URI Too Long** — el transporte era el techo, no el tamaño de lote; POST responde 1 000 en 0.44 s) → **46 peticiones en vez de 925**; captura el `TaskCanceledException` del timeout, que nadie capturaba y con el que **un solo lote lento mataba el pase entero** con un plácido «cancelled»; `BuildQidMapAsync` filtra en SQL (su comentario decía «el corpus es pequeño (~2.5k filas)» — hoy son 206 887, cada una con su vector).
+
+**En producción: 69 → 1 953 aristas (28×), en 90 segundos.** Y la disciplina D61 visible en vivo: `2 batches went unanswered and were NOT recorded as 'no influences'. Re-run to sweep them.` → el re-run barrió los 2 y añadió 60 aristas, con 1 893 ya presentes (idempotente).
+
 ---
 
 ## Preguntas abiertas

@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-16** (ver **§6f** — el bug de clase de los tres crawls: `null` confundía «no hay dato» con «no pude preguntar», y con marcador de por medio eso son datos envenenados o bucles infinitos. Contrato de desenlaces D61 + re-embed por huella D62. Antes, **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-17** (ver **§6g** — biografías en español (D64), la influencia del Bloodline arreglada 69→1 953 (D65), `pnpm test` cableado al gate, y **un bug de doble escape que introdujo el propio agente** el día anterior. Antes, **§6f** — el bug de clase de los tres crawls: `null` confundía «no hay dato» con «no pude preguntar», y con marcador de por medio eso son datos envenenados o bucles infinitos. Contrato de desenlaces D61 + re-embed por huella D62. Antes, **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
 
 ---
 
@@ -329,6 +329,54 @@ Al ir a verificar D62 salió otra de la misma familia: `StatsJob` recorría cada
 **Los tres contenedores paran solos** (`on-failure:3`) — se acabaron los 458 y 38 reinicios. Régimen estacionario: re-correr cualquiera de los pases cuesta un scan y cero llamadas externas.
 
 **Lo que queda**: **Q10** (¿re-rastrear los misses envenenados de MA?, decisión de Pedro) y el verbo **`atlas`**, que sigue con la misma enfermedad O(n²) que se le curó a `stats` (§7).
+
+---
+
+## 6g. Sesión 2026-07-17 — biografías en español (D64), la influencia del Bloodline (D65), y un bug mío
+
+Sesión con dos subagentes en paralelo, fronteras disjuntas (uno dueño único de migraciones). Ambos entregaron con `audit.sh --strict` verde; el agente principal verificó todo antes de commitear. Commits `12aaff6`, `b4944a7`, `8f3f8ef`.
+
+### Lo desplegado y verificado en vivo
+
+| | Antes | Ahora |
+|---|---|---|
+| Aristas de influencia (Bloodline) | **69** | **1 953** (28×, D65) |
+| Biografías en español | 0 | **13 461** (206 887 chequeados, D64) |
+| Gates de `audit.sh` | 4 | **5** (`pnpm test`) |
+
+Ficha verificada en prod: Coldplay devuelve `en` **y** `es`, cada uno con **su URL de atribución** (`es.wikipedia.org`, no la inglesa — la CC BY-SA exige acreditar el texto que realmente se muestra).
+
+### 🐛 El bug del doble escape lo introduje YO el 2026-07-16 (leer: es la lección)
+
+El agente de biografías encontró que `SummaryPath` rompía los títulos con caracteres pre-escapados. **Lo metí yo el día antes**, en `d222b09`, al arreglar los títulos con `/`:
+
+MediaWiki codifica sus URLs canónicas **de forma inconsistente**: `AC/DC` vuelve con la barra cruda y los acentos crudos (`Héroes_del_Silencio`), pero un ampersand vuelve **ya escapado** (`Earth%2C_Wind_%26_Fire`). El código original interpolaba el título **crudo** y por eso funcionaba con los pre-escapados. Mi `Uri.EscapeDataString(title)` arregló los 5 con `/` y **rompió los 1 681 con `%`**:
+
+```
+Earth%2C_Wind_%26_Fire      -> 200   (interpolación cruda: correcta)
+Earth%252C_Wind_%2526_Fire  -> 403   (mi EscapeDataString: rota)
+```
+
+**No dañó datos** (el pase inglés ya había terminado), pero **habría perdido en silencio las ~1 055 bios en español con `%` en la URL** al correr hoy. El agente lo cazó antes de desplegar. Fix correcto: `Uri.EscapeDataString(Uri.UnescapeDataString(title))` — una forma conocida, codificada exactamente una vez, idempotente.
+
+Es exactamente la clase de fallo de D61 —**un miss que fabricamos nosotros, indistinguible de uno legítimo**— cometido por quien acababa de documentarla.
+
+### ⚠️ CORRECCIÓN: las «2 487 bandas envenenadas» NO existían
+
+Durante la sesión el agente principal afirmó que 2 487 bandas con `&` en el nombre (Elvis Costello & The Attractions, Captain Beefheart & His Magic Band…) estaban envenenadas por ese bug, y **se lanzó una limpieza en prod que recuperó 0** y costó ~2 500 peticiones inútiles.
+
+**Era una inferencia de un proxy (`name LIKE '%&%'`) presentada como medición.** Comprobado después contra WDQS: esas bandas **no tienen item de Wikidata con su MBID** (P434 → 0 artículos). Wikidata tiene «Elvis Costello» la persona y «The Attractions» el grupo, pero el artista de MusicBrainz «X & The Y» es una entidad aparte sin item propio. **Eran misses genuinos; el sello era correcto.**
+
+Lección: el radio de daño del doble escape es la intersección de (a) tener item de Wikidata **y** (b) título con carácter pre-escapado. Un nombre con `&` no implica ninguna de las dos.
+
+### `audit.sh` no corría los tests del front (arreglado)
+
+`"test": "vitest run"` existía en `package.json` desde siempre y **el gate nunca lo llamaba** — solo `lint` y `build`. Por eso un test caduco (`riteClient.test.ts`, esperaba el body del Rito sin `genre`, anterior a D52) llevaba días en rojo en `main` mientras el gate obligatorio decía PASS. El test estaba caduco, el código bien. Cableado como quinto gate.
+
+### Deuda detectada, no atacada
+
+- **`DeathsJob` tiene la misma enfermedad de escala**: materializa **98 250 entidades `Artist` completas** (66 554 con vector de 768 dims, cientos de MB) para usar 21 773. Misma familia que `ListenersJob` (D61) e `InfluenceJob` (D65).
+- ⚠️ **Riesgo latente de repetir el incidente de §6f**: correr `MigrateAsync` contra una BD atrasada dispara un `CREATE INDEX CONCURRENTLY` sobre 8.9M recordings que **revienta el timeout de 30 s y deja un índice inválido**. Peor: `IF NOT EXISTS` **casa por nombre sin mirar validez**, así que una migración posterior lo marca como aplicado sin construir nada. Le pasó a un subagente en la BD de dev (reparado, dev intacta y verificada: 0 índices inválidos).
 
 ---
 
