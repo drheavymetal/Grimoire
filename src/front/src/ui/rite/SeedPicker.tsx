@@ -28,11 +28,10 @@ export function SeedGrid({
   onPickFromSearch: (summary: ArtistSummary) => void;
 }) {
   const { t } = useTranslation();
-  const gridIds = new Set(grid.map((band) => band.id));
 
   return (
     <>
-      <SeedSearch full={full} picked={picked} gridIds={gridIds} onPick={onPickFromSearch} />
+      <SeedSearch full={full} picked={picked} onPick={onPickFromSearch} />
 
       <p className="mt-1 font-mono text-[0.65rem] text-muted">
         {expanding !== null ? t('coldStart.unfolding') : t('coldStart.gridHint')}
@@ -60,19 +59,26 @@ export function SeedGrid({
 
 // The band search inside the picker: a debounced typeahead so the user can find a band the grid
 // never surfaced, add it, and have its kin unfold from it exactly like a grid pick. It is NOT blind
-// — this is a deliberate known-band chooser, so results show name and origin. Bands already picked
-// or already in the grid are shown as "already added" (disabled), never offered twice. When the pick
-// cap is reached the results cannot add and say so; with an infinite cap (the profile reseed) `full`
-// is never true, so that hint simply never shows.
+// — this is a deliberate known-band chooser, so results show name and origin.
+//
+// Only a band the user has actually PICKED reads as "already added". Merely being visible in the
+// grid does not count, and used to: the grid is mostly suggestions the user never chose (picking a
+// band unfolds its neighbours beneath it), so searching for one of those answered "already added"
+// and disabled the button — a claim that was flatly false, and which blocked the one action that
+// would have made it true. Reported by a user who picked four thrash bands, searched Megadeth, and
+// was told he had already added it: he had not, its neighbours had merely put it on screen.
+// `pickFromSearch` already handles a band that is on the grid (it picks it in place rather than
+// splicing a duplicate), so there is nothing here to guard against.
+//
+// When the pick cap is reached the results cannot add and say so; with an infinite cap (the profile
+// reseed) `full` is never true, so that hint simply never shows.
 function SeedSearch({
   full,
   picked,
-  gridIds,
   onPick,
 }: {
   full: boolean;
   picked: Set<string>;
-  gridIds: Set<string>;
   onPick: (summary: ArtistSummary) => void;
 }) {
   const { t } = useTranslation();
@@ -84,7 +90,7 @@ function SeedSearch({
   const results = search.data ?? [];
 
   function pick(summary: ArtistSummary) {
-    if (full || picked.has(summary.id) || gridIds.has(summary.id)) {
+    if (full || picked.has(summary.id)) {
       return;
     }
     onPick(summary);
@@ -118,7 +124,7 @@ function SeedSearch({
       {results.length > 0 ? (
         <ul className="mt-2 divide-y divide-line border-y border-line">
           {results.map((artist) => {
-            const already = picked.has(artist.id) || gridIds.has(artist.id);
+            const already = picked.has(artist.id);
             return (
               <li key={artist.id}>
                 <button
