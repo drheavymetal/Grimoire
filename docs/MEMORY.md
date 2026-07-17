@@ -383,6 +383,17 @@ Pedro pidió juego entre dos. Se descartó «adivina la banda» genérico (premi
 
 **Arranca vacío**: 10 Summoned / 3 Banished en toda la prod. La munición la genera jugar al Rito.
 
+### 🔜 OLA SIGUIENTE, ya decidida por Pedro: previews múltiples + «adivina la banda» (D67)
+
+**Encargo pendiente, no empezado.** Dos piezas, en este orden porque la segunda necesita la primera:
+
+1. **Previews múltiples** (tabla hija `artist_previews`). El hallazgo: **no estamos limitados a un audio por banda, es que tiramos el resto**. `ITunesEnrichmentSource.cs:38` pide `limit=25` y la 76 hace `FirstOrDefault` → **pagamos 25 temas y guardamos 1**. Deezer pide `top?limit=1` → subirlo es cambiar un número. Sigue valiendo: invariante 4 (30-45 s, nunca reproducir), D32/D40 (proxy de capacidad, **nunca audio local**, JIT), y ojo con **R9** (los ToS de Apple ya chocan con el Rito; más previews amplía ese riesgo vivo, no crea uno nuevo).
+2. **«Adivina la banda»** sobre **tu propio grimorio** (D67): dos dificultades (múltiple con señuelos del propio grimorio —mejor vecinos en el mapa, gratis vía embeddings— y escribir el nombre con `pg_trgm`), **modo solo y modo contra amigo** (cada uno sobre SU grimorio, comparando puntuaciones). **Debe servir un tema DISTINTO al del rito**: con el mismo corte solo pruebas memoria de ese clip, no conocimiento de la banda.
+
+**El esquema de D66 ya lo espera**: `Kind`, `OpponentId` nullable y `Difficulty` nullable, puestos desde la fila uno.
+
+**Arranca casi vacío**: solo **144 bandas** tienen `preview_url` (crecen JIT al usar el Rito).
+
 ### Deuda detectada, no atacada
 
 - **`DeathsJob` tiene la misma enfermedad de escala**: materializa **98 250 entidades `Artist` completas** (66 554 con vector de 768 dims, cientos de MB) para usar 21 773. Misma familia que `ListenersJob` (D61) e `InfluenceJob` (D65).

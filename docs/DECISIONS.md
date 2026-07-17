@@ -1039,6 +1039,37 @@ Así que el juego es **exposición nueva, y de la clase negativa** (un juicio ne
 
 **53 tests nuevos** (637 total), 17 de ellos end-to-end contra Postgres y HTTP reales. El agente los **mutation-testeó** en vez de fiarse de que pasaran a la primera: quitando el gate del ciego → 4 fallos, incluido el que lee el **cuerpo crudo** de la respuesta buscando `"truth":"Summoned"`.
 
+## D67 — «Adivina la banda», pero solo sobre TU grimorio — decidido, **sin construir**
+`2026-07-17` · vigente · decidido por Pedro · **NO IMPLEMENTADO** — es el encargo de la ola siguiente
+
+Pedro quiere «adivina la banda». **Un trivial de nombres genérico está descartado** (ver D66): solo puedes adivinar lo que ya conoces → premia el canon → invierte el pilar de Ranks, y es el mismo reflejo que rechaza D43. La app sirve **Nameless** (31 752 bandas del pool, de las que solo el 8.3 % tiene siquiera biografía): no hay nada que adivinar ahí.
+
+**El acotado que lo salva, y que lo hace un buen chiste de Grimoire**: se juega **solo sobre tu propio grimorio** — bandas que **tú invocaste a ciegas y te gustaron**. La pregunta deja de ser «¿sabes de metal?» y pasa a ser **«la amaste a ciegas — ¿sabes siquiera quién es?»**.
+
+**Decidido por Pedro:**
+- **Dos dificultades**: opción múltiple (fácil) y **escribir el nombre** (difícil, más puntos). Los señuelos de la múltiple deben salir del **propio grimorio**, y mejor si son **vecinos en el mapa** (los embeddings los dan gratis) — señuelos cercanos lo hacen difícil de verdad. Para escribir: `pg_trgm` ya tolera erratas y diacríticas (`darkthron` → Darkthrone).
+- **Modo solo Y modo contra amigo**, a elección del jugador. Contra amigo: **cada uno sobre su propio grimorio**, comparando puntuaciones — es justo (cada cual conoce lo suyo) y **funciona aunque los grimorios no se solapen**, que hoy es el caso. Se descartó jugar sobre el grimorio cruzado (C23): la intersección hoy sería ~0 y no habría partida.
+- **El esquema ya lo espera** (D66): `Kind`, `OpponentId` nullable (→ el modo solo sale gratis) y `Difficulty` nullable están puestos **desde la fila uno** para no tener que backfillear ninguna fila desplegada.
+
+### El hallazgo que lo hace posible: no estamos limitados a un audio por banda — **tiramos el resto**
+
+Pedro preguntó si el juego era viable con un solo audio por banda. **`Artist.PreviewUrl` es una columna suelta, pero no por límite de las fuentes: por una decisión de almacenamiento que nunca tuvo motivo para ser otra** (el Rito solo necesita un corte, D25/D40).
+
+```csharp
+// ITunesEnrichmentSource.cs:38
+search?term={term}&entity=song&limit=25
+// :76
+.FirstOrDefault(...)   // ← pedimos 25 temas y guardamos 1
+```
+
+**Ya pagamos la petición de 25 y descartamos 24.** Deezer es peor: `artist/{id}/top?limit=1` — pedimos uno solo, y subirlo es cambiar un número.
+
+**Por qué importa para el juego**: con un único corte, «adivina la banda» sobre tu grimorio te sirve **el mismo audio que ya oíste al invocarla** → es memoria de *ese clip*, no conocimiento de la banda. **Con un tema distinto es un juego de verdad.** Por eso la ola 2 empieza por los previews múltiples (tabla hija `artist_previews`) y el juego debe **preferir un tema distinto al del rito**, cayendo al mismo solo si no hay otro.
+
+**Cuidado al implementarlo**: más previews **no crea un riesgo nuevo, pero amplía R9** (los ToS de Apple ya chocan con el Rito a ciegas — riesgo vivo aceptado mientras la app sea privada). Y siguen valiendo el invariante 4 (**Grimoire no reproduce música**: 30-45 s y enlaces) y D32/D40 (proxy de capacidad, **nunca audio local**, resolución JIT).
+
+**Realidad de los datos**: solo **144 bandas** tienen `preview_url` hoy — crecen JIT al usar el Rito (D40). Igual que D66, el juego **arranca casi vacío** y su munición la genera jugar.
+
 ---
 
 ## Preguntas abiertas
