@@ -1,6 +1,6 @@
 # Grimoire — memoria del proyecto
 
-> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-17** (ver **§6g** — biografías en español (D64), la influencia del Bloodline arreglada 69→1 953 (D65), `pnpm test` cableado al gate, y **un bug de doble escape que introdujo el propio agente** el día anterior. Antes, **§6f** — el bug de clase de los tres crawls: `null` confundía «no hay dato» con «no pude preguntar», y con marcador de por medio eso son datos envenenados o bucles infinitos. Contrato de desenlaces D61 + re-embed por huella D62. Antes, **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
+> Documento de **memoria consolidada**: qué es, qué se construyó, cómo, con qué datos, y cómo está desplegado. Se lee junto a `WORKLOG.md` (**el registro exhaustivo y cronológico de todo lo hecho** — 35 commits, cada ola, cada bug, cada operación de datos, el despliegue paso a paso), `DECISIONS.md` (el porqué de cada decisión, append-only), `SPEC.md` (el qué), `DESIGN.md` (la dirección visual) y `progress/*.md` (el detalle por ola). Última actualización: **2026-07-17 (tarde)** — ver **§6h**: Carlitos probó la app y **los cinco comentarios eran ciertos**; el más grave destapó que **el slider del Rito servía bandas al azar en su posición por defecto** (52.7 % de acierto contra un azar de 50.5 %) porque el punto medio de un slider lineal sobre percentiles **es** la banda típica del corpus, por construcción (**D68**, default ya al 82 %). Con él: escenas por **lift** y no por headcount, el «ya añadida» que le mentía al usuario, y Explore plegable. Antes, **§6g** — biografías en español (D64), la influencia del Bloodline arreglada 69→1 953 (D65), `pnpm test` cableado al gate, y **un bug de doble escape que introdujo el propio agente** el día anterior. Antes, **§6f** — el bug de clase de los tres crawls: `null` confundía «no hay dato» con «no pude preguntar», y con marcador de por medio eso son datos envenenados o bucles infinitos. Contrato de desenlaces D61 + re-embed por huella D62. Antes, **§6d** — sesión larga con Pedro: optimización MA (D53), Atlas usable, **biografías Wikipedia** (D54), **ficha con temas MA reales + todo clicable** (D55), y el **BLOQUE SOCIAL COMPLETO**: perfil con gusto híbrido (D56), amigos + **D28 sesiones revocables saldado** (D57), sidebar lateral (D58), re-seed desde perfil (D59), **notificaciones in-app + regalar rito + rareza + duelo** (D60). §6c es la sesión anterior del mismo día).
 
 ---
 
@@ -407,6 +407,69 @@ Dos agentes en paralelo, fronteras disjuntas (previews = dueño único de migrac
 
 - **`DeathsJob` tiene la misma enfermedad de escala**: materializa **98 250 entidades `Artist` completas** (66 554 con vector de 768 dims, cientos de MB) para usar 21 773. Misma familia que `ListenersJob` (D61) e `InfluenceJob` (D65).
 - ⚠️ **Riesgo latente de repetir el incidente de §6f**: correr `MigrateAsync` contra una BD atrasada dispara un `CREATE INDEX CONCURRENTLY` sobre 8.9M recordings que **revienta el timeout de 30 s y deja un índice inválido**. Peor: `IF NOT EXISTS` **casa por nombre sin mirar validez**, así que una migración posterior lo marca como aplicado sin construir nada. Le pasó a un subagente en la BD de dev (reparado, dev intacta y verificada: 0 índices inválidos).
+
+---
+
+## 6h. Sesión 2026-07-17 (tarde) — Carlitos probó la app, y el motor no estaba haciendo nada
+
+Cinco comentarios de un amigo por WhatsApp. **Los cinco eran ciertos**, y uno destapó que el pilar central de la app no funcionaba en su ajuste por defecto. Commits `1cfeb82`, `9822771`, `d2b82d9`, `271b47c`, todos en `origin/main` y **desplegados y verificados en prod**.
+
+### 🔴 El grande: el slider servía bandas al azar (D68)
+
+Carlitos: *«el percentil central es muy loco… no sé cómo de grande es el espacio pero es mierda XD»*.
+
+Medido contra prod con el gusto real de un usuario cuyo grimorio es metal y punk: **sacar una banda al azar del pool descubrible acierta el 50.5 %**. El slider en su **posición por defecto (0.5) acertaba el 52.7 %**. Todo el aparato —embeddings, vector de gusto, muestreo, anillo, HNSW, sorteo Gumbel de rareza— entregaba, en el ajuste que ve todo el mundo al entrar, **exactamente lo que habría dado `ORDER BY random()`**. Y la mitad superior del recorrido estaba **por debajo del azar**: 21.0 % en 0.75, 3.0 % en el abismo.
+
+**No fue mala suerte: los percentiles se lo hacen a sí mismos.** El percentil 50 de «distancia a tu gusto» es, por definición, la banda típica del corpus → **cualquier** slider lineal sobre percentiles tiene su punto medio clavado en el azar, por construcción. D26 eligió percentiles por una razón excelente y que sigue siendo correcta (los radios coseno absolutos no son interpretables, y los percentiles se adaptan a cada oyente); lo que nadie miró fue **qué había en medio del recorrido**.
+
+La señal está **empaquetada en el quinto inferior**: 95.7 % en diana por debajo del percentil 20, 35 % ya en el 60. Arreglo: `lo = comfort^2 × (1 − width)`. Extremos = puntos fijos, solo se redistribuye el medio. **Default: 52.7 % → 82.0 %.** `Rite:ReachCurve` a 1.0 devuelve el comportamiento viejo.
+
+**Por qué vivió meses**: los tests del mapeo fijaban **solo comfort 0 y 1**, que son puntos fijos bajo cualquier curva positiva → pasaban con el bug dentro y habrían pasado con cualquier arreglo. Los nuevos fijan el medio, verificados **rompiendo el código**. Y `stats` decía **HEALTHY** todo el tiempo sin mentir: mide si el corpus está degenerado (no lo está). **Nunca midió qué recibe el usuario.** Un diagnóstico verde sobre la geometría del corpus no dice nada de la calibración del mando.
+
+### Escenas por lift, no por headcount (d2b82d9)
+
+*«Mencionas gothemburg y tampa en la descripción pero no salen»*. Las ciudades **están** (Gothenburg 173 bandas, Tampa 85); las enterraba el ranking. Ordenar por nº de bandas mide **el tamaño de la ciudad**, no que exista una escena: «Los Angeles 2000 rock» (59) era la nº 1, Gotemburgo 1990 death metal la **175**, Tampa 1980 la **384**, con corte en 60. El texto de intro prometía justo las dos que el ranking garantizaba no enseñar.
+
+Ahora: una familia por banda + **lift** (¿está este sonido sobrerrepresentado aquí contra todo el catálogo?). LA desaparece; London 1970 punk (65 bandas, la mayor superviviente) cae al 55. Arriba: **Palm Desert 1990 Stoner** (Queens of the Stone Age, Fatso Jetson, Slo Burn, Unida — la órbita de Kyuss), hardcore de DC y Boston, sludge de Chicago, thrash de Belo Horizonte y Medellín.
+
+**El camino, que fue todo medición y no razonamiento** — la concentración cruda sobrecorrige (gana «Veneto, 5 bandas de 5» = un hueco de datos disfrazado de escena → suelo de 6); el lift sobre tags crudos saca **tautologías** porque los tags de MB mezclan sonidos con sitios («detroit» en Detroit, lift 157), y **una lista negra no cierra** (el vocabulario es abierto y sucio: «norwegian» no es «Norway», y existe «likedis auto») → lista blanca de `RiteGenres` menos progressive/folk/rock.
+
+**Las etiquetas NO son las de `RiteGenres`.** Dos de sus needles son a propósito más anchos que su nombre: `"gothic"` caza gothic rock, `"symphonic"` caza symphonic rock. Como **carril ciego** está bien (no se afirma nada). Como **titular impreso junto a las bandas** es falso para la mitad: **390 de 787** «gothic» no llevan «gothic metal», **392 de 679** «symphonic». La escena de Nagoya es real y el lift la encuentra, pero sus bandas son **visual kei** tagueadas «gothic» a pelo (FANATIC◇CRISIS no tiene ni un tag de metal). Ahora imprimen **«Gothic»**. Llamarlas Gothic Metal inventaría un género que nunca tocaron.
+
+### «Ya añadida»: una banda sugerida no es una banda que añadiste (9822771)
+
+*«Intenté poner como 5ª megadeth y me dice ya añadida pero había puesto in flames, machine head, kreator y amon amarth»*. La rejilla es **sobre todo sugerencias** (elegir una banda despliega sus vecinas debajo, D59), y Megadeth había llegado como pariente del thrash que eligió. `SeedPicker.tsx:121` trataba «visible en la rejilla» como «elegida por el usuario» → le **afirmaba algo falso a la cara** y le **deshabilitaba la única acción** que lo habría hecho verdad. Es también su otro síntoma: *«parece que algunas añade por defecto si metes otras»*.
+
+**El hook nunca necesitó esa guarda** — la UI había inventado una regla que `core/` no tenía. Cuatro líneas fuera.
+
+Su *«(en decade)»* era **literal, no un despiste**: `DecadePage` envuelve el juego en `RiteGate`, que renderiza `ColdStart` si no hay gusto sembrado. Estaba en `/decade`, sin sembrar, mirando el picker. Un subagente lo despachó como «pista falsa» y el agente principal se lo tragó y lo repitió.
+
+**No había ningún e2e de cold start.** Ahora `e2e/cold-start.spec.ts` cubre las dos mitades, verificado restaurando el bug: el primero cae con `Received: disabled` (la experiencia exacta de Carlitos), el segundo sigue verde porque esa mitad nunca estuvo mal.
+
+### Explore plegable (271b47c)
+
+*«Es inmenso, tarda en cargar… debería poder esconderse secciones»*. Montar la página disparaba **6 queries + 48 portadas**. Ahora las 7 secciones pliegan, cada una pasa `open` como `enabled`, y el estado persiste por lector vía `webStorage` (nunca `localStorage` directo — invariante 6). Medido **en build de producción**, porque dev corre bajo `<StrictMode>` y **duplica cada query**:
+
+| | Antes | Ahora |
+|---|---|---|
+| Queries de sección al montar | 6 | **1** |
+| Sección plegada | — | **0 peticiones** |
+| Portadas al entrar | 48 | **12** |
+
+**El muro de portadas ERA la carga**: 48 de las 56 peticiones. Plegar todas las queries movía el total solo de 54 a 49 mientras eso seguía en 48 → el muro baja a 12 (decisión de Pedro sobre plegarlo del todo o dejarlo en 48). ⚠️ **`Cover.tsx` ya tenía `loading="lazy"` y NO muerde**: el margen de precarga de Chrome (~1250 px) es más alto que el muro, así que pedía las 48 estuvieran en pantalla o no — verificado incluso a 390 px de móvil. **El atributo lazy nunca iba a ser la palanca; el límite sí.**
+
+### Lecciones de proceso, que son la mitad del valor de la sesión
+
+- **🔥 Un agente hizo `git stash` sobre el árbol compartido con trabajo sin commitear del hilo principal.** Su `git status` inicial decía limpio; los cambios llegaron después. El `pop` lo devolvió todo intacto, pero **fue suerte, no diseño**. La culpa es de quien lanzó el agente sin `isolation: "worktree"` y con trabajo sin commitear. Al segundo agente se le prohibió git explícitamente y no hubo incidente.
+- **El proxy presentado como medición, otra vez** (§6g ya lo documentó y volvió a pasar): se afirmó «el corpus es 24.3 % death metal, Gotemburgo lift 0.5, puesto 298» **midiendo sobre un universo multifamilia que no es el que usa el código**. Real: **18.69 %**, lift **1.83**, puesto **249**. Y peor, se afirmó que **ninguna** métrica podría sacar el canon: con lift, **Tampa entra en el puesto 48**. Lo cazó el subagente al que se le pidió explícitamente que no escondiera divergencias — **pedirlo funcionó**.
+- **Una sonda mal hecha casi canta un éxito falso**: medir Explore con `waitUntil: 'networkidle'` dio «0 portadas» porque la página se asienta **antes** de que React lance las imágenes. Con espera explícita: 12. Un número bueno de más es tan mentira como uno malo.
+
+### Deuda detectada, no atacada
+
+- **`tsconfig.app.tsbuildinfo` está trackeado** (entró en `e57962b`/`8762ac5`). Es la caché incremental de TS: ensucia el árbol en cada build. Se dejó **fuera** de los cuatro commits. `git rm --cached` + `.gitignore` lo cierra.
+- **`RiteGenres.cs` dice ser «one source of truth» y no lo es**: `RiteConsole.tsx:30` tiene su propia copia a mano de la lista en vez de llamar a `GET /api/rite/genres`. Hoy no molesta porque coinciden; el día que cambie una etiqueta, **divergen en silencio**.
+- **El Rainbow ambiguo**: `discovery.spec.ts` casaba `/^Rainbow/` + `.first()` y el catálogo tiene **tres** Rainbow → comparaba una psicodélica estadounidense, no la de Blackmore, y la aserción sobre Don Airey **no medía nada** (`sharedMembers: []`). Arreglado ahí, **sigue igual en `lineage.spec.ts:30`**.
+- **Q11** (el gusto multimodal) y **Q12** (los E2E fuera del gate + el puerto 5173 okupado) — ver `DECISIONS.md`.
 
 ---
 
