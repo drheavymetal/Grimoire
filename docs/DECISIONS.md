@@ -1039,8 +1039,8 @@ Así que el juego es **exposición nueva, y de la clase negativa** (un juicio ne
 
 **53 tests nuevos** (637 total), 17 de ellos end-to-end contra Postgres y HTTP reales. El agente los **mutation-testeó** en vez de fiarse de que pasaran a la primera: quitando el gate del ciego → 4 fallos, incluido el que lee el **cuerpo crudo** de la respuesta buscando `"truth":"Summoned"`.
 
-## D67 — «Adivina la banda», pero solo sobre TU grimorio — decidido, **sin construir**
-`2026-07-17` · vigente · decidido por Pedro · **NO IMPLEMENTADO** — es el encargo de la ola siguiente
+## D67 — «Adivina la banda», pero solo sobre TU grimorio
+`2026-07-17` · vigente · decidido por Pedro · **DESPLEGADO Y VERIFICADO** (commit `8762ac5`) — ver el cierre al final
 
 Pedro quiere «adivina la banda». **Un trivial de nombres genérico está descartado** (ver D66): solo puedes adivinar lo que ya conoces → premia el canon → invierte el pilar de Ranks, y es el mismo reflejo que rechaza D43. La app sirve **Nameless** (31 752 bandas del pool, de las que solo el 8.3 % tiene siquiera biografía): no hay nada que adivinar ahí.
 
@@ -1068,7 +1068,31 @@ search?term={term}&entity=song&limit=25
 
 **Cuidado al implementarlo**: más previews **no crea un riesgo nuevo, pero amplía R9** (los ToS de Apple ya chocan con el Rito a ciegas — riesgo vivo aceptado mientras la app sea privada). Y siguen valiendo el invariante 4 (**Grimoire no reproduce música**: 30-45 s y enlaces) y D32/D40 (proxy de capacidad, **nunca audio local**, resolución JIT).
 
-**Realidad de los datos**: solo **144 bandas** tienen `preview_url` hoy — crecen JIT al usar el Rito (D40). Igual que D66, el juego **arranca casi vacío** y su munición la genera jugar.
+**Realidad de los datos**: solo **144 bandas** tenían `preview_url` cuando se escribió esto — crecen JIT al usar el Rito (D40). Igual que D66, el juego **arranca casi vacío** y su munición la genera jugar.
+
+### Cierre — cómo quedó (desplegado el 2026-07-17, `8762ac5`)
+
+Dos agentes en paralelo con fronteras disjuntas (previews = dueño único de migración; el juego, **prohibido migrar**), programando contra un contrato (`IGuessPreviewSource`) para no esperarse. Salió bien: **el diseño del agente del juego corrigió el del de previews** — este pasaba un `Random`, y como el audio va por URL de capacidad que **re-resuelve en cada replay**, eso habría dado una canción distinta cada vez que el jugador pulsara repetir. El `selector` determinista (el id de la ronda) lo cierra por construcción.
+
+**Números reales tras la cosecha:**
+
+| | Antes | Ahora |
+|---|---|---|
+| Clips totales | 144 (uno por banda) | **1 104** |
+| Bandas con audio | 144 | **246** |
+| **Bandas con alternativa real** | **0** | **226** (~4.5 clips/banda) |
+
+Los +102 `preview_url` son propina de la fase de resolve: **100 bandas más que el Rito ya puede servir**, sin relación con el juego.
+
+**Esquema**: tabla hija `artist_previews` PK `(artist_id, url)` — **la URL es la identidad del clip**, así que un re-pase es find-or-insert y el duplicado es imposible *en la base*, no solo improbable en el pase. `source` y `track_title` **se guardan, no se re-derivan**: son la mitad de la mitigación de R9 (atribución en el reveal) — `preview_url` nunca registró el origen, y **por eso esa mitigación no era construible con los datos que había**. ⚠️ `track_title` **filtra la banda** («Iron Maiden» es un tema de Iron Maiden): no renderizar antes de responder. Marcador propio `previews_checked_at` (`preview_url` no puede hacer de marcador: una banda de un clip y una nunca visitada son idénticas a través de él).
+
+**Coste en peticiones**: **cero extra** para bandas nuevas; **3 por banda, una vez** para las ya sondeadas — inevitable, porque todo lo audible en prod llegó por JIT y ya está marcado, así que la fase 1 no puede volver a verlo nunca.
+
+**El empalme** (`RiteClipSource`) lo hizo el agente principal: carga las alternativas y toca una, cayendo al corte del Rito —**etiquetado honestamente**— para las bandas cosechadas antes de que la tabla existiera. `Previews` es una navegación perezosa y **una colección sin cargar está vacía, no ausente**: quitar el `LoadAsync` hace que cada ronda repita el clip ya oído, sin error ni build roto — **la ola entera anulada a oscuras**. Hay test, y se verificó rompiendo el código a propósito (sin `LoadAsync` → falla; restaurado → pasa).
+
+**Deuda declarada**: `GameRound.Answer` se queda **null** en este juego — un id de banda (36 chars) no cabe en su `varchar(16)` y truncarlo archivaría un hecho distinto bajo ese nombre. Coste: al revisar una ronda ves qué banda era y si acertaste, **no lo que escribiste**. Necesita columna nueva. **Puntos: Normal 1, Difícil 3** — cambio declarado, no medición (4 opciones regalan 1 de cada 4).
+
+**Trampa conocida y no cerrada**: quien se empeñe puede descargar el preview de cada opción y comparar bytes con el audio de la ronda. Inherente, y D66 tiene la misma forma.
 
 ---
 

@@ -383,16 +383,25 @@ Pedro pidió juego entre dos. Se descartó «adivina la banda» genérico (premi
 
 **Arranca vacío**: 10 Summoned / 3 Banished en toda la prod. La munición la genera jugar al Rito.
 
-### 🔜 OLA SIGUIENTE, ya decidida por Pedro: previews múltiples + «adivina la banda» (D67)
+### ✅ Previews múltiples + «adivina la banda» (D67) — DESPLEGADO (`8762ac5`)
 
-**Encargo pendiente, no empezado.** Dos piezas, en este orden porque la segunda necesita la primera:
+Dos agentes en paralelo, fronteras disjuntas (previews = dueño único de migración; el juego, prohibido migrar), programando contra un contrato (`IGuessPreviewSource`) para no esperarse. **El diseño del agente del juego corrigió el del otro**: este pasaba un `Random`, y como el audio va por URL de capacidad que **re-resuelve en cada replay**, habría dado una canción distinta cada vez que el jugador pulsara repetir.
 
-1. **Previews múltiples** (tabla hija `artist_previews`). El hallazgo: **no estamos limitados a un audio por banda, es que tiramos el resto**. `ITunesEnrichmentSource.cs:38` pide `limit=25` y la 76 hace `FirstOrDefault` → **pagamos 25 temas y guardamos 1**. Deezer pide `top?limit=1` → subirlo es cambiar un número. Sigue valiendo: invariante 4 (30-45 s, nunca reproducir), D32/D40 (proxy de capacidad, **nunca audio local**, JIT), y ojo con **R9** (los ToS de Apple ya chocan con el Rito; más previews amplía ese riesgo vivo, no crea uno nuevo).
-2. **«Adivina la banda»** sobre **tu propio grimorio** (D67): dos dificultades (múltiple con señuelos del propio grimorio —mejor vecinos en el mapa, gratis vía embeddings— y escribir el nombre con `pg_trgm`), **modo solo y modo contra amigo** (cada uno sobre SU grimorio, comparando puntuaciones). **Debe servir un tema DISTINTO al del rito**: con el mismo corte solo pruebas memoria de ese clip, no conocimiento de la banda.
+**El hallazgo**: no estábamos limitados a un audio por banda — **tirábamos el resto**. iTunes daba 25 temas y guardábamos 1; Deezer pedía exactamente 1. Ahora se cosechan en `artist_previews`.
 
-**El esquema de D66 ya lo espera**: `Kind`, `OpponentId` nullable y `Difficulty` nullable, puestos desde la fila uno.
+| | Antes | Ahora |
+|---|---|---|
+| Clips | 144 | **1 104** |
+| Bandas con audio | 144 | **246** |
+| **Bandas con alternativa real** | **0** | **226** |
 
-**Arranca casi vacío**: solo **144 bandas** tienen `preview_url` (crecen JIT al usar el Rito).
+`preview_url` **intacto** (verificado: el harvest nunca lo escribe). Los +102 son propina de la fase resolve: **100 bandas más que el Rito puede servir**. `0 left unmarked` — ninguna fuente falló.
+
+**El empalme** (`RiteClipSource`, hecho por el agente principal): `Previews` es navegación perezosa y **una colección sin cargar está vacía, no ausente** — sin el `LoadAsync` cada ronda repite el clip ya oído, sin error ni build roto, **la ola anulada a oscuras**. Test verificado rompiendo el código a propósito.
+
+⚠️ **Deuda**: `GameRound.Answer` queda **null** en este juego (un id de 36 chars no cabe en `varchar(16)`) → al revisar una ronda no ves **lo que escribiste**. Necesita columna nueva.
+
+**Dos meteduras de pata del agente principal, para que consten**: le pasó `GRIMOIRE_PREVIEWS_LIMIT` cuando la variable es **singular** (`GRIMOIRE_PREVIEW_LIMIT`), y al corregirlo puso el límite a 100 000 → **arrancó un resolve sobre 100k bandas** (días martilleando iTunes). Parado en 30 s y acotado a 200. El `Limit` gobierna **las dos fases**, así que no se puede cosechar sin resolver algo.
 
 ### Deuda detectada, no atacada
 
